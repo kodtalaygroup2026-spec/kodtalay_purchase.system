@@ -1,8 +1,7 @@
 // ===========================================================================
 // File: src/types/database.ts
 // คำอธิบาย: TypeScript types ของสคีมาฐานข้อมูล (สอดคล้องกับ migration 0001)
-// หมายเหตุ: ไฟล์นี้เขียนด้วยมือสำหรับ scaffold เริ่มต้น
-//          เมื่อ schema เริ่มนิ่ง แนะนำให้ generate อัตโนมัติด้วยคำสั่ง:
+// หมายเหตุ: เมื่อ schema เริ่มนิ่ง แนะนำให้ generate อัตโนมัติด้วยคำสั่ง:
 //          npx supabase gen types typescript --project-id <ref> > src/types/database.ts
 // ===========================================================================
 
@@ -28,7 +27,6 @@ export type PoStatus =
 
 export type ApprovalDecision = "pending" | "approved" | "rejected";
 
-// โครงสร้างกลางของแถวในแต่ละตาราง
 export interface Profile {
   id: string;
   full_name: string;
@@ -50,6 +48,13 @@ export interface Supplier {
   email: string | null;
   address: string | null;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +85,19 @@ export interface PurchaseRequisition {
   updated_at: string;
 }
 
+export interface PRItem {
+  id: string;
+  pr_id: string;
+  line_no: number;
+  product_id: string | null;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+}
+
 export interface PurchaseOrder {
   id: string;
   po_number: string;
@@ -98,9 +116,56 @@ export interface PurchaseOrder {
   updated_at: string;
 }
 
+export interface POItem {
+  id: string;
+  po_id: string;
+  pr_item_id: string | null;
+  line_no: number;
+  product_id: string | null;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  line_total: number;
+  received_qty: number;
+  created_at: string;
+}
+
+export interface Approval {
+  id: string;
+  reference_type: "PR" | "PO";
+  reference_id: string;
+  step: number;
+  approver_id: string;
+  decision: ApprovalDecision;
+  note: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoodsReceipt {
+  id: string;
+  gr_number: string;
+  po_id: string;
+  received_by: string;
+  received_date: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GRItem {
+  id: string;
+  gr_id: string;
+  po_item_id: string;
+  received_qty: number;
+  note: string | null;
+  created_at: string;
+}
+
 // ---------------------------------------------------------------------------
-// โครงสร้าง Database ที่ใช้กับ supabase-js เพื่อให้ query มี type ครบ
-// (ใส่เฉพาะตารางหลักไว้ก่อนใน scaffold — เพิ่มเติมได้ภายหลัง)
+// Database schema สำหรับ supabase-js typed client
 // ---------------------------------------------------------------------------
 export interface Database {
   public: {
@@ -115,9 +180,14 @@ export interface Database {
         Insert: Partial<Supplier> & Pick<Supplier, "code" | "name">;
         Update: Partial<Supplier>;
       };
+      categories: {
+        Row: Category;
+        Insert: Partial<Category> & Pick<Category, "name">;
+        Update: Partial<Category>;
+      };
       products: {
         Row: Product;
-        Insert: Partial<Product> & Pick<Product, "sku" | "name">;
+        Insert: Partial<Product> & Pick<Product, "sku" | "name" | "unit" | "unit_price">;
         Update: Partial<Product>;
       };
       purchase_requisitions: {
@@ -126,11 +196,40 @@ export interface Database {
           Pick<PurchaseRequisition, "pr_number" | "title" | "requester_id">;
         Update: Partial<PurchaseRequisition>;
       };
+      pr_items: {
+        Row: PRItem;
+        Insert: Partial<PRItem> &
+          Pick<PRItem, "pr_id" | "line_no" | "description" | "quantity" | "unit" | "unit_price">;
+        Update: Partial<PRItem>;
+      };
       purchase_orders: {
         Row: PurchaseOrder;
         Insert: Partial<PurchaseOrder> &
-          Pick<PurchaseOrder, "po_number" | "supplier_id" | "created_by">;
+          Pick<PurchaseOrder, "po_number" | "supplier_id" | "created_by" | "order_date">;
         Update: Partial<PurchaseOrder>;
+      };
+      po_items: {
+        Row: POItem;
+        Insert: Partial<POItem> &
+          Pick<POItem, "po_id" | "line_no" | "description" | "quantity" | "unit" | "unit_price">;
+        Update: Partial<POItem>;
+      };
+      approvals: {
+        Row: Approval;
+        Insert: Partial<Approval> &
+          Pick<Approval, "reference_type" | "reference_id" | "step" | "approver_id">;
+        Update: Partial<Approval>;
+      };
+      goods_receipts: {
+        Row: GoodsReceipt;
+        Insert: Partial<GoodsReceipt> &
+          Pick<GoodsReceipt, "gr_number" | "po_id" | "received_by" | "received_date">;
+        Update: Partial<GoodsReceipt>;
+      };
+      gr_items: {
+        Row: GRItem;
+        Insert: Partial<GRItem> & Pick<GRItem, "gr_id" | "po_item_id" | "received_qty">;
+        Update: Partial<GRItem>;
       };
     };
     Enums: {

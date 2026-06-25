@@ -6,17 +6,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-import type { Database } from "@/types/database";
 import { env } from "@/lib/env";
 
 /**
  * สร้าง Supabase client ฝั่ง server ที่ผูกกับ cookies ของ request ปัจจุบัน
  * ใช้ anon key + session ของผู้ใช้ จึงยังอยู่ภายใต้ RLS
+ * หมายเหตุ: ใช้ untyped client ไปก่อน จนกว่าจะ generate types จาก Supabase CLI
  */
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient<Database>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createServerClient<any>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
@@ -24,9 +25,10 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAll(cookiesToSet: any[]) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options: Record<string, unknown> }) =>
               cookieStore.set(name, value, options),
             );
           } catch {
