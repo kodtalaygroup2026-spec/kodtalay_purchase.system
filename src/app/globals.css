@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* สไตล์พื้นฐานของทั้งระบบ */
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  /* ฟอนต์ระบบ รองรับภาษาไทยและโหลดเร็ว (ไม่ต้องดึงฟอนต์ภายนอก) */
+  font-family: "Sarabun", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+}
