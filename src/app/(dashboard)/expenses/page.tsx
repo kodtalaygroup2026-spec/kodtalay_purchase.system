@@ -16,16 +16,33 @@ export default async function ExpensesPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("role")
+    .eq("id", user!.id)
+    .single();
+
+  const isAdmin = profile?.role === "admin";
+
   const [expenses, branches] = await Promise.all([
     getExpenseList({
       status: searchParams.status,
       branch_id: searchParams.branch_id,
     }),
-    getBranches(),
+    isAdmin ? getBranches() : Promise.resolve([]),
   ]);
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const STATUS_LIST: { value: ExpenseStatus; label: string }[] = [
+    { value: "submitted", label: "รออนุมัติ" },
+    { value: "approved", label: "อนุมัติแล้ว" },
+    { value: "paid", label: "จ่ายแล้ว" },
+    { value: "rejected", label: "ไม่อนุมัติ" },
+    { value: "draft", label: "ร่าง" },
+    { value: "cancelled", label: "ยกเลิก" },
+  ];
 
   return (
     <div className="space-y-5">
@@ -43,31 +60,29 @@ export default async function ExpensesPage({
         </Link>
       </div>
 
-      {/* Filter */}
+      {/* Filter สถานะ */}
       <div className="flex flex-wrap gap-2">
-        <FilterLink label="ทั้งหมด" href="/expenses" active={!searchParams.status} />
-        {(["submitted", "approved", "paid", "rejected", "draft", "cancelled"] as ExpenseStatus[]).map(
-          (s) => (
-            <FilterLink
-              key={s}
-              label={s === "submitted" ? "รออนุมัติ" : s === "approved" ? "อนุมัติแล้ว" : s === "paid" ? "จ่ายแล้ว" : s === "rejected" ? "ไม่อนุมัติ" : s === "draft" ? "ร่าง" : "ยกเลิก"}
-              href={`/expenses?status=${s}`}
-              active={searchParams.status === s}
-            />
-          )
-        )}
+        <FilterChip label="ทั้งหมด" href="/expenses" active={!searchParams.status} />
+        {STATUS_LIST.map((s) => (
+          <FilterChip
+            key={s.value}
+            label={s.label}
+            href={`/expenses?status=${s.value}`}
+            active={searchParams.status === s.value}
+          />
+        ))}
       </div>
 
-      {/* Filter สาขา */}
-      {branches.length > 0 && (
+      {/* Filter สาขา — แสดงเฉพาะ admin */}
+      {isAdmin && branches.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          <FilterLink
-            label="ทุกสาขา"
+          <FilterChip
+            label="ทุกบริษัท"
             href={searchParams.status ? `/expenses?status=${searchParams.status}` : "/expenses"}
             active={!searchParams.branch_id}
           />
           {branches.map((b) => (
-            <FilterLink
+            <FilterChip
               key={b.id}
               label={b.name}
               href={`/expenses?${searchParams.status ? `status=${searchParams.status}&` : ""}branch_id=${b.id}`}
@@ -88,7 +103,9 @@ export default async function ExpensesPage({
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อเรื่อง</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">สาขา</th>
+                {isAdmin && (
+                  <th className="px-4 py-3 text-left font-medium text-slate-500">บริษัท</th>
+                )}
                 <th className="px-4 py-3 text-left font-medium text-slate-500">วันที่เบิก</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-500">ยอดรวม</th>
                 <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
@@ -108,9 +125,11 @@ export default async function ExpensesPage({
                   <td className="max-w-[180px] truncate px-4 py-3 text-slate-700">
                     {exp.title}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {exp.branch?.name ?? "-"}
-                  </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-slate-500">
+                      {exp.branch?.name ?? "-"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-slate-500">
                     {new Date(exp.request_date).toLocaleDateString("th-TH")}
                   </td>
@@ -130,7 +149,7 @@ export default async function ExpensesPage({
   );
 }
 
-function FilterLink({
+function FilterChip({
   label,
   href,
   active,

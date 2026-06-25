@@ -18,10 +18,19 @@ export async function createExpense(input: CreateExpenseInput) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  // ดึงรหัสสาขาเพื่อใช้เป็น prefix เลขที่ (เช่น CK-202506-0001)
+  const { data: branchData, error: branchError } = await (supabase as any)
+    .from("branches")
+    .select("code")
+    .eq("id", input.branch_id)
+    .single();
+  if (branchError) throw new Error("ไม่พบข้อมูลสาขา");
+  const numberPrefix = branchData.code as string;
+
   // สร้างเลขที่ใบเบิก
   const { data: numData, error: numError } = await (supabase as any).rpc(
     "next_document_number",
-    { prefix: "EXP", table_name: "expense_requests", column_name: "request_number" }
+    { prefix: numberPrefix, table_name: "expense_requests", column_name: "request_number" }
   );
   if (numError) throw new Error(numError.message);
 
