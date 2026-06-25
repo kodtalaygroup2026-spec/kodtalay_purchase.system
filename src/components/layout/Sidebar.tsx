@@ -9,8 +9,10 @@ import {
   Truck,
   Users,
   Package,
+  Settings,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
+import type { UserRole } from "@/types/database";
 
 const NAV_ITEMS = [
   { href: "/", icon: LayoutDashboard, label: "หน้าหลัก" },
@@ -22,8 +24,32 @@ const NAV_ITEMS = [
   { href: "/products", icon: Package, label: "สินค้า" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  role?: UserRole;
+}
+
+export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
+
+  function navLink(href: string, icon: React.ElementType, label: string) {
+    const Icon = icon;
+    const isActive =
+      href === "/" ? pathname === "/" : pathname.startsWith(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+          isActive
+            ? "bg-blue-600 text-white"
+            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+        }`}
+      >
+        <Icon size={18} />
+        {label}
+      </Link>
+    );
+  }
 
   return (
     <aside className="hidden lg:flex lg:flex-col w-64 min-h-screen bg-slate-900 text-white shrink-0">
@@ -31,27 +57,18 @@ export function Sidebar() {
         <span className="font-bold text-sm text-white">{APP_NAME}</span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map((item) => navLink(item.href, item.icon, item.label))}
       </nav>
+
+      {/* Admin-only section */}
+      {role === "admin" && (
+        <div className="px-3 py-3 border-t border-slate-700">
+          <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            จัดการระบบ
+          </p>
+          {navLink("/settings/users", Settings, "จัดการผู้ใช้")}
+        </div>
+      )}
     </aside>
   );
 }

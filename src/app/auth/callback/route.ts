@@ -1,0 +1,22 @@
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+
+// Google OAuth callback — Supabase redirect มาที่นี่หลัง user อนุมัติ
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
+  const next = searchParams.get("next") ?? "/";
+
+  if (code) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (!error) {
+      // login สำเร็จ → ไปหน้า dashboard (หรือหน้าที่ระบุใน ?next=)
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+  }
+
+  // มี error หรือไม่มี code → กลับหน้า login พร้อม error flag
+  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
+}
