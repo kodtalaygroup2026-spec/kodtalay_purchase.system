@@ -27,15 +27,56 @@ export type PoStatus =
 
 export type ApprovalDecision = "pending" | "approved" | "rejected";
 
+export type ExpenseStatus =
+  | "draft"
+  | "submitted"
+  | "approved"
+  | "rejected"
+  | "paid"
+  | "cancelled";
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   full_name: string;
   email: string;
   department: string | null;
+  branch_id: string | null;
   role: UserRole;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ExpenseRequest {
+  id: string;
+  request_number: string;
+  title: string;
+  requester_id: string;
+  branch_id: string;
+  request_date: string;
+  total_amount: number;
+  status: ExpenseStatus;
+  payment_date: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseItem {
+  id: string;
+  expense_id: string;
+  description: string;
+  amount: number;
+  created_at: string;
 }
 
 export interface Supplier {
@@ -220,6 +261,22 @@ export interface Database {
           Pick<Approval, "reference_type" | "reference_id" | "step" | "approver_id">;
         Update: Partial<Approval>;
       };
+      branches: {
+        Row: Branch;
+        Insert: Partial<Branch> & Pick<Branch, "code" | "name">;
+        Update: Partial<Branch>;
+      };
+      expense_requests: {
+        Row: ExpenseRequest;
+        Insert: Partial<ExpenseRequest> &
+          Pick<ExpenseRequest, "request_number" | "title" | "requester_id" | "branch_id" | "request_date">;
+        Update: Partial<ExpenseRequest>;
+      };
+      expense_items: {
+        Row: ExpenseItem;
+        Insert: Partial<ExpenseItem> & Pick<ExpenseItem, "expense_id" | "description" | "amount">;
+        Update: Partial<ExpenseItem>;
+      };
       goods_receipts: {
         Row: GoodsReceipt;
         Insert: Partial<GoodsReceipt> &
@@ -237,6 +294,7 @@ export interface Database {
       pr_status: PrStatus;
       po_status: PoStatus;
       approval_decision: ApprovalDecision;
+      expense_status: ExpenseStatus;
     };
   };
 }

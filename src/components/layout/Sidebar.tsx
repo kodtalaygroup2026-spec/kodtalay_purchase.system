@@ -10,12 +10,15 @@ import {
   Users,
   Package,
   Settings,
+  Receipt,
+  GitBranch,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
 
 const NAV_ITEMS = [
   { href: "/", icon: LayoutDashboard, label: "หน้าหลัก" },
+  { href: "/expenses", icon: Receipt, label: "ใบเบิก" },
   { href: "/requisitions", icon: FileText, label: "ใบขอซื้อ (PR)" },
   { href: "/approvals", icon: CheckSquare, label: "การอนุมัติ" },
   { href: "/orders", icon: ShoppingCart, label: "ใบสั่งซื้อ (PO)" },
@@ -67,6 +70,7 @@ export function Sidebar({ role }: SidebarProps) {
             จัดการระบบ
           </p>
           {navLink("/settings/users", Settings, "จัดการผู้ใช้")}
+          {navLink("/settings/branches", GitBranch, "จัดการสาขา")}
         </div>
       )}
     </aside>

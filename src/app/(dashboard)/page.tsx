@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { APP_NAME, APP_VERSION, PR_STATUS_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils/format";
 import Link from "next/link";
-import { FileText, ShoppingCart, CheckSquare, Truck, Users, Package } from "lucide-react";
+import { FileText, ShoppingCart, CheckSquare, Truck, Users, Package, Receipt } from "lucide-react";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -15,6 +15,7 @@ export default async function HomePage() {
     { count: grCount },
     { count: suppliersCount },
     { count: productsCount },
+    { count: expenseSubmittedCount },
     { data: recentPRs },
   ] = await Promise.all([
     supabase.from("purchase_requisitions").select("*", { count: "exact", head: true }),
@@ -32,6 +33,10 @@ export default async function HomePage() {
       .from("products")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true),
+    (supabase as any)
+      .from("expense_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "submitted"),
     supabase
       .from("purchase_requisitions")
       .select("id, pr_number, title, status, total_amount, created_at")
@@ -40,6 +45,16 @@ export default async function HomePage() {
   ]);
 
   const MODULES = [
+    {
+      href: "/expenses",
+      icon: Receipt,
+      title: "ใบเบิก",
+      desc: "สร้างและติดตามใบเบิกค่าใช้จ่าย",
+      color: "text-teal-600",
+      bg: "bg-teal-50",
+      badgeBg: "bg-teal-600",
+      count: expenseSubmittedCount ?? 0,
+    },
     {
       href: "/requisitions",
       icon: FileText,

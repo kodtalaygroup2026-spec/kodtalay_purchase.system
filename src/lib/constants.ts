@@ -2,7 +2,7 @@
 // File: src/lib/constants.ts
 // คำอธิบาย: ค่าคงที่และ label ภาษาไทยสำหรับสถานะ/บทบาท ใช้ร่วมกันทั้งระบบ
 // ===========================================================================
-import type { PoStatus, PrStatus, UserRole } from "@/types/database";
+import type { ExpenseStatus, PoStatus, PrStatus, UserRole } from "@/types/database";
 
 // เวอร์ชันของระบบ (อัปเดตทุกครั้งที่มีการเปลี่ยนแปลงสำคัญ)
 export const APP_VERSION = "0.1.0";
@@ -36,6 +36,16 @@ export const PO_STATUS_LABELS: Record<PoStatus, string> = {
   partially_received: "รับของบางส่วน",
   received: "รับของครบ",
   closed: "ปิดงาน",
+  cancelled: "ยกเลิก",
+};
+
+// label ภาษาไทยของสถานะใบเบิกค่าใช้จ่าย (Expense)
+export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
+  draft: "ร่าง",
+  submitted: "รออนุมัติ",
+  approved: "อนุมัติแล้ว",
+  rejected: "ไม่อนุมัติ",
+  paid: "จ่ายแล้ว",
   cancelled: "ยกเลิก",
 };
 

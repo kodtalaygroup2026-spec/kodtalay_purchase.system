@@ -42,12 +42,6 @@ export function PRApprovalPanel({
       .eq("id", pr.id);
 
     if (!error) {
-      // แจ้ง LINE notification
-      await fetch("/api/notifications/line", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prId: pr.id, event: "submitted" }),
-      });
       router.refresh();
     }
     setIsLoading(false);
@@ -66,11 +60,6 @@ export function PRApprovalPanel({
       .eq("id", pr.id);
 
     if (!error) {
-      await fetch("/api/notifications/line", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prId: pr.id, event: "approved" }),
-      });
       router.refresh();
     }
     setIsLoading(false);
@@ -90,11 +79,6 @@ export function PRApprovalPanel({
       .eq("id", pr.id);
 
     if (!error) {
-      await fetch("/api/notifications/line", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prId: pr.id, event: "rejected", note }),
-      });
       router.refresh();
     }
     setIsLoading(false);
