@@ -34,37 +34,34 @@ export function Navbar({ profile, avatarUrl }: NavbarProps) {
         ระบบจัดซื้อ Kodtalay
       </span>
       <div className="flex-1" />
-      <div className="flex items-center gap-3">
-        {/* ข้อมูลผู้ใช้ */}
-        <div className="hidden items-center gap-2.5 sm:flex">
-          {/* รูปโปรไฟล์ */}
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt={profile.full_name || profile.email}
-              referrerPolicy="no-referrer"
-              className="h-8 w-8 rounded-full object-cover ring-2 ring-slate-200"
-            />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
-              {initials}
-            </div>
-          )}
-
-          {/* ชื่อและบทบาท */}
-          <div className="text-right">
-            <p className="text-sm font-medium text-slate-800 leading-tight">
-              {profile.full_name || profile.email}
-            </p>
-            <p className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</p>
+      <div className="flex items-center gap-2">
+        {/* รูปโปรไฟล์ — แสดงทุก breakpoint รวมมือถือ */}
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={profile.full_name || profile.email}
+            referrerPolicy="no-referrer"
+            className="h-8 w-8 rounded-full object-cover ring-2 ring-slate-200"
+          />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
+            {initials}
           </div>
+        )}
+
+        {/* ชื่อและบทบาท — ซ่อนบนมือถือ */}
+        <div className="hidden flex-col text-right sm:flex">
+          <p className="text-sm font-medium text-slate-800 leading-tight">
+            {profile.full_name || profile.email}
+          </p>
+          <p className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</p>
         </div>
 
         {/* ปุ่ม logout */}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
+          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600 sm:px-3"
         >
           <LogOut size={16} />
           <span className="hidden sm:inline">ออกจากระบบ</span>
