@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils/format";
-import Link from "next/link";
 
 export default async function ReceiptsPage() {
   const supabase = await createClient();

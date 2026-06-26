@@ -15,6 +15,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   purchaser: "เจ้าหน้าที่จัดซื้อ",
   requester: "ผู้ขอซื้อ",
   viewer: "ผู้ดูข้อมูล",
+  finance: "ฝ่ายการเงิน",
 };
 
 // label ภาษาไทยของสถานะใบขอซื้อ (PR)

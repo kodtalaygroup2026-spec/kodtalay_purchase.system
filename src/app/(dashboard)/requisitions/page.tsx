@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { PR_STATUS_LABELS } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import Link from "next/link";
 import { Plus } from "lucide-react";

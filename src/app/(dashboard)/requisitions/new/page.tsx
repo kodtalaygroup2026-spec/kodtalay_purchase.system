@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
+import type { Branch } from "@/types/database";
 
 interface Product {
   id: string;
@@ -27,18 +29,58 @@ export default function NewRequisitionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchId, setBranchId] = useState("");
   const [items, setItems] = useState<PRItem[]>([
     { product_id: "", product_name: "", unit: "", quantity: 1, unit_price: 0 },
   ]);
 
   useEffect(() => {
+    // โหลด products
     supabase
       .from("products")
       .select("id, name, sku, unit, unit_price")
       .eq("is_active", true)
       .order("name")
       .then(({ data }) => setProducts(data ?? []));
-  }, [supabase]);
+
+    // โหลด branches + user's default branch
+    async function loadBranches() {
+      const { data: branchData } = await (supabase as any)
+        .from("branches")
+        .select("*")
+        .eq("is_active", true)
+        .order("code");
+      const list: Branch[] = branchData ?? [];
+      setBranches(list);
+
+      // ลำดับความสำคัญ: localStorage → profile branch → first branch
+      const saved = localStorage.getItem("last_branch_id");
+      if (saved && list.some((b) => b.id === saved)) {
+        setBranchId(saved);
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await (supabase as any)
+          .from("profiles")
+          .select("branch_id")
+          .eq("id", user.id)
+          .single();
+        if (profile?.branch_id) {
+          setBranchId(profile.branch_id);
+        } else if (list.length > 0) {
+          setBranchId(list[0].id);
+        }
+      }
+    }
+    loadBranches();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectedBranch = branches.find((b) => b.id === branchId);
+  const borderColor = getBranchBorderColor(selectedBranch?.code);
 
   function addItem() {
     setItems((prev) => [
@@ -80,6 +122,12 @@ export default function NewRequisitionPage() {
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    if (!branchId) {
+      setErrorMessage("กรุณาเลือกบริษัท");
+      setIsSubmitting(false);
+      return;
+    }
+
     if (items.some((item) => !item.product_id)) {
       setErrorMessage("กรุณาเลือกสินค้าให้ครบทุกรายการ");
       setIsSubmitting(false);
@@ -97,10 +145,11 @@ export default function NewRequisitionPage() {
       return;
     }
 
-    // สร้าง PR number ผ่าน RPC
+    // สร้าง PR number ผ่าน RPC (ใช้ branch code เป็น prefix)
+    const branchCode = selectedBranch?.code ?? "PR";
     const { data: prNumber, error: rpcError } = await supabase.rpc(
       "next_document_number",
-      { prefix: "PR", table_name: "purchase_requisitions", column_name: "pr_number" }
+      { prefix: branchCode, table_name: "purchase_requisitions", column_name: "pr_number" }
     );
 
     if (rpcError) {
@@ -109,12 +158,13 @@ export default function NewRequisitionPage() {
       return;
     }
 
-    const { data: pr, error: prError } = await supabase
+    const { data: pr, error: prError } = await (supabase as any)
       .from("purchase_requisitions")
       .insert({
         pr_number: prNumber,
         title: formData.get("title") as string,
         requester_id: user.id,
+        branch_id: branchId,
         department: (formData.get("department") as string) || null,
         needed_by: (formData.get("needed_by") as string) || null,
         note: (formData.get("note") as string) || null,
@@ -161,9 +211,21 @@ export default function NewRequisitionPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* ข้อมูลหลัก */}
-        <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-700">ข้อมูลทั่วไป</h2>
+        {/* ข้อมูลหลัก + company selector */}
+        <div className={`space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm border-l-4 ${borderColor} transition-colors`}>
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="font-semibold text-slate-700">ข้อมูลทั่วไป</h2>
+            {branches.length > 0 && (
+              <CompanySelector
+                branches={branches}
+                selectedId={branchId}
+                onChange={(id) => {
+                  setBranchId(id);
+                  localStorage.setItem("last_branch_id", id);
+                }}
+              />
+            )}
+          </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -230,13 +292,13 @@ export default function NewRequisitionPage() {
             <table className="min-w-full text-sm">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-slate-500 w-8">#</th>
+                  <th className="w-8 px-4 py-2 text-left font-medium text-slate-500">#</th>
                   <th className="px-4 py-2 text-left font-medium text-slate-500">สินค้า</th>
-                  <th className="px-4 py-2 text-right font-medium text-slate-500 w-24">จำนวน</th>
-                  <th className="px-4 py-2 text-left font-medium text-slate-500 w-20">หน่วย</th>
-                  <th className="px-4 py-2 text-right font-medium text-slate-500 w-28">ราคา/หน่วย</th>
-                  <th className="px-4 py-2 text-right font-medium text-slate-500 w-28">รวม</th>
-                  <th className="px-4 py-2 w-10"></th>
+                  <th className="w-24 px-4 py-2 text-right font-medium text-slate-500">จำนวน</th>
+                  <th className="w-20 px-4 py-2 text-left font-medium text-slate-500">หน่วย</th>
+                  <th className="w-28 px-4 py-2 text-right font-medium text-slate-500">ราคา/หน่วย</th>
+                  <th className="w-28 px-4 py-2 text-right font-medium text-slate-500">รวม</th>
+                  <th className="w-10 px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -292,7 +354,7 @@ export default function NewRequisitionPage() {
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
-                          className="text-slate-300 hover:text-red-500 transition-colors"
+                          className="text-slate-300 transition-colors hover:text-red-500"
                         >
                           <Trash2 size={15} />
                         </button>

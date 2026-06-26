@@ -1,26 +1,30 @@
-const LINE_API_URL = "https://api.line.me/v2/bot/message/broadcast";
+const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
 
 interface LineMessage {
   type: "text";
   text: string;
 }
 
-export async function sendLineMessage(messages: LineMessage[]): Promise<void> {
+// ส่งข้อความตรงไปยัง LINE User ID เฉพาะคน
+export async function sendLinePushMessage(
+  lineUserId: string,
+  messages: LineMessage[],
+): Promise<void> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  if (!token) return; // ถ้าไม่มี token ให้ข้ามไป ไม่ throw error
+  if (!token || !lineUserId) return;
 
-  const response = await fetch(LINE_API_URL, {
+  const response = await fetch(LINE_PUSH_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ to: lineUserId, messages }),
   });
 
   if (!response.ok) {
     const body = await response.text();
-    console.error("LINE API error:", response.status, body);
+    console.error("LINE push error:", response.status, body);
   }
 }
 
@@ -33,8 +37,7 @@ export function buildPRNotificationMessage(params: {
   prUrl: string;
   note?: string;
 }): string {
-  const { event, prNumber, title, requesterName, totalAmount, prUrl, note } =
-    params;
+  const { event, prNumber, title, requesterName, totalAmount, prUrl, note } = params;
 
   const amountText = new Intl.NumberFormat("th-TH", {
     style: "currency",
@@ -45,8 +48,8 @@ export function buildPRNotificationMessage(params: {
     event === "submitted"
       ? "📋 ใบขอซื้อใหม่รออนุมัติ"
       : event === "approved"
-      ? "✅ ใบขอซื้ออนุมัติแล้ว"
-      : "❌ ใบขอซื้อไม่ผ่านการอนุมัติ";
+        ? "✅ ใบขอซื้ออนุมัติแล้ว"
+        : "❌ ใบขอซื้อไม่ผ่านการอนุมัติ";
 
   const lines = [
     eventLabel,

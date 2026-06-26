@@ -5,7 +5,7 @@
 //          npx supabase gen types typescript --project-id <ref> > src/types/database.ts
 // ===========================================================================
 
-export type UserRole = "admin" | "manager" | "purchaser" | "requester" | "viewer";
+export type UserRole = "admin" | "manager" | "purchaser" | "requester" | "viewer" | "finance";
 
 export type PrStatus =
   | "draft"
@@ -51,6 +51,7 @@ export interface Profile {
   department: string | null;
   branch_id: string | null;
   role: UserRole;
+  line_user_id: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -205,6 +206,14 @@ export interface GRItem {
   created_at: string;
 }
 
+export interface LineLinkCode {
+  id: string;
+  code: string;
+  user_id: string;
+  expires_at: string;
+  created_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Database schema สำหรับ supabase-js typed client
 // ---------------------------------------------------------------------------
@@ -215,6 +224,11 @@ export interface Database {
         Row: Profile;
         Insert: Partial<Profile> & Pick<Profile, "id" | "email">;
         Update: Partial<Profile>;
+      };
+      line_link_codes: {
+        Row: LineLinkCode;
+        Insert: Pick<LineLinkCode, "code" | "user_id">;
+        Update: Partial<LineLinkCode>;
       };
       suppliers: {
         Row: Supplier;
