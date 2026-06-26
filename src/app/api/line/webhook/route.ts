@@ -1,6 +1,5 @@
 import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { sendLinePushMessage } from "@/lib/line/sendMessage";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +39,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bad JSON" }, { status: 400 });
   }
 
+  // lazy import เพื่อหลีกเลี่ยง module-level error ตอน build
+  const { createAdminClient } = await import("@/lib/supabase/admin");
   const admin = createAdminClient() as any;
 
   for (const event of events) {

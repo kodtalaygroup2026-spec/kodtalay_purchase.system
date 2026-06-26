@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 function generateCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ตัดตัวที่อ่านยาก I, O, 0, 1 ออก
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-// POST /api/line/link-code — สร้างรหัสเชื่อม LINE สำหรับผู้ใช้ที่ login อยู่
 export async function POST() {
   try {
     const supabase = await createClient();
@@ -19,12 +17,12 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // lazy import เพื่อหลีกเลี่ยง module-level error ตอน build
+    const { createAdminClient } = await import("@/lib/supabase/admin");
     const admin = createAdminClient() as any;
 
-    // ลบ code เก่าของ user นี้ก่อน (ถ้ามี)
     await admin.from("line_link_codes").delete().eq("user_id", user.id);
 
-    // สร้าง code ใหม่ (loop จนกว่าจะไม่ซ้ำ)
     let code = generateCode();
     let attempts = 0;
     while (attempts < 5) {
