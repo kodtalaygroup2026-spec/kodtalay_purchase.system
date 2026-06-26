@@ -53,7 +53,8 @@ const ALL_HREFS = [
 
 type Section = "home" | "procurement" | "construction" | "finance" | "settings";
 
-function detectSection(pathname: string): Section {
+function detectSection(pathname: string | null): Section {
+  if (!pathname) return "home";
   if (pathname.startsWith("/construction")) return "construction";
   if (pathname.startsWith("/finance")) return "finance";
   if (pathname.startsWith("/settings")) return "settings";
@@ -66,7 +67,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ role }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
   const section = detectSection(pathname);
   const isFinanceUser = role === "finance" || role === "admin";
   const isAdmin = role === "admin";

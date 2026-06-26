@@ -50,16 +50,17 @@ interface MobileNavProps {
 }
 
 export function MobileNav({ role }: MobileNavProps) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = rawPathname ?? "/";
   const isFinanceUser = role === "finance" || role === "admin";
 
   let navItems: NavItem[];
-  if (pathname.startsWith("/construction")) {
+  if (!pathname || pathname === "/") {
+    navItems = HOME_MOBILE;
+  } else if (pathname.startsWith("/construction")) {
     navItems = CONSTRUCTION_MOBILE;
   } else if (pathname.startsWith("/finance")) {
     navItems = isFinanceUser ? FINANCE_MOBILE : HOME_MOBILE;
-  } else if (pathname === "/") {
-    navItems = HOME_MOBILE;
   } else {
     navItems = PROCUREMENT_MOBILE;
   }

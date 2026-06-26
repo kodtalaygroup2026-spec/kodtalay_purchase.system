@@ -7,7 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import type { Supplier } from "@/types/database";
 
 export default function EditSupplierPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const router = useRouter();
   const supabase = createClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
