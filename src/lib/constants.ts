@@ -2,7 +2,7 @@
 // File: src/lib/constants.ts
 // คำอธิบาย: ค่าคงที่และ label ภาษาไทยสำหรับสถานะ/บทบาท ใช้ร่วมกันทั้งระบบ
 // ===========================================================================
-import type { ExpenseStatus, PoStatus, PrStatus, UserRole } from "@/types/database";
+import type { ConstructionStatus, ExpenseStatus, PaymentRequestStatus, PoStatus, PrStatus, UserRole } from "@/types/database";
 
 // เวอร์ชันของระบบ (อัปเดตทุกครั้งที่มีการเปลี่ยนแปลงสำคัญ)
 export const APP_VERSION = "0.1.0";
@@ -26,6 +26,26 @@ export const PR_STATUS_LABELS: Record<PrStatus, string> = {
   rejected: "ไม่อนุมัติ",
   cancelled: "ยกเลิก",
   converted: "ออก PO แล้ว",
+  pending_second_approval: "รออนุมัติรอบ 2",
+  returned: "ตีกลับ",
+};
+
+// label ภาษาไทยของสถานะงานก่อสร้าง
+export const CONSTRUCTION_STATUS_LABELS: Record<ConstructionStatus, string> = {
+  open: "เปิดงาน",
+  boq_pending: "รออนุมัติ BOQ",
+  boq_approved: "BOQ อนุมัติแล้ว",
+  payment_pending: "รออนุมัติเบิก",
+  payment_approved: "อนุมัติเบิกแล้ว",
+  closed: "ปิดงาน",
+};
+
+// label ภาษาไทยของสถานะขอเบิก
+export const PAYMENT_STATUS_LABELS: Record<PaymentRequestStatus, string> = {
+  pending: "รอตรวจรับ",
+  inspected: "ตรวจรับแล้ว",
+  approved: "อนุมัติแล้ว",
+  rejected: "ไม่อนุมัติ",
 };
 
 // label ภาษาไทยของสถานะใบสั่งซื้อ (PO)

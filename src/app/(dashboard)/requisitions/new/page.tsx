@@ -31,6 +31,7 @@ export default function NewRequisitionPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
   const [items, setItems] = useState<PRItem[]>([
     { product_id: "", product_name: "", unit: "", quantity: 1, unit_price: 0 },
   ]);
@@ -168,6 +169,7 @@ export default function NewRequisitionPage() {
         department: (formData.get("department") as string) || null,
         needed_by: (formData.get("needed_by") as string) || null,
         note: (formData.get("note") as string) || null,
+        is_urgent: isUrgent,
         status: "draft",
       })
       .select("id")
@@ -237,6 +239,27 @@ export default function NewRequisitionPage() {
               placeholder="เช่น ขอซื้อกระดาษ A4 ประจำไตรมาส Q3"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
+          </div>
+
+          {/* ความเร่งด่วน */}
+          <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-700">งานด่วน</p>
+              <p className="text-xs text-slate-400">ข้ามขั้นตอนอนุมัติรอบ 2 เมื่อยอดจริงเกินงบ</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsUrgent((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isUrgent ? "bg-red-500" : "bg-slate-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  isUrgent ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

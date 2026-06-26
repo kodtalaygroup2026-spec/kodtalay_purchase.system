@@ -13,7 +13,21 @@ export type PrStatus =
   | "approved"
   | "rejected"
   | "cancelled"
-  | "converted";
+  | "converted"
+  | "pending_second_approval"
+  | "returned";
+
+export type ConstructionStatus =
+  | "open"
+  | "boq_pending"
+  | "boq_approved"
+  | "payment_pending"
+  | "payment_approved"
+  | "closed";
+
+export type VOStatus = "pending" | "approved" | "rejected";
+
+export type PaymentRequestStatus = "pending" | "inspected" | "approved" | "rejected";
 
 export type PoStatus =
   | "draft"
@@ -123,6 +137,62 @@ export interface PurchaseRequisition {
   needed_by: string | null;
   note: string | null;
   total_amount: number;
+  is_urgent: boolean;
+  actual_amount: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConstructionTicket {
+  id: string;
+  ticket_number: string;
+  title: string;
+  location: string | null;
+  description: string | null;
+  requester_id: string;
+  branch_id: string | null;
+  status: ConstructionStatus;
+  boq_total: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BOQItem {
+  id: string;
+  ticket_id: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface VariationOrder {
+  id: string;
+  ticket_id: string;
+  vo_number: string;
+  description: string;
+  amount_change: number;
+  status: VOStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+}
+
+export interface ConstructionPaymentRequest {
+  id: string;
+  request_number: string;
+  ticket_id: string;
+  amount: number;
+  requester_id: string;
+  status: PaymentRequestStatus;
+  note: string | null;
+  inspector_id: string | null;
+  inspected_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 }
