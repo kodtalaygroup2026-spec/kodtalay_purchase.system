@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { sendLinePushMessage, buildPRNotificationMessage } from "@/lib/line/sendMessage";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json() as {
       prId: string;
       event: "submitted" | "approved" | "rejected";
-      targetUserId?: string; // Supabase user ID ของคนที่ต้องการแจ้ง
+      targetUserId?: string;
       note?: string;
     };
 
@@ -16,6 +15,10 @@ export async function POST(request: Request) {
     if (!prId || !event) {
       return NextResponse.json({ error: "prId and event are required" }, { status: 400 });
     }
+
+    const { createClient } = await import("@/lib/supabase/server");
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { sendLinePushMessage, buildPRNotificationMessage } = await import("@/lib/line/sendMessage");
 
     const supabase = await createClient();
     const { data: pr } = await supabase
@@ -28,23 +31,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "PR not found" }, { status: 404 });
     }
 
-    // ค้นหา line_user_id ของเป้าหมาย (ใช้ admin client เพราะต้องอ่าน profiles ข้าม RLS)
     const admin = createAdminClient() as any;
-    const resolvedTargetId = targetUserId;
-
     let lineUserId: string | null = null;
 
-    if (resolvedTargetId) {
+    if (targetUserId) {
       const { data: profile } = await admin
         .from("profiles")
         .select("line_user_id")
-        .eq("id", resolvedTargetId)
+        .eq("id", targetUserId)
         .single();
       lineUserId = profile?.line_user_id ?? null;
     }
 
     if (!lineUserId) {
-      // ถ้าไม่มี target หรือ target ยังไม่เชื่อม LINE → ข้ามโดยไม่ error
       return NextResponse.json({ ok: true, skipped: true, reason: "no_line_user_id" });
     }
 

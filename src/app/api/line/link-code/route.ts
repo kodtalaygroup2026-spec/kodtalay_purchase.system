@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +9,7 @@ function generateCode(): string {
 
 export async function POST() {
   try {
+    const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -17,7 +17,6 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // lazy import เพื่อหลีกเลี่ยง module-level error ตอน build
     const { createAdminClient } = await import("@/lib/supabase/admin");
     const admin = createAdminClient() as any;
 

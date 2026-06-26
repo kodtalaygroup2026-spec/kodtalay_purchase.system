@@ -1,6 +1,5 @@
 import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
-import { sendLinePushMessage } from "@/lib/line/sendMessage";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +21,6 @@ function verifySignature(rawBody: string, signature: string): boolean {
   return expected === signature;
 }
 
-// POST /api/line/webhook — รับ event จาก LINE Platform
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-line-signature") ?? "";
@@ -39,8 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bad JSON" }, { status: 400 });
   }
 
-  // lazy import เพื่อหลีกเลี่ยง module-level error ตอน build
   const { createAdminClient } = await import("@/lib/supabase/admin");
+  const { sendLinePushMessage } = await import("@/lib/line/sendMessage");
   const admin = createAdminClient() as any;
 
   for (const event of events) {
@@ -49,7 +47,6 @@ export async function POST(request: Request) {
     const code = event.message.text.trim().toUpperCase();
     const lineUserId = event.source.userId;
 
-    // ค้นหา code ที่ยังไม่หมดอายุ
     const { data: linkCode } = await admin
       .from("line_link_codes")
       .select("user_id")
@@ -59,7 +56,6 @@ export async function POST(request: Request) {
 
     if (!linkCode) continue;
 
-    // บันทึก line_user_id และลบ code ที่ใช้แล้ว
     await Promise.all([
       admin.from("profiles").update({ line_user_id: lineUserId }).eq("id", linkCode.user_id),
       admin.from("line_link_codes").delete().eq("code", code),
