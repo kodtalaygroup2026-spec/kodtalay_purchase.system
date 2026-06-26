@@ -14,7 +14,7 @@ export function LineLinkButton({ isLinked }: LineLinkButtonProps) {
   async function handleGetCode() {
     setLoading(true);
     try {
-      const res = await fetch("/api/line/link-code", { method: "POST" });
+      const res = await fetch("/api/line/otp", { method: "POST" });
       const data = await res.json() as { code?: string };
       if (data.code) setCode(data.code);
     } catch {
