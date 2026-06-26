@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendLinePushMessage } from "@/lib/line/sendMessage";
 
+export const dynamic = "force-dynamic";
+
 interface LineTextMessage {
   type: "text";
   text: string;
