@@ -38,9 +38,10 @@ export default async function UsersSettingsPage() {
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
         <p className="font-semibold mb-1">คำอธิบายบทบาท:</p>
         <ul className="space-y-0.5 list-disc list-inside text-blue-700">
-          <li><strong>ผู้ขอซื้อ</strong> — พนักงานทั่วไป สร้างใบขอซื้อ (PR) ได้ (default)</li>
-          <li><strong>ผู้อนุมัติ</strong> — หัวหน้า/ผู้จัดการ อนุมัติหรือปฏิเสธ PR ก่อนส่งฝ่ายจัดซื้อ</li>
-          <li><strong>เจ้าหน้าที่จัดซื้อ</strong> — ทีมบัญชี/จัดซื้อ ออกใบสั่งซื้อ (PO) และบันทึกรับของ</li>
+          <li><strong>ผู้ขอซื้อ</strong> — พนักงานทั่วไป สร้าง PR / เปิดงานก่อสร้างได้ <span className="text-blue-500">(default)</span></li>
+          <li><strong>ผู้อนุมัติ</strong> — หัวหน้า/ผู้จัดการ อนุมัติหรือปฏิเสธ PR และ BOQ</li>
+          <li><strong>เจ้าหน้าที่จัดซื้อ</strong> — ออกใบสั่งซื้อ (PO) และบันทึกรับของ (GR)</li>
+          <li><strong>ฝ่ายการเงิน</strong> — เข้าถึงหน้าการเงิน จ่ายเงิน และใบกำกับภาษี</li>
           <li><strong>ผู้ดูแลระบบ</strong> — จัดการได้ทุกอย่าง รวมถึงหน้านี้</li>
         </ul>
       </div>
