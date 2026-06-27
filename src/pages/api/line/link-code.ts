@@ -1,8 +1,9 @@
+import { createClient } from "@supabase/supabase-js";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@/lib/supabase/server";
 
 // POST /api/line/link-code
 // ตรวจสอบ OTP code แล้วเชื่อม LINE user_id กับ profile
+// ใช้ service role เพราะ endpoint นี้ถูกเรียกจาก LINE webhook (ไม่มี user session)
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -20,13 +21,20 @@ export default async function handler(
     return res.status(400).json({ error: "Missing code or lineUserId" });
   }
 
-  try {
-    const supabase = await createClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  if (!supabaseUrl || !serviceRoleKey) {
+    return res.status(500).json({ error: "Server configuration error" });
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  try {
     // ค้นหา profile ที่มี line_link_code ตรงกัน และยังไม่หมดอายุ
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("id, line_link_code, line_link_expires_at")
+      .select("id")
       .eq("line_link_code", code)
       .gt("line_link_expires_at", new Date().toISOString())
       .single();
