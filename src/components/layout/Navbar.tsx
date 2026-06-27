@@ -8,10 +8,9 @@ import type { Profile } from "@/types/database";
 interface NavbarProps {
   profile: Pick<Profile, "full_name" | "email" | "role">;
   avatarUrl?: string;
-  isLineLinked?: boolean;
 }
 
-export function Navbar({ profile, avatarUrl, isLineLinked = false }: NavbarProps) {
+export function Navbar({ profile, avatarUrl }: NavbarProps) {
   const router = useRouter();
   const supabase = createClient();
 

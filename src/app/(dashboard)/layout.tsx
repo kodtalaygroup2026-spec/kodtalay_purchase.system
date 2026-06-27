@@ -34,7 +34,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar role={profile.role} />
       <div className="flex flex-1 flex-col min-w-0">
-        <Navbar profile={profile} avatarUrl={avatarUrl} isLineLinked={!!profile.line_user_id} />
+        <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
           {children}
         </main>
