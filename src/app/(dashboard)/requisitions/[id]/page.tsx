@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate } from "@/lib/utils/format";
+import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PRApprovalPanel } from "@/components/pr/PRApprovalPanel";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Send, X, FileText, ShoppingCart, ExternalLink } from "lucide-react";
 import type { PrStatus, UserRole } from "@/types/database";
 
 interface PageProps {
@@ -19,12 +19,11 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     { data: { user } },
     { data: pr },
     { data: items },
-    { data: approvals },
   ] = await Promise.all([
     supabase.auth.getUser(),
-    supabase
+    (supabase as any)
       .from("purchase_requisitions")
-      .select(`*, profiles!requester_id(full_name, email, role)`)
+      .select(`*, profiles!requester_id(full_name, email)`)
       .eq("id", id)
       .single(),
     supabase
@@ -32,46 +31,134 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       .select(`*, products(name, unit, sku)`)
       .eq("pr_id", id)
       .order("line_no"),
-    supabase
-      .from("approvals")
-      .select(`*, profiles!approver_id(full_name, role)`)
-      .eq("reference_id", id)
-      .eq("reference_type", "PR")
-      .order("step"),
   ]);
 
   if (!pr) notFound();
 
-  const { data: currentProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user?.id ?? "")
-    .single();
+  // โหลด profile ของทุกคนที่มีส่วนร่วมใน audit trail
+  const auditIds = [
+    pr.submitted_by,
+    pr.approved_by,
+    pr.rejected_by,
+    pr.cancelled_by,
+  ].filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
+  const uniqueIds = [...new Set(auditIds)];
+
+  const [{ data: currentProfile }, { data: auditProfileList }, { data: linkedPOs }] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", user?.id ?? "").single(),
+    uniqueIds.length > 0
+      ? (supabase as any).from("profiles").select("id, full_name").in("id", uniqueIds)
+      : Promise.resolve({ data: [] }),
+    (supabase as any)
+      .from("purchase_orders")
+      .select("id, po_number, status, total_amount, created_at")
+      .eq("pr_id", id)
+      .order("created_at"),
+  ]);
 
   const currentUserRole = currentProfile?.role as UserRole | undefined;
-  const requester = pr.profiles as unknown as { full_name: string; email: string } | null;
+  const requester = pr.profiles as { full_name: string; email: string } | null;
+
+  // map id → ชื่อสำหรับ audit trail
+  const nameOf: Record<string, string> = Object.fromEntries(
+    ((auditProfileList as { id: string; full_name: string }[] | null) ?? [])
+      .map((p) => [p.id, p.full_name])
+  );
+
+  // สร้าง activity log เรียงตามเวลา
+  type ActivityEntry = {
+    at: string;
+    label: string;
+    by: string;
+    color: "slate" | "blue" | "green" | "red" | "orange";
+    icon: React.ElementType;
+  };
+
+  const timeline: ActivityEntry[] = [
+    {
+      at: pr.created_at,
+      label: "สร้างใบขอซื้อ",
+      by: requester?.full_name ?? requester?.email ?? "—",
+      color: "slate",
+      icon: FileText,
+    },
+  ];
+  if (pr.submitted_at && pr.submitted_by) {
+    timeline.push({
+      at: pr.submitted_at,
+      label: "ส่งขออนุมัติ",
+      by: nameOf[pr.submitted_by] ?? "—",
+      color: "blue",
+      icon: Send,
+    });
+  }
+  if (pr.approved_at && pr.approved_by) {
+    timeline.push({
+      at: pr.approved_at,
+      label: "อนุมัติ",
+      by: nameOf[pr.approved_by] ?? "—",
+      color: "green",
+      icon: CheckCircle2,
+    });
+  }
+  if (pr.rejected_at && pr.rejected_by) {
+    timeline.push({
+      at: pr.rejected_at,
+      label: pr.status === "returned" ? "ตีกลับ" : "ไม่อนุมัติ",
+      by: nameOf[pr.rejected_by] ?? "—",
+      color: pr.status === "returned" ? "orange" : "red",
+      icon: XCircle,
+    });
+  }
+  if (pr.cancelled_at && pr.cancelled_by) {
+    timeline.push({
+      at: pr.cancelled_at,
+      label: "ยกเลิก",
+      by: nameOf[pr.cancelled_by] ?? "—",
+      color: "red",
+      icon: X,
+    });
+  }
+  // เรียงตามเวลาจากเก่า → ใหม่
+  timeline.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  const colorMap = {
+    slate:  { dot: "bg-slate-400", text: "text-slate-500",  badge: "bg-slate-100 text-slate-600" },
+    blue:   { dot: "bg-blue-500",  text: "text-blue-600",   badge: "bg-blue-50 text-blue-700" },
+    green:  { dot: "bg-green-500", text: "text-green-600",  badge: "bg-green-50 text-green-700" },
+    red:    { dot: "bg-red-500",   text: "text-red-600",    badge: "bg-red-50 text-red-700" },
+    orange: { dot: "bg-orange-400",text: "text-orange-600", badge: "bg-orange-50 text-orange-700" },
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/requisitions" className="text-slate-400 hover:text-slate-600">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-mono text-sm font-bold text-slate-500">{pr.pr_number}</h1>
-              <StatusBadge kind="pr" status={pr.status as PrStatus} />
-            </div>
-            <h2 className="mt-0.5 text-xl font-bold text-slate-800">{pr.title}</h2>
-          </div>
-        </div>
+      {/* Header — back button only */}
+      <div className="flex items-center gap-2">
+        <Link href="/requisitions" className="text-slate-400 hover:text-slate-600">
+          <ArrowLeft size={20} />
+        </Link>
+        <span className="text-sm text-slate-400">ใบขอซื้อ</span>
       </div>
 
       {/* ข้อมูล PR */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 font-semibold text-slate-700">ข้อมูลทั่วไป</h3>
+        {/* PR number + status */}
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <StatusBadge kind="pr" status={pr.status as PrStatus} />
+            {pr.is_urgent && (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                ด่วน
+              </span>
+            )}
+          </div>
+          <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
+            {pr.pr_number}
+          </span>
+        </div>
+        {/* Title */}
+        <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>
+        <div className="border-t border-slate-100 pt-4">
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
           <div>
             <p className="text-slate-500">ผู้ขอ</p>
@@ -83,12 +170,12 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           </div>
           <div>
             <p className="text-slate-500">วันที่สร้าง</p>
-            <p className="font-medium text-slate-800">{formatDate(pr.created_at)}</p>
+            <p className="font-medium text-slate-800">{formatDateTime(pr.created_at)}</p>
           </div>
           <div>
             <p className="text-slate-500">วันที่ต้องการ</p>
             <p className="font-medium text-slate-800">
-              {pr.needed_by ? formatDate(pr.needed_by) : "—"}
+              {pr.needed_by ? formatDateTime(pr.needed_by) : "—"}
             </p>
           </div>
           {pr.note && (
@@ -97,6 +184,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               <p className="font-medium text-slate-800">{pr.note}</p>
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -117,8 +205,8 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {(items ?? []).map((item) => {
-              const product = item.products as unknown as { name: string; unit: string; sku: string } | null;
+            {((items ?? []) as any[]).map((item) => {
+              const product = item.products as { name: string; unit: string; sku: string } | null;
               return (
                 <tr key={item.id}>
                   <td className="px-4 py-2 text-slate-400">{item.line_no}</td>
@@ -129,7 +217,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                     )}
                   </td>
                   <td className="px-4 py-2 text-right text-slate-700">
-                    {item.quantity.toLocaleString("th-TH")}
+                    {Number(item.quantity).toLocaleString("th-TH")}
                   </td>
                   <td className="px-4 py-2 text-slate-500">{item.unit}</td>
                   <td className="px-4 py-2 text-right text-slate-700">
@@ -155,48 +243,73 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         </table>
       </div>
 
-      {/* Timeline การอนุมัติ */}
-      {approvals && approvals.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 font-semibold text-slate-700">ประวัติการอนุมัติ</h3>
-          <div className="space-y-3">
-            {approvals.map((approval) => {
-              const approver = approval.profiles as unknown as { full_name: string; role: string } | null;
-              return (
-                <div key={approval.id} className="flex items-start gap-3 text-sm">
-                  <div
-                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                      approval.decision === "approved"
-                        ? "bg-green-500"
-                        : approval.decision === "rejected"
-                        ? "bg-red-500"
-                        : "bg-slate-300"
-                    }`}
-                  />
-                  <div>
-                    <p className="font-medium text-slate-800">
-                      {approver?.full_name ?? "—"}{" "}
-                      <span className="font-normal text-slate-500">
-                        ({approval.decision === "approved"
-                          ? "อนุมัติ"
-                          : approval.decision === "rejected"
-                          ? "ไม่อนุมัติ"
-                          : "รออนุมัติ"}
-                        )
-                      </span>
-                    </p>
-                    {approval.note && (
-                      <p className="text-slate-500">{approval.note}</p>
-                    )}
-                    {approval.decided_at && (
-                      <p className="text-xs text-slate-400">
-                        {formatDate(approval.decided_at)}
-                      </p>
-                    )}
-                  </div>
+      {/* Activity Timeline — ใคร ทำอะไร เมื่อไหร่ */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Clock size={16} className="text-slate-400" />
+          <h3 className="font-semibold text-slate-700">ประวัติการดำเนินการ</h3>
+        </div>
+        <ol className="relative border-l border-slate-200 ml-2 space-y-5">
+          {timeline.map((entry, i) => {
+            const c = colorMap[entry.color];
+            const Icon = entry.icon;
+            return (
+              <li key={i} className="ml-5">
+                <span
+                  className={`absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full ${c.dot}`}
+                />
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className={`text-sm font-semibold ${c.text}`}>
+                    <Icon size={13} className="mr-1 inline-block" />
+                    {entry.label}
+                  </span>
+                  <span className="text-sm text-slate-700">โดย {entry.by}</span>
+                  <span className="text-xs text-slate-400">{formatDateTime(entry.at)}</span>
                 </div>
-              );
-            })}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      {/* ใบสั่งซื้อที่เกี่ยวข้อง */}
+      {linkedPOs && linkedPOs.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <ShoppingCart size={16} className="text-slate-400" />
+            <h3 className="font-semibold text-slate-700">ใบสั่งซื้อ (PO) ที่เกี่ยวข้อง</h3>
+          </div>
+          <div className="space-y-2">
+            {(linkedPOs as { id: string; po_number: string; status: string; total_amount: number; created_at: string }[]).map((po) => (
+              <div key={po.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm font-bold text-slate-700">{po.po_number}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    po.status === "approved" ? "bg-green-100 text-green-700"
+                    : po.status === "cancelled" ? "bg-red-100 text-red-700"
+                    : po.status === "pending_approval" ? "bg-yellow-100 text-yellow-700"
+                    : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {po.status === "draft" ? "ร่าง"
+                     : po.status === "pending_approval" ? "รออนุมัติ"
+                     : po.status === "approved" ? "อนุมัติแล้ว"
+                     : po.status === "cancelled" ? "ยกเลิก"
+                     : po.status}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-slate-800">
+                    {formatCurrency(po.total_amount)}
+                  </span>
+                  <Link
+                    href={`/orders/${po.id}`}
+                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600 transition hover:bg-slate-100"
+                  >
+                    ดู PO <ExternalLink size={10} />
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

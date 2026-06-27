@@ -2,54 +2,57 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { PrStatus, UserRole } from "@/types/database";
-import { CheckCircle, XCircle, Send, X, RotateCcw } from "lucide-react";
+import type { PoStatus, UserRole } from "@/types/database";
+import { CheckCircle, XCircle, Send, X } from "lucide-react";
 
-interface PRApprovalPanelProps {
-  pr: {
+interface POApprovalPanelProps {
+  po: {
     id: string;
-    status: PrStatus;
-    requester_id: string;
+    status: PoStatus;
+    created_by: string;
+    pr_id: string | null;
   };
   currentUserId: string;
   currentUserRole: UserRole | undefined;
 }
 
-export function PRApprovalPanel({
-  pr,
-  currentUserId,
-  currentUserRole,
-}: PRApprovalPanelProps) {
+export function POApprovalPanel({ po, currentUserId, currentUserRole }: POApprovalPanelProps) {
   const router = useRouter();
   const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);
   const [note, setNote] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"approve" | "reject" | "return" | "cancel_pr" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
 
-  const isOwner = currentUserId === pr.requester_id;
+  const isOwner = currentUserId === po.created_by;
   const isApprover = currentUserRole === "manager" || currentUserRole === "admin";
 
-  const canSubmit = isOwner && pr.status === "draft";
-  const canApprove = isApprover && pr.status === "submitted";
-  const canSecondApprove = isApprover && pr.status === "pending_second_approval";
-  const canCancel = isOwner && (pr.status === "draft" || pr.status === "submitted" || pr.status === "returned");
+  const canSubmit = isOwner && po.status === "draft";
+  const canApprove = isApprover && po.status === "pending_approval";
+  const canCancel = isOwner && po.status === "draft";
 
-  async function updateStatus(
-    status: string,
-    audit: Record<string, string | null> = {}
-  ) {
+  async function updatePoStatus(status: string, audit: Record<string, string | null> = {}) {
     const { error } = await (supabase as any)
-      .from("purchase_requisitions")
+      .from("purchase_orders")
       .update({ status, ...audit })
-      .eq("id", pr.id);
-    if (!error) router.refresh();
+      .eq("id", po.id);
+    if (error) return;
+
+    // เมื่อ PO ได้รับการอนุมัติ → อัปเดต PR ที่เชื่อมอยู่เป็น 'converted'
+    if (status === "approved" && po.pr_id) {
+      await (supabase as any)
+        .from("purchase_requisitions")
+        .update({ status: "converted" })
+        .eq("id", po.pr_id);
+    }
+
+    router.refresh();
   }
 
   async function handleSubmit() {
     setIsLoading(true);
     const now = new Date().toISOString();
-    await updateStatus("submitted", {
+    await updatePoStatus("pending_approval", {
       submitted_at: now,
       submitted_by: currentUserId,
     });
@@ -59,7 +62,7 @@ export function PRApprovalPanel({
   async function handleCancel() {
     setIsLoading(true);
     const now = new Date().toISOString();
-    await updateStatus("cancelled", {
+    await updatePoStatus("cancelled", {
       cancelled_at: now,
       cancelled_by: currentUserId,
     });
@@ -80,32 +83,26 @@ export function PRApprovalPanel({
 
   async function confirmAction() {
     if (!pendingAction) return;
-    if ((pendingAction === "reject" || pendingAction === "return") && !note) return;
     setIsLoading(true);
-
     const now = new Date().toISOString();
-    const statusMap: Record<string, string> = {
-      approve: "approved",
-      reject: "rejected",
-      return: "returned",
-      cancel_pr: "cancelled",
-    };
-    // บันทึก ใคร + เวลา ตามประเภทการดำเนินการ
-    const auditMap: Record<string, Record<string, string | null>> = {
-      approve: { approved_at: now, approved_by: currentUserId },
-      reject:  { rejected_at: now, rejected_by: currentUserId },
-      return:  { rejected_at: now, rejected_by: currentUserId },
-      cancel_pr: { cancelled_at: now, cancelled_by: currentUserId },
-    };
 
-    await updateStatus(statusMap[pendingAction], auditMap[pendingAction] ?? {});
+    if (pendingAction === "approve") {
+      await updatePoStatus("approved", {
+        approved_at: now,
+        approved_by: currentUserId,
+      });
+    } else {
+      await updatePoStatus("cancelled", {
+        cancelled_at: now,
+        cancelled_by: currentUserId,
+      });
+    }
+
     setIsLoading(false);
     cancelNote();
   }
 
-  if (!canSubmit && !canApprove && !canSecondApprove && !canCancel) return null;
-
-  const needNote = pendingAction === "reject" || pendingAction === "return";
+  if (!canSubmit && !canApprove && !canCancel) return null;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -114,7 +111,7 @@ export function PRApprovalPanel({
       {showNoteInput && (
         <div className="mb-4">
           <label className="mb-1 block text-sm font-medium text-slate-700">
-            หมายเหตุ {needNote && <span className="text-red-500">*</span>}
+            หมายเหตุ {pendingAction === "reject" && <span className="text-red-500">*</span>}
           </label>
           <textarea
             value={note}
@@ -126,7 +123,7 @@ export function PRApprovalPanel({
           <div className="mt-2 flex gap-2">
             <button
               onClick={confirmAction}
-              disabled={isLoading || (needNote && !note)}
+              disabled={isLoading || (pendingAction === "reject" && !note)}
               className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60"
             >
               {isLoading ? "กำลังดำเนินการ..." : "ยืนยัน"}
@@ -151,7 +148,7 @@ export function PRApprovalPanel({
             </button>
           )}
 
-          {(canApprove || canSecondApprove) && (
+          {canApprove && (
             <>
               <button
                 onClick={() => askAction("approve")}
@@ -159,18 +156,8 @@ export function PRApprovalPanel({
                 className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-700 disabled:opacity-60"
               >
                 <CheckCircle size={15} />
-                {canSecondApprove ? "อนุมัติ (รอบ 2)" : "อนุมัติ"}
+                อนุมัติ PO
               </button>
-              {canSecondApprove && (
-                <button
-                  onClick={() => askAction("return")}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60"
-                >
-                  <RotateCcw size={15} />
-                  ตีกลับ
-                </button>
-              )}
               <button
                 onClick={() => askAction("reject")}
                 disabled={isLoading}
@@ -189,7 +176,7 @@ export function PRApprovalPanel({
               className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
             >
               <X size={15} />
-              ยกเลิก PR
+              ยกเลิก PO
             </button>
           )}
         </div>

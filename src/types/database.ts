@@ -139,6 +139,18 @@ export interface PurchaseRequisition {
   total_amount: number;
   is_urgent: boolean;
   actual_amount: number | null;
+  // บัญชีธนาคาร
+  bank_name: string | null;
+  bank_account_number: string | null;
+  // Action audit — ใคร ทำอะไร เมื่อไหร่
+  submitted_at: string | null;
+  submitted_by: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  rejected_at: string | null;
+  rejected_by: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -214,7 +226,8 @@ export interface PurchaseOrder {
   id: string;
   po_number: string;
   pr_id: string | null;
-  supplier_id: string;
+  supplier_id: string | null;
+  vendor_name: string | null;
   status: PoStatus;
   created_by: string;
   order_date: string;
@@ -224,14 +237,33 @@ export interface PurchaseOrder {
   vat_rate: number;
   vat_amount: number;
   total_amount: number;
+  pr_total_amount: number | null;
+  submitted_at: string | null;
+  submitted_by: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PoAttachment {
+  id: string;
+  po_id: string;
+  file_name: string;
+  file_url: string;
+  file_type: "image" | "pdf";
+  file_size: number | null;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 export interface POItem {
   id: string;
   po_id: string;
   pr_item_id: string | null;
+  pr_unit_price: number;
   line_no: number;
   product_id: string | null;
   description: string;

@@ -6,7 +6,6 @@ import {
   FileText,
   ShoppingCart,
   CheckSquare,
-  Truck,
   Users,
   Package,
   Settings,
@@ -27,7 +26,6 @@ interface NavItem {
 const PROCUREMENT_NAV: NavItem[] = [
   { href: "/requisitions", icon: FileText, label: "ใบขอซื้อ (PR)" },
   { href: "/orders", icon: ShoppingCart, label: "ใบสั่งซื้อ (PO)" },
-  { href: "/receipts", icon: Truck, label: "รับของ (GR)" },
   { href: "/approvals", icon: CheckSquare, label: "การอนุมัติ" },
   { href: "/suppliers", icon: Users, label: "ผู้ขาย" },
   { href: "/products", icon: Package, label: "สินค้า" },

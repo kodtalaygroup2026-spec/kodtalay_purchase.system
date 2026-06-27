@@ -6,7 +6,6 @@ import {
   FileText,
   ShoppingCart,
   CheckSquare,
-  Truck,
   HardHat,
   Receipt,
   Banknote,
@@ -23,9 +22,8 @@ interface NavItem {
 const PROCUREMENT_MOBILE: NavItem[] = [
   { href: "/", icon: LayoutDashboard, label: "หลัก" },
   { href: "/requisitions", icon: FileText, label: "PR" },
-  { href: "/approvals", icon: CheckSquare, label: "อนุมัติ" },
   { href: "/orders", icon: ShoppingCart, label: "PO" },
-  { href: "/receipts", icon: Truck, label: "รับของ" },
+  { href: "/approvals", icon: CheckSquare, label: "อนุมัติ" },
 ];
 
 const CONSTRUCTION_MOBILE: NavItem[] = [

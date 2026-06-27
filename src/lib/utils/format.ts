@@ -21,3 +21,15 @@ export function formatDate(date: string | Date | null): string {
     year: "numeric",
   }).format(new Date(date));
 }
+
+/** จัดรูปแบบวันที่ + เวลา เช่น "24 มิ.ย. 2569 14:30" */
+export function formatDateTime(date: string | Date | null): string {
+  if (!date) return "-";
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
