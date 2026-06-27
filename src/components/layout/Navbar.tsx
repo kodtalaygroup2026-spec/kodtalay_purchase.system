@@ -3,7 +3,6 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ROLE_LABELS } from "@/lib/constants";
-import { LineLinkButton } from "@/components/shared/LineLinkButton";
 import type { Profile } from "@/types/database";
 
 interface NavbarProps {
@@ -37,11 +36,6 @@ export function Navbar({ profile, avatarUrl, isLineLinked = false }: NavbarProps
       </span>
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        {/* LINE link status */}
-        <div className="hidden sm:block">
-          <LineLinkButton isLinked={isLineLinked} />
-        </div>
-
         {/* รูปโปรไฟล์ — แสดงทุก breakpoint รวมมือถือ */}
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
