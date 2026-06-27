@@ -11,23 +11,29 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: {
-          // บังคับ Google แสดง account picker ทุกครั้ง
-          prompt: "select_account",
+    try {
+      const supabase = createClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            // บังคับ Google แสดง account picker ทุกครั้ง
+            prompt: "select_account",
+          },
         },
-      },
-    });
+      });
 
-    if (oauthError) {
-      setError("ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง");
+      if (oauthError) {
+        setError("ไม่สามารถเข้าสู่ระบบได้: " + oauthError.message);
+        setIsLoading(false);
+      }
+      // ถ้าสำเร็จ browser จะ redirect ไป Google อัตโนมัติ
+    } catch (err) {
+      setError("ระบบยังไม่พร้อม กรุณารอสักครู่แล้วลองใหม่");
       setIsLoading(false);
+      console.error("Login error:", err);
     }
-    // ถ้าสำเร็จ browser จะ redirect ไป Google อัตโนมัติ
   }
 
   return (
