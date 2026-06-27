@@ -16,6 +16,19 @@ const PUBLIC_PATHS = ["/login", "/auth"];
  * ถ้าผู้ใช้ยังไม่ได้ล็อกอินและพยายามเข้าหน้า protected
  */
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+
+  // ถ้า env ยังไม่ได้ตั้งค่า (เช่น build โดยไม่มี env) → redirect ไป login แทน crash
+  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (!isPublic) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,9 +58,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   // ยังไม่ล็อกอิน + เข้าหน้า protected → ส่งไปหน้า login
   if (!user && !isPublic) {
