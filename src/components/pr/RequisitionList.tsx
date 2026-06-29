@@ -103,6 +103,74 @@ function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }
   );
 }
 
+// ── Progress summary bar ───────────────────────────────────────────────────
+
+const SUMMARY_STEPS = [
+  {
+    label: "ใบขอซื้อ",
+    sub: "ร่าง / ตีกลับ",
+    color: "text-slate-600",
+    bg: "bg-slate-50",
+    border: "border-slate-200",
+    dot: "bg-slate-400",
+    match: (pr: PRRow) => ["draft", "returned"].includes(pr.status),
+  },
+  {
+    label: "รออนุมัติ",
+    sub: "ส่งแล้ว",
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    dot: "bg-amber-400",
+    match: (pr: PRRow) => ["submitted", "pending_second_approval"].includes(pr.status),
+  },
+  {
+    label: "รอสร้าง PO",
+    sub: "อนุมัติแล้ว",
+    color: "text-blue-700",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    dot: "bg-blue-500",
+    match: (pr: PRRow) => pr.status === "approved" && pr.purchase_orders.length === 0,
+  },
+  {
+    label: "มี PO",
+    sub: "ดำเนินการ",
+    color: "text-green-700",
+    bg: "bg-green-50",
+    border: "border-green-200",
+    dot: "bg-green-500",
+    match: (pr: PRRow) => pr.purchase_orders.length > 0 || pr.status === "converted",
+  },
+];
+
+function ProgressSummary({ prs }: { prs: PRRow[] }) {
+  const counts = SUMMARY_STEPS.map((s) => prs.filter(s.match).length);
+  return (
+    <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {SUMMARY_STEPS.map((step, i) => (
+        <div
+          key={step.label}
+          className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center ${step.bg} ${
+            i < SUMMARY_STEPS.length - 1 ? "border-r border-slate-200" : ""
+          }`}
+        >
+          <div className={`flex items-center gap-1.5`}>
+            <span className={`h-2 w-2 rounded-full ${step.dot} shrink-0`} />
+            <span className={`text-xl font-bold tabular-nums ${step.color}`}>
+              {counts[i]}
+            </span>
+          </div>
+          <span className={`text-xs font-semibold leading-tight ${step.color}`}>
+            {step.label}
+          </span>
+          <span className="text-[10px] text-slate-400 hidden sm:block">{step.sub}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function RequisitionList({ prs }: { prs: PRRow[] }) {
@@ -151,6 +219,9 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
 
   return (
     <div className="space-y-4">
+      {/* ── Progress summary ─────────────────────────────────────────────── */}
+      <ProgressSummary prs={prs} />
+
       {/* ── Filter bar ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
