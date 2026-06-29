@@ -90,7 +90,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* ── Bulk action bar ─────────────────────────────────────────────────── */}
       {selected.size > 0 && (
         <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 shadow-sm">
@@ -108,75 +108,79 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
         </div>
       )}
 
-      {/* ── Select all ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-1">
-        <button
-          onClick={toggleAll}
-          className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700"
-        >
-          {allSelected
-            ? <CheckSquare size={16} className="text-blue-600" />
-            : <Square size={16} />}
-          {allSelected ? "ยกเลิกเลือกทั้งหมด" : "เลือกทั้งหมด"}
-        </button>
-      </div>
-
-      {/* ── PR rows ─────────────────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        {prs.map((pr) => {
-          const isChecked = selected.has(pr.id);
-          return (
-            <div
-              key={pr.id}
-              onClick={() => toggleOne(pr.id)}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-5 py-4 transition select-none ${
-                isChecked
-                  ? "border-green-300 bg-green-50"
-                  : "border-amber-200 bg-amber-50 hover:border-amber-300"
-              }`}
-            >
-              {/* Checkbox icon */}
-              <div className="shrink-0">
-                {isChecked
-                  ? <CheckSquare size={18} className="text-green-600" />
-                  : <Square size={18} className="text-slate-400" />}
-              </div>
-
-              {/* Info */}
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-amber-700">
-                    {pr.pr_number}
-                  </span>
-                  <StatusBadge kind="pr" status={pr.status} />
-                </div>
-                <p className="truncate font-semibold text-slate-800">{pr.title}</p>
-                <p className="text-sm text-slate-500">
-                  โดย {pr.requester_name}
-                  {pr.department && ` · ${pr.department}`}
-                  {" · "}
-                  {formatDate(pr.created_at)}
-                </p>
-              </div>
-
-              {/* Amount + link (หยุด event ไม่ให้ toggle checkbox) */}
-              <div
-                className="shrink-0 text-right"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <p className="font-bold text-slate-800">
-                  {formatCurrency(pr.total_amount)}
-                </p>
-                <Link
-                  href={`/requisitions/${pr.id}`}
-                  className="mt-1 inline-block rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+      {/* ── Table ───────────────────────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full text-sm">
+          <thead className="border-b border-slate-100 bg-slate-50">
+            <tr>
+              <th className="px-4 py-3 text-left">
+                <button onClick={toggleAll} className="flex items-center">
+                  {allSelected
+                    ? <CheckSquare size={16} className="text-blue-600" />
+                    : <Square size={16} className="text-slate-400" />}
+                </button>
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่ PR</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ / ผู้ขอ</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">แผนก</th>
+              <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">วันที่</th>
+              <th className="px-4 py-3 text-right font-medium text-slate-500">มูลค่า</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {prs.map((pr) => {
+              const isChecked = selected.has(pr.id);
+              return (
+                <tr
+                  key={pr.id}
+                  onClick={() => toggleOne(pr.id)}
+                  className={`cursor-pointer border-b border-slate-100 transition select-none last:border-0 ${
+                    isChecked ? "bg-green-50" : "hover:bg-slate-50"
+                  }`}
                 >
-                  พิจารณา →
-                </Link>
-              </div>
-            </div>
-          );
-        })}
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => toggleOne(pr.id)} className="flex items-center">
+                      {isChecked
+                        ? <CheckSquare size={16} className="text-green-600" />
+                        : <Square size={16} className="text-slate-400" />}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-xs font-bold text-amber-700">
+                      {pr.pr_number}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 max-w-[220px]">
+                    <p className="truncate font-medium text-slate-800">{pr.title}</p>
+                    <p className="text-xs text-slate-400">{pr.requester_name}</p>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <span className="text-sm text-slate-500">{pr.department ?? "—"}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <StatusBadge kind="pr" status={pr.status} />
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="text-xs text-slate-400">{formatDate(pr.created_at)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-800">
+                    {formatCurrency(pr.total_amount)}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      href={`/requisitions/${pr.id}`}
+                      className="inline-block rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white whitespace-nowrap hover:bg-amber-700"
+                    >
+                      พิจารณา →
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
