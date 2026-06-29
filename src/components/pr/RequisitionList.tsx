@@ -162,16 +162,17 @@ function ProgressSummary({
           <button
             key={step.label}
             onClick={() => onStep(i)}
-            className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center transition-colors ${
+            className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center transition-colors ${
               isActive ? step.bg + " ring-inset ring-2 ring-blue-400" : "bg-white hover:" + step.bg
             } ${i < SUMMARY_STEPS.length - 1 ? "border-r border-slate-200" : ""}`}
           >
-            <div className="flex items-center gap-1.5">
-              <span className={`h-2 w-2 rounded-full ${step.dot} shrink-0`} />
-              <span className={`text-xl font-bold tabular-nums ${step.color}`}>
+            {/* Badge มุมขวาบน */}
+            {counts[i] > 0 && (
+              <span className={`absolute right-2 top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white ${step.dot}`}>
                 {counts[i]}
               </span>
-            </div>
+            )}
+            <span className={`h-2 w-2 rounded-full ${step.dot} shrink-0`} />
             <span className={`text-xs font-semibold leading-tight ${step.color}`}>
               {step.label}
             </span>
