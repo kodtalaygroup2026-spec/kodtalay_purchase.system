@@ -3,12 +3,13 @@
 // คำอธิบาย: ฟังก์ชันช่วยจัดรูปแบบข้อมูล (เงิน, วันที่) เป็นรูปแบบไทย
 // ===========================================================================
 
-/** จัดรูปแบบจำนวนเงินเป็นบาท เช่น 1234.5 → "฿1,234.50" */
+/** จัดรูปแบบจำนวนเงินเป็นบาท เช่น 5000 → "฿5,000", 249.99 → "฿249.99" */
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("th-TH", {
     style: "currency",
     currency: "THB",
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 

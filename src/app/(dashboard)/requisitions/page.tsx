@@ -1,28 +1,41 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { RequisitionList, type PRRow } from "@/components/pr/RequisitionList";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import type { PrStatus } from "@/types/database";
 
 export default async function RequisitionsPage() {
   const supabase = await createClient();
-  const { data: prs } = await supabase
+
+  const { data: prs } = await (supabase as any)
     .from("purchase_requisitions")
     .select(
-      `id, pr_number, title, status, total_amount, created_at, needed_by,
-       profiles!requester_id(full_name)`
+      `id, pr_number, title, status, total_amount, created_at, needed_by, is_urgent,
+       profiles!requester_id(full_name),
+       purchase_orders(id, po_number, status, total_amount, vendor_name)`
     )
     .order("created_at", { ascending: false });
+
+  const prList: PRRow[] = (prs ?? []).map((pr: any) => ({
+    id: pr.id,
+    pr_number: pr.pr_number,
+    title: pr.title,
+    status: pr.status,
+    total_amount: pr.total_amount,
+    created_at: pr.created_at,
+    needed_by: pr.needed_by ?? null,
+    is_urgent: pr.is_urgent ?? false,
+    profiles: pr.profiles ?? null,
+    purchase_orders: pr.purchase_orders ?? [],
+  }));
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">ใบขอซื้อ (PR)</h1>
-          <p className="text-sm text-slate-500">รายการใบขอซื้อทั้งหมดในระบบ</p>
+          <p className="text-sm text-slate-500">รายการใบขอซื้อทั้งหมด — คลิกแถวเพื่อดูรายละเอียด</p>
         </div>
         <Link
           href="/requisitions/new"
@@ -33,59 +46,7 @@ export default async function RequisitionsPage() {
         </Link>
       </div>
 
-      {prs && prs.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-slate-100 bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่ PR</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">ผู้ขอ</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden lg:table-cell">วันที่ต้องการ</th>
-                <th className="px-4 py-3 text-right font-medium text-slate-500">มูลค่า</th>
-                <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {prs.map((pr) => {
-                const requester = pr.profiles as unknown as { full_name: string } | null;
-                return (
-                  <tr key={pr.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/requisitions/${pr.id}`}
-                        className="font-mono text-xs font-semibold text-blue-600 hover:underline"
-                      >
-                        {pr.pr_number}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 max-w-[200px]">
-                      <Link
-                        href={`/requisitions/${pr.id}`}
-                        className="font-medium text-slate-800 hover:text-blue-600 truncate block"
-                      >
-                        {pr.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 hidden md:table-cell">
-                      {requester?.full_name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
-                      {pr.needed_by ? formatDate(pr.needed_by) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-800">
-                      {formatCurrency(pr.total_amount)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <StatusBadge kind="pr" status={pr.status as PrStatus} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
+      {prList.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
           <p className="text-slate-500">ยังไม่มีใบขอซื้อ</p>
           <Link
@@ -95,6 +56,8 @@ export default async function RequisitionsPage() {
             <Plus size={14} /> สร้างใบขอซื้อแรก
           </Link>
         </div>
+      ) : (
+        <RequisitionList prs={prList} />
       )}
     </div>
   );
