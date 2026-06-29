@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils/format";
+import { ProductList, type ProductRow } from "@/components/product/ProductList";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
@@ -9,9 +9,18 @@ export default async function ProductsPage() {
   const supabase = await createClient();
   const { data: products } = await supabase
     .from("products")
-    .select("*, categories(name)")
+    .select("id, sku, name, unit, unit_price, categories(name)")
     .eq("is_active", true)
     .order("sku");
+
+  const rows: ProductRow[] = ((products ?? []) as any[]).map((p: any) => ({
+    id: p.id,
+    sku: p.sku,
+    name: p.name,
+    unit: p.unit,
+    unit_price: p.unit_price,
+    category_name: (p.categories as { name: string } | null)?.name ?? null,
+  }));
 
   return (
     <div className="space-y-5">
@@ -29,44 +38,8 @@ export default async function ProductsPage() {
         </Link>
       </div>
 
-      {products && products.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-slate-100 bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">SKU</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อสินค้า</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">หมวดหมู่</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">หน่วย</th>
-                <th className="px-4 py-3 text-right font-medium text-slate-500">ราคา</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {products.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.sku}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
-                  <td className="px-4 py-3 text-slate-500 hidden md:table-cell">
-                    {(p.categories as unknown as { name: string } | null)?.name ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{p.unit}</td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-800">
-                    {formatCurrency(p.unit_price)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/products/${p.id}`}
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      แก้ไข
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {rows.length > 0 ? (
+        <ProductList products={rows} />
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
           <p className="text-slate-500">ยังไม่มีข้อมูลสินค้า</p>

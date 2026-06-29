@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ROLE_LABELS } from "@/lib/constants";
+import { SortTh, useSortable } from "@/components/shared/SortTh";
 import type { UserRole } from "@/types/database";
 
 interface ProfileRow {
@@ -23,12 +24,12 @@ const ROLE_OPTIONS: UserRole[] = ["requester", "manager", "purchaser", "finance"
 
 export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
   const supabase = createClient();
-  // เก็บ loading state แยกต่อ user (id → true/false)
   const [loadingIds, setLoadingIds] = useState<Record<string, boolean>>({});
   const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
   const [roles, setRoles] = useState<Record<string, UserRole>>(
     Object.fromEntries(profiles.map((p) => [p.id, p.role]))
   );
+  const { sorted, sortKey, sortDir, handleSort } = useSortable(profiles, "full_name");
 
   async function handleRoleChange(userId: string, newRole: UserRole) {
     setRoles((prev) => ({ ...prev, [userId]: newRole }));
@@ -58,15 +59,15 @@ export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
       <table className="min-w-full text-sm">
         <thead className="border-b border-slate-100 bg-slate-50">
           <tr>
-            <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-500">อีเมล</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">แผนก</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-500">บทบาท</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-500 w-20"></th>
+            <SortTh label="ชื่อ"   col="full_name"  activeCol={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortTh label="อีเมล"  col="email"      activeCol={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortTh label="แผนก"   col="department" activeCol={sortKey} dir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
+            <SortTh label="บทบาท" col="role"        activeCol={sortKey} dir={sortDir} onSort={handleSort} />
+            <th className="px-4 py-3 w-20" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {profiles.map((profile) => {
+          {sorted.map((profile) => {
             const isSelf = profile.id === currentUserId;
             const isLoading = loadingIds[profile.id];
             const isSaved = savedIds[profile.id];
