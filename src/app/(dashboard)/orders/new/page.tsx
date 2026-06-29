@@ -75,10 +75,14 @@ export default function NewOrderPage() {
   // ── Load approved PRs ────────────────────────────────────────────────────
   useEffect(() => {
     async function loadPRs() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data } = await (supabase as any)
         .from("purchase_requisitions")
         .select("id, pr_number, title, total_amount, profiles!requester_id(full_name)")
         .eq("status", "approved")
+        .eq("requester_id", user.id)
         .order("created_at", { ascending: false });
 
       setApprovedPRs(

@@ -9,7 +9,17 @@ import type { PoStatus } from "@/types/database";
 
 export default async function OrdersPage() {
   const supabase = await createClient();
-  const { data: pos } = await supabase
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user!.id)
+    .single();
+
+  const isOverseer = profile?.role === "admin" || profile?.role === "manager";
+
+  let query = supabase
     .from("purchase_orders")
     .select(
       `id, po_number, status, order_date, total_amount,
@@ -17,6 +27,12 @@ export default async function OrdersPage() {
        profiles!created_by(full_name)`
     )
     .order("created_at", { ascending: false });
+
+  if (!isOverseer) {
+    query = query.eq("created_by", user!.id);
+  }
+
+  const { data: pos } = await query;
 
   return (
     <div className="space-y-5">
