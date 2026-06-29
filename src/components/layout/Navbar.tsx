@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Profile } from "@/types/database";
@@ -35,28 +36,30 @@ export function Navbar({ profile, avatarUrl }: NavbarProps) {
       </span>
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        {/* รูปโปรไฟล์ — แสดงทุก breakpoint รวมมือถือ */}
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarUrl}
-            alt={profile.full_name || profile.email}
-            referrerPolicy="no-referrer"
-            className="h-8 w-8 rounded-full object-cover ring-2 ring-slate-200"
-          />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
-            {initials}
-          </div>
-        )}
+        {/* รูปโปรไฟล์ + ชื่อ — คลิกไปหน้า Profile */}
+        <Link href="/profile" className="flex items-center gap-2 rounded-lg px-1 py-1 transition hover:bg-slate-100">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={profile.full_name || profile.email}
+              referrerPolicy="no-referrer"
+              className="h-8 w-8 rounded-full object-cover ring-2 ring-slate-200"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
+              {initials}
+            </div>
+          )}
 
-        {/* ชื่อและบทบาท — ซ่อนบนมือถือ */}
-        <div className="hidden flex-col text-right sm:flex">
-          <p className="text-sm font-medium text-slate-800 leading-tight">
-            {profile.full_name || profile.email}
-          </p>
-          <p className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</p>
-        </div>
+          {/* ชื่อและบทบาท — ซ่อนบนมือถือ */}
+          <div className="hidden flex-col text-right sm:flex">
+            <p className="text-sm font-medium text-slate-800 leading-tight">
+              {profile.full_name || profile.email}
+            </p>
+            <p className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</p>
+          </div>
+        </Link>
 
         {/* ปุ่ม logout */}
         <button

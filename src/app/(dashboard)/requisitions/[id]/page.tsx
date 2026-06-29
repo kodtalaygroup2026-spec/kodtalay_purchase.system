@@ -47,7 +47,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   const uniqueIds = [...new Set(auditIds)];
 
   const [{ data: currentProfile }, { data: auditProfileList }, { data: linkedPOs }] = await Promise.all([
-    supabase.from("profiles").select("role").eq("id", user?.id ?? "").single(),
+    supabase.from("profiles").select("role, full_name").eq("id", user?.id ?? "").single(),
     uniqueIds.length > 0
       ? (supabase as any).from("profiles").select("id, full_name").in("id", uniqueIds)
       : Promise.resolve({ data: [] }),
@@ -318,8 +318,16 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
       {/* Action Panel */}
       <PRApprovalPanel
-        pr={{ id: pr.id, status: pr.status as PrStatus, requester_id: pr.requester_id }}
+        pr={{
+          id: pr.id,
+          pr_number: pr.pr_number,
+          title: pr.title,
+          total_amount: pr.total_amount,
+          status: pr.status as PrStatus,
+          requester_id: pr.requester_id,
+        }}
         currentUserId={user?.id ?? ""}
+        currentUserName={(currentProfile as any)?.full_name ?? user?.email ?? ""}
         currentUserRole={currentUserRole}
       />
     </div>

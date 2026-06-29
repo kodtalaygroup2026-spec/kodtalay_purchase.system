@@ -4,20 +4,26 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { PrStatus, UserRole } from "@/types/database";
 import { CheckCircle, XCircle, Send, X, RotateCcw } from "lucide-react";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface PRApprovalPanelProps {
   pr: {
     id: string;
+    pr_number: string;
+    title: string;
+    total_amount: number;
     status: PrStatus;
     requester_id: string;
   };
   currentUserId: string;
+  currentUserName: string;
   currentUserRole: UserRole | undefined;
 }
 
 export function PRApprovalPanel({
   pr,
   currentUserId,
+  currentUserName,
   currentUserRole,
 }: PRApprovalPanelProps) {
   const router = useRouter();
@@ -35,6 +41,83 @@ export function PRApprovalPanel({
   const canSecondApprove = isApprover && pr.status === "pending_second_approval";
   const canCancel = isOwner && (pr.status === "draft" || pr.status === "submitted" || pr.status === "returned");
 
+  // ── LINE notification helpers ────────────────────────────────────────────
+  function prUrl(): string {
+    return `${window.location.origin}/requisitions/${pr.id}`;
+  }
+
+  async function notifyLine(lineUserId: string, message: string) {
+    try {
+      await fetch("/api/notifications/line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineUserId, message }),
+      });
+    } catch {
+      // ไม่ block flow หลัก ถ้า notification ส่งไม่สำเร็จ
+    }
+  }
+
+  async function notifyManagersOnSubmit() {
+    const { data: managers } = await (supabase as any)
+      .from("profiles")
+      .select("line_user_id")
+      .in("role", ["admin", "manager"])
+      .eq("is_active", true)
+      .not("line_user_id", "is", null);
+
+    if (!managers?.length) return;
+
+    const message =
+      `📋 ใบขอซื้อใหม่รอการอนุมัติ\n\n` +
+      `เลขที่: ${pr.pr_number}\n` +
+      `ผู้ขอ: ${currentUserName}\n` +
+      `หัวข้อ: ${pr.title}\n` +
+      `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
+      `👉 ดูรายละเอียด:\n${prUrl()}`;
+
+    for (const { line_user_id } of managers) {
+      void notifyLine(line_user_id, message);
+    }
+  }
+
+  async function notifyRequester(action: "approve" | "reject" | "return") {
+    const { data: requester } = await supabase
+      .from("profiles")
+      .select("line_user_id")
+      .eq("id", pr.requester_id)
+      .single();
+
+    if (!requester?.line_user_id) return;
+
+    const noteText = note ? `\nเหตุผล: ${note}` : "";
+    let message = "";
+
+    if (action === "approve") {
+      message =
+        `✅ ใบขอซื้อของคุณได้รับการอนุมัติ\n\n` +
+        `เลขที่: ${pr.pr_number}\n` +
+        `หัวข้อ: ${pr.title}\n` +
+        `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
+        `👉 ดูรายละเอียด:\n${prUrl()}`;
+    } else if (action === "reject") {
+      message =
+        `❌ ใบขอซื้อของคุณถูกปฏิเสธ\n\n` +
+        `เลขที่: ${pr.pr_number}\n` +
+        `หัวข้อ: ${pr.title}${noteText}\n\n` +
+        `👉 ดูรายละเอียด:\n${prUrl()}`;
+    } else {
+      message =
+        `🔄 ใบขอซื้อถูกตีกลับ กรุณาแก้ไขและส่งใหม่\n\n` +
+        `เลขที่: ${pr.pr_number}\n` +
+        `หัวข้อ: ${pr.title}${noteText}\n\n` +
+        `👉 ดูรายละเอียด:\n${prUrl()}`;
+    }
+
+    void notifyLine(requester.line_user_id, message);
+  }
+
+  // ── Status update ────────────────────────────────────────────────────────
   async function updateStatus(
     status: string,
     audit: Record<string, string | null> = {}
@@ -53,6 +136,7 @@ export function PRApprovalPanel({
       submitted_at: now,
       submitted_by: currentUserId,
     });
+    void notifyManagersOnSubmit();
     setIsLoading(false);
   }
 
@@ -90,7 +174,6 @@ export function PRApprovalPanel({
       return: "returned",
       cancel_pr: "cancelled",
     };
-    // บันทึก ใคร + เวลา ตามประเภทการดำเนินการ
     const auditMap: Record<string, Record<string, string | null>> = {
       approve: { approved_at: now, approved_by: currentUserId },
       reject:  { rejected_at: now, rejected_by: currentUserId },
@@ -99,6 +182,12 @@ export function PRApprovalPanel({
     };
 
     await updateStatus(statusMap[pendingAction], auditMap[pendingAction] ?? {});
+
+    // แจ้ง LINE requester เมื่ออนุมัติ / ปฏิเสธ / ตีกลับ
+    if (pendingAction === "approve" || pendingAction === "reject" || pendingAction === "return") {
+      void notifyRequester(pendingAction);
+    }
+
     setIsLoading(false);
     cancelNote();
   }
