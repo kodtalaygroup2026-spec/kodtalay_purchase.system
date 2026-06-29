@@ -144,29 +144,44 @@ const SUMMARY_STEPS = [
   },
 ];
 
-function ProgressSummary({ prs }: { prs: PRRow[] }) {
+function ProgressSummary({
+  prs,
+  activeStep,
+  onStep,
+}: {
+  prs: PRRow[];
+  activeStep: number | null;
+  onStep: (i: number) => void;
+}) {
   const counts = SUMMARY_STEPS.map((s) => prs.filter(s.match).length);
   return (
     <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {SUMMARY_STEPS.map((step, i) => (
-        <div
-          key={step.label}
-          className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center ${step.bg} ${
-            i < SUMMARY_STEPS.length - 1 ? "border-r border-slate-200" : ""
-          }`}
-        >
-          <div className={`flex items-center gap-1.5`}>
-            <span className={`h-2 w-2 rounded-full ${step.dot} shrink-0`} />
-            <span className={`text-xl font-bold tabular-nums ${step.color}`}>
-              {counts[i]}
+      {SUMMARY_STEPS.map((step, i) => {
+        const isActive = activeStep === i;
+        return (
+          <button
+            key={step.label}
+            onClick={() => onStep(i)}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center transition-colors ${
+              isActive ? step.bg + " ring-inset ring-2 ring-blue-400" : "bg-white hover:" + step.bg
+            } ${i < SUMMARY_STEPS.length - 1 ? "border-r border-slate-200" : ""}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${step.dot} shrink-0`} />
+              <span className={`text-xl font-bold tabular-nums ${step.color}`}>
+                {counts[i]}
+              </span>
+            </div>
+            <span className={`text-xs font-semibold leading-tight ${step.color}`}>
+              {step.label}
             </span>
-          </div>
-          <span className={`text-xs font-semibold leading-tight ${step.color}`}>
-            {step.label}
-          </span>
-          <span className="text-[10px] text-slate-400 hidden sm:block">{step.sub}</span>
-        </div>
-      ))}
+            <span className="text-[10px] text-slate-400 hidden sm:block">{step.sub}</span>
+            {isActive && (
+              <span className="mt-0.5 text-[9px] font-semibold text-blue-500">● กำลังดู</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -178,9 +193,17 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PrStatus | "">("");
+  const [activeStep, setActiveStep] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, ExpandedItem[]>>({});
   const [loadingExpand, setLoadingExpand] = useState<string | null>(null);
+
+  function handleStepClick(i: number) {
+    // กดซ้ำ = ยกเลิก filter
+    setActiveStep(prev => (prev === i ? null : i));
+    setStatusFilter("");
+    setSearch("");
+  }
 
   // ── Filter ───────────────────────────────────────────────────────────────
   const filtered = prs.filter(pr => {
@@ -191,7 +214,8 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
       pr.title.toLowerCase().includes(q) ||
       (pr.profiles?.full_name ?? "").toLowerCase().includes(q);
     const matchStatus = !statusFilter || pr.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchStep = activeStep === null || SUMMARY_STEPS[activeStep].match(pr);
+    return matchSearch && matchStatus && matchStep;
   });
 
   // ── Expand / collapse row ─────────────────────────────────────────────────
@@ -220,7 +244,7 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
   return (
     <div className="space-y-4">
       {/* ── Progress summary ─────────────────────────────────────────────── */}
-      <ProgressSummary prs={prs} />
+      <ProgressSummary prs={prs} activeStep={activeStep} onStep={handleStepClick} />
 
       {/* ── Filter bar ───────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
@@ -228,7 +252,7 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setActiveStep(null); }}
             placeholder="ค้นหาเลขที่ / ชื่อ / ผู้ขอ..."
             className="w-full rounded-lg border border-slate-300 pl-9 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
@@ -244,7 +268,7 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
 
         <select
           value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value as PrStatus | "")}
+          onChange={e => { setStatusFilter(e.target.value as PrStatus | ""); setActiveStep(null); }}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
         >
           <option value="">สถานะทั้งหมด</option>
@@ -255,7 +279,7 @@ export function RequisitionList({ prs }: { prs: PRRow[] }) {
 
         {(search || statusFilter) && (
           <button
-            onClick={() => { setSearch(""); setStatusFilter(""); }}
+            onClick={() => { setSearch(""); setStatusFilter(""); setActiveStep(null); }}
             className="text-sm text-slate-500 hover:text-slate-700"
           >
             ล้างตัวกรอง

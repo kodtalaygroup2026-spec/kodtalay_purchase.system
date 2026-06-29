@@ -21,7 +21,7 @@ interface NavItem {
 
 const PROCUREMENT_MOBILE: NavItem[] = [
   { href: "/", icon: LayoutDashboard, label: "หลัก" },
-  { href: "/requisitions", icon: FileText, label: "PR" },
+  { href: "/requisitions", icon: FileText, label: "งานของฉัน" },
   { href: "/orders", icon: ShoppingCart, label: "PO" },
   { href: "/approvals", icon: CheckSquare, label: "อนุมัติ" },
 ];
