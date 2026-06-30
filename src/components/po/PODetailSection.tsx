@@ -1,7 +1,7 @@
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { POApprovalPanel } from "@/components/po/POApprovalPanel";
-import { AlertTriangle, FileText, ImageIcon, ExternalLink, Clock } from "lucide-react";
+import { AlertTriangle, FileText, ImageIcon, ExternalLink, Clock, Receipt } from "lucide-react";
 import type { PoStatus, UserRole } from "@/types/database";
 
 const PRICE_TOLERANCE = 0.10;
@@ -37,6 +37,16 @@ interface POAttachment {
   file_size: number | null;
 }
 
+interface PurchaseBill {
+  id: string;
+  bill_number: string | null;
+  bill_date: string;
+  bill_amount: number;
+  vendor_name: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 interface PODetailSectionProps {
   po: {
     id: string;
@@ -58,13 +68,14 @@ interface PODetailSectionProps {
   };
   poItems: POItem[];
   attachments: POAttachment[];
+  bills: PurchaseBill[];
   currentUserId: string;
   currentUserRole: UserRole | undefined;
   prId: string;
 }
 
 export function PODetailSection({
-  po, poItems, attachments, currentUserId, currentUserRole, prId,
+  po, poItems, attachments, bills, currentUserId, currentUserRole, prId,
 }: PODetailSectionProps) {
   const hasPrPrices = poItems.some(it => Number(it.pr_unit_price) > 0);
   // column count for tfoot colspan: #(1)+desc(2)+qty(3) + optional prPrice + poPrice + optional variance + total
@@ -274,6 +285,50 @@ export function PODetailSection({
           )}
         </ol>
       </div>
+
+      {/* Bill records */}
+      {bills.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Receipt size={15} className="text-slate-400" />
+            <h3 className="font-semibold text-slate-700">บิล / ใบแจ้งหนี้</h3>
+          </div>
+          <div className="space-y-2">
+            {bills.map(bill => (
+              <div
+                key={bill.id}
+                className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {bill.bill_number ?? "ไม่ระบุเลขที่บิล"}
+                      </p>
+                      {bill.vendor_name && (
+                        <p className="text-xs text-slate-500">{bill.vendor_name}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-900">{formatCurrency(bill.bill_amount)}</p>
+                    <p className="text-xs text-slate-400">
+                      {new Date(bill.bill_date).toLocaleDateString("th-TH", {
+                        year: "numeric", month: "short", day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+                {bill.notes && (
+                  <p className="mt-2 text-xs text-slate-500 border-t border-slate-200 pt-2">
+                    {bill.notes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Approval Panel */}
       <POApprovalPanel

@@ -43,6 +43,10 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function todayString(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
 export function POCreationSection({
   prId, prNumber, prTitle, prTotalAmount, prItems, currentUserId,
 }: POCreationSectionProps) {
@@ -54,6 +58,7 @@ export function POCreationSection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // ── PO fields ──────────────────────────────────────────────────────────────
   const [vendorName, setVendorName] = useState("");
   const [note, setNote] = useState("");
   const [items, setItems] = useState<POItemRow[]>(() =>
@@ -61,7 +66,16 @@ export function POCreationSection({
   );
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
 
-  const poTotal = items.reduce((s, it) => s + it.quantity * it.po_unit_price, 0);
+  // ── Bill fields ────────────────────────────────────────────────────────────
+  const [billNumber, setBillNumber] = useState("");
+  const [billDate, setBillDate] = useState(todayString());
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const poSubtotal = items.reduce((s, it) => s + it.quantity * it.po_unit_price, 0);
+  const vatRate = 7;
+  const vatAmount = poSubtotal * vatRate / 100;
+  const poTotal = poSubtotal + vatAmount;
+
   const itemsWithVariance = items.map(it => ({
     ...it,
     variancePct: getVariancePct(it.po_unit_price, it.pr_unit_price),
@@ -95,6 +109,7 @@ export function POCreationSection({
 
     setIsSubmitting(true);
 
+    // ── 1. Generate PO number ──────────────────────────────────────────────
     const { data: poNumber, error: rpcError } = await supabase.rpc("next_document_number", {
       prefix: "PO",
       table_name: "purchase_orders",
@@ -102,11 +117,9 @@ export function POCreationSection({
     });
     if (rpcError) { setErrorMessage(rpcError.message); setIsSubmitting(false); return; }
 
-    const subtotal = poTotal;
-    const vatRate = 7;
-    const vatAmount = subtotal * vatRate / 100;
-    const totalAmount = subtotal + vatAmount;
+    const now = new Date().toISOString();
 
+    // ── 2. สร้าง PO → auto-submit ทันที (ไม่ผ่าน draft) ──────────────────
     const { data: po, error: poError } = await (supabase as any)
       .from("purchase_orders")
       .insert({
@@ -114,14 +127,16 @@ export function POCreationSection({
         pr_id: prId,
         pr_total_amount: prTotalAmount,
         vendor_name: vendorName.trim() || null,
-        status: "draft",
+        status: "pending_approval",   // ส่งขออนุมัติทันที ไม่ต้องผ่านขั้น draft
+        submitted_at: now,
+        submitted_by: currentUserId,
         created_by: currentUserId,
-        order_date: new Date().toISOString().split("T")[0],
+        order_date: now.split("T")[0],
         note: note.trim() || null,
-        subtotal,
+        subtotal: poSubtotal,
         vat_rate: vatRate,
         vat_amount: vatAmount,
-        total_amount: totalAmount,
+        total_amount: poTotal,
       })
       .select("id")
       .single();
@@ -132,6 +147,7 @@ export function POCreationSection({
       return;
     }
 
+    // ── 3. บันทึกรายการ PO items ──────────────────────────────────────────
     const poItemsData = items.map((it, idx) => ({
       po_id: po.id,
       pr_item_id: it.id,
@@ -145,6 +161,18 @@ export function POCreationSection({
     const { error: itemsError } = await supabase.from("po_items").insert(poItemsData);
     if (itemsError) { setErrorMessage(itemsError.message); setIsSubmitting(false); return; }
 
+    // ── 4. บันทึกบิลแยกต่างหากใน purchase_bills ──────────────────────────
+    await (supabase as any).from("purchase_bills").insert({
+      po_id: po.id,
+      bill_number: billNumber.trim() || null,
+      bill_date: billDate || todayString(),
+      bill_amount: poTotal,
+      vendor_name: vendorName.trim() || null,
+      notes: note.trim() || null,
+      created_by: currentUserId,
+    });
+
+    // ── 5. อัปโหลดไฟล์บิล/ใบเสร็จ ────────────────────────────────────────
     for (const file of attachFiles) {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${po.id}/${Date.now()}_${safeName}`;
@@ -278,19 +306,40 @@ export function POCreationSection({
                 );
               })}
             </tbody>
-            <tfoot className="border-t border-slate-200 bg-slate-50">
+            <tfoot className="border-t border-slate-200 bg-slate-50 text-sm">
               <tr>
-                <td colSpan={3} />
-                <td className="px-3 py-2 text-right text-xs text-slate-400">
-                  รวม PR: ฿{prTotalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                <td colSpan={5} />
+                <td className="px-3 py-2 text-right text-xs font-medium text-slate-500">ก่อน VAT</td>
+                <td className="px-3 py-2 text-right font-semibold text-slate-800">
+                  ฿{poSubtotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </td>
-                <td colSpan={2} className="px-3 py-2 text-right text-xs font-medium text-slate-500">
-                  รวม (ก่อน VAT):
+              </tr>
+              <tr>
+                <td colSpan={5} />
+                <td className="px-3 py-1 text-right text-xs text-slate-400">VAT {vatRate}%</td>
+                <td className="px-3 py-1 text-right text-xs text-slate-500">
+                  ฿{vatAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </td>
+              </tr>
+              <tr className="border-t border-slate-200">
+                <td colSpan={5} />
+                <td className="px-3 py-2 text-right font-semibold text-slate-700">รวมทั้งสิ้น</td>
                 <td className="px-3 py-2 text-right font-bold text-slate-900">
                   ฿{poTotal.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
+              {prTotalAmount > 0 && (
+                <tr className="border-t border-slate-100 bg-blue-50">
+                  <td colSpan={5} />
+                  <td className="px-3 py-1.5 text-right text-xs text-slate-400">งบ PR (อ้างอิง)</td>
+                  <td className={`px-3 py-1.5 text-right text-xs font-semibold ${
+                    isTotalOverBudget ? "text-red-600" : "text-green-600"
+                  }`}>
+                    ฿{prTotalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                    {isTotalOverBudget && <span className="ml-1">⚠ เกินงบ</span>}
+                  </td>
+                </tr>
+              )}
             </tfoot>
           </table>
         </div>
@@ -311,13 +360,38 @@ export function POCreationSection({
         </div>
       </div>
 
-      {/* แนบบิล */}
+      {/* แนบบิล / ใบเสร็จ */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-1 font-semibold text-slate-700">แนบบิล / ใบเสร็จ</h2>
-        <p className="mb-4 text-xs text-slate-400">อัปโหลดบิลหรือใบเสร็จ (รูปภาพหรือ PDF)</p>
+        <h2 className="mb-1 font-semibold text-slate-700">บันทึกบิล / ใบเสร็จ</h2>
+        <p className="mb-4 text-xs text-slate-400">กรอกข้อมูลบิลและแนบไฟล์ — ระบบจะบันทึกไว้ในฐานข้อมูลแยกต่างหาก</p>
+
+        {/* เลขที่บิล + วันที่บิล */}
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">เลขที่บิล (ถ้ามี)</label>
+            <input
+              type="text"
+              value={billNumber}
+              onChange={e => setBillNumber(e.target.value)}
+              placeholder="เช่น INV-2024-001"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">วันที่บิล</label>
+            <input
+              type="date"
+              value={billDate}
+              onChange={e => setBillDate(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* อัปโหลดไฟล์ */}
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
           <Paperclip size={18} className="text-slate-400" />
-          <p className="text-sm font-medium text-slate-600">คลิกเพื่อเลือกไฟล์</p>
+          <p className="text-sm font-medium text-slate-600">คลิกเพื่อแนบไฟล์บิล/ใบเสร็จ</p>
           <p className="text-xs text-slate-400">JPG, PNG, WEBP, PDF</p>
           <input
             ref={fileInputRef}
@@ -396,7 +470,7 @@ export function POCreationSection({
           disabled={isSubmitting}
           className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-700 disabled:opacity-60"
         >
-          {isSubmitting ? "กำลังบันทึก..." : "บันทึก PO (ร่าง)"}
+          {isSubmitting ? "กำลังส่ง PO..." : "บันทึกและส่ง PO"}
         </button>
       </div>
     </form>

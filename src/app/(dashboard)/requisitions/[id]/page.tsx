@@ -106,10 +106,11 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   let poDetail: any = null;
   let poItems: any[] = [];
   let poAttachments: any[] = [];
+  let poBills: any[] = [];
 
   if (linkedPOs && (linkedPOs as any[]).length > 0) {
     const primaryPoId = (linkedPOs as any[])[0].id;
-    const [{ data: poRecord }, { data: poItemsData }, { data: poAttachmentsData }] =
+    const [{ data: poRecord }, { data: poItemsData }, { data: poAttachmentsData }, { data: poBillsData }] =
       await Promise.all([
         (supabase as any)
           .from("purchase_orders")
@@ -128,10 +129,16 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           .select("id, file_name, file_url, file_type, file_size")
           .eq("po_id", primaryPoId)
           .order("created_at"),
+        (supabase as any)
+          .from("purchase_bills")
+          .select("id, bill_number, bill_date, bill_amount, vendor_name, notes, created_at")
+          .eq("po_id", primaryPoId)
+          .order("created_at"),
       ]);
     poDetail = poRecord;
     poItems = poItemsData ?? [];
     poAttachments = poAttachmentsData ?? [];
+    poBills = poBillsData ?? [];
   }
 
   const currentUserRole = currentProfile?.role as UserRole | undefined;
@@ -488,6 +495,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           po={poDetail}
           poItems={poItems}
           attachments={poAttachments}
+          bills={poBills}
           currentUserId={user?.id ?? ""}
           currentUserRole={currentUserRole}
           prId={pr.id}
