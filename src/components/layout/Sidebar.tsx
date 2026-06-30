@@ -15,7 +15,7 @@ import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB = [
   { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ" },
-  { href: "/requisitions?step=3", step: "3",  label: "งานแนบจ่าย" },
+  { href: "/disbursement",        step: null, label: "งานแนบจ่าย" },
   { href: "/requisitions",        step: null, label: "งานเอกสาร" },
   { href: "/requisitions/new",    step: null, label: "สร้าง PR" },
 ];
@@ -26,7 +26,7 @@ const MY_WORK_SUB = [
 function MyWorkDropdown({ pathname }: { pathname: string }) {
   const searchParams = useSearchParams();
   const currentStep = searchParams?.get("step") ?? null;
-  const isOnMyWork = pathname.startsWith("/requisitions");
+  const isOnMyWork = pathname.startsWith("/requisitions") || pathname.startsWith("/disbursement");
   const [open, setOpen] = useState(isOnMyWork);
 
   return (
@@ -48,9 +48,13 @@ function MyWorkDropdown({ pathname }: { pathname: string }) {
         <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-700 pl-3">
           {MY_WORK_SUB.map((sub) => {
             const isNew = sub.href === "/requisitions/new";
-            const isActive =
-              pathname === "/requisitions" &&
-              sub.step === currentStep;
+            const isActive = sub.step !== null
+              ? pathname === "/requisitions" && sub.step === currentStep
+              : sub.href === "/requisitions"
+                ? pathname === "/requisitions" && currentStep === null
+                : sub.href === "/requisitions/new"
+                  ? pathname === "/requisitions/new"
+                  : pathname.startsWith(sub.href);
 
             return (
               <Link

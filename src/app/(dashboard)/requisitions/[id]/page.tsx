@@ -35,17 +35,17 @@ function computeStepState(
 ): StepState {
   if (idx === 0) {
     if (["rejected", "cancelled"].includes(prStatus)) return "error";
-    if (["submitted", "pending_second_approval", "approved", "converted"].includes(prStatus))
+    if (["submitted", "pending_second_approval", "approved", "converted", "pending_finance", "paid"].includes(prStatus))
       return "done";
     return "current";
   }
   if (idx === 1) {
     if (prStatus === "rejected" || prStatus === "returned") return "error";
-    if (["approved", "converted"].includes(prStatus)) return "done";
+    if (["approved", "converted", "pending_finance", "paid"].includes(prStatus)) return "done";
     if (["submitted", "pending_second_approval"].includes(prStatus)) return "current";
     return "locked";
   }
-  // idx === 2 — บิล & รับของ
+  // idx === 2 — หลักฐานการซื้อและรับของ
   if (hasEvidence) return "done";
   if (["approved", "converted"].includes(prStatus)) return "current";
   return "locked";
@@ -417,7 +417,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       />
 
       {/* ── Evidence divider ─────────────────────────────────────────────── */}
-      {["approved", "converted"].includes(prStatus) && (
+      {(["approved", "converted"].includes(prStatus) || hasEvidence) && (
         <div className="flex items-center gap-3 py-1">
           <div className="flex-1 border-t border-slate-200" />
           <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
@@ -435,6 +435,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           prBankName={(pr as any).bank_name ?? null}
           prBankAccount={(pr as any).bank_account_number ?? null}
           currentUserId={user?.id ?? ""}
+          originalAmount={pr.total_amount}
         />
       )}
 
@@ -443,6 +444,32 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-8 text-center">
           <p className="text-sm font-medium text-slate-500">รอผู้สั่งซื้อแนบหลักฐานการรับของ</p>
           <p className="mt-1 text-xs text-slate-400">ผู้สั่งซื้อจะต้องแนบบิลและข้อมูลผู้รับเงินก่อนดำเนินการต่อ</p>
+        </div>
+      )}
+
+      {/* แจ้งสถานะ pending_finance */}
+      {prStatus === "pending_finance" && (
+        <div className="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 px-5 py-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-100">
+            <span className="text-sm">📋</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-purple-800">ส่งหลักฐานแล้ว — รอฝ่ายการเงินตรวจสอบ</p>
+            <p className="text-xs text-purple-600">ฝ่ายการเงินจะดำเนินการตรวจสอบและจัดชุดจ่ายต่อไป</p>
+          </div>
+        </div>
+      )}
+
+      {/* แจ้งสถานะ paid */}
+      {prStatus === "paid" && (
+        <div className="flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-5 py-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-100">
+            <span className="text-sm">✅</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-teal-800">จ่ายเงินแล้ว</p>
+            <p className="text-xs text-teal-600">ฝ่ายการเงินยืนยันการจ่ายเรียบร้อยแล้ว</p>
+          </div>
         </div>
       )}
 

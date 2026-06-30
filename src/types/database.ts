@@ -15,7 +15,9 @@ export type PrStatus =
   | "cancelled"
   | "converted"
   | "pending_second_approval"
-  | "returned";
+  | "returned"
+  | "pending_finance"
+  | "paid";
 
 export type ConstructionStatus =
   | "open"
@@ -320,8 +322,9 @@ export type EvidenceType = "bill" | "slip" | "goods_receipt" | "other";
 
 export interface PaymentEvidence {
   id: string;
-  po_id: string;
+  po_id: string | null;
   pr_id: string;
+  actual_amount: number | null;
   account_holder_name: string;
   bank_name: string | null;
   bank_account_number: string | null;

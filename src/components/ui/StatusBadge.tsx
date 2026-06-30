@@ -37,6 +37,8 @@ const COLOR: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
   cancelled: "bg-red-100 text-red-800",
   returned: "bg-orange-100 text-orange-800",
+  pending_finance: "bg-purple-100 text-purple-800",
+  paid: "bg-teal-100 text-teal-800",
 };
 
 type Props =

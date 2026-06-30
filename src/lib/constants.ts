@@ -28,6 +28,8 @@ export const PR_STATUS_LABELS: Record<PrStatus, string> = {
   converted: "ออก PO แล้ว",
   pending_second_approval: "รออนุมัติรอบ 2",
   returned: "ตีกลับ",
+  pending_finance: "รอการเงิน",
+  paid: "จ่ายแล้ว",
 };
 
 // label ภาษาไทยของสถานะงานก่อสร้าง
