@@ -3,7 +3,6 @@
 import { useState, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
