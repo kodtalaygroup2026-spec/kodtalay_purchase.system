@@ -28,7 +28,7 @@ export default async function DisbursementPage() {
     ((prs ?? []) as any[]).map(async (pr) => {
       const { data: evidence } = await (supabase as any)
         .from("payment_evidences")
-        .select("id, account_holder_name, bank_name, bank_account_number, actual_amount, notes, submitted_at")
+        .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
         .eq("pr_id", pr.id)
         .maybeSingle();
 
@@ -52,7 +52,7 @@ export default async function DisbursementPage() {
         created_at: pr.created_at,
         requester: pr.profiles ?? null,
         evidence: evidence
-          ? { ...evidence, files }
+          ? { ...evidence, actual_amount: null, files }
           : null,
       };
     })

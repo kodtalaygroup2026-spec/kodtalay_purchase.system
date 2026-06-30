@@ -205,12 +205,12 @@ export function EvidenceSubmissionSection({
 
     try {
       // 1. สร้าง payment_evidences record
+      // หมายเหตุ: actual_amount บันทึกไว้ที่ purchase_requisitions แทน (migration 0018)
       const { data: evidence, error: evidenceError } = await (supabase as any)
         .from("payment_evidences")
         .insert({
           po_id: poId,
           pr_id: prId,
-          actual_amount: actualAmountNum,
           account_holder_name: accountHolderName.trim(),
           bank_name: bankName || null,
           bank_account_number: bankAccount.trim() || null,
@@ -227,11 +227,20 @@ export function EvidenceSubmissionSection({
       await uploadFiles(evidence.id, slipFiles, "slip");
       await uploadFiles(evidence.id, goodsReceiptFiles, "goods_receipt");
 
-      // 3. อัปเดตสถานะ PR → pending_finance + บันทึก actual_amount
-      await (supabase as any)
+      // 3. บันทึก actual_amount ลง PR และเปลี่ยนสถานะเป็น pending_finance
+      // (pending_finance ต้องรัน migration 0018 ใน Supabase Dashboard ก่อน)
+      const { error: prUpdateError } = await (supabase as any)
         .from("purchase_requisitions")
         .update({ status: "pending_finance", actual_amount: actualAmountNum })
         .eq("id", prId);
+
+      if (prUpdateError) {
+        // ถ้า enum ยังไม่อัปเดต — อย่างน้อยบันทึก actual_amount ก่อน
+        await (supabase as any)
+          .from("purchase_requisitions")
+          .update({ actual_amount: actualAmountNum })
+          .eq("id", prId);
+      }
 
       router.refresh();
     } catch (err: unknown) {
