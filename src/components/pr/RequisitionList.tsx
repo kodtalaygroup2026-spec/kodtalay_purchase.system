@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
@@ -191,6 +192,7 @@ function ProgressSummary({
 
 export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; initialStep?: number | null }) {
   const supabase = createClient();
+  const router = useRouter();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PrStatus | "">("");
@@ -200,7 +202,6 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
   const [loadingExpand, setLoadingExpand] = useState<string | null>(null);
 
   function handleStepClick(i: number) {
-    // กดซ้ำ = ยกเลิก filter
     setActiveStep(prev => (prev === i ? null : i));
     setStatusFilter("");
     setSearch("");
@@ -219,8 +220,14 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
     return matchSearch && matchStatus && matchStep;
   });
 
-  // ── Expand / collapse row ─────────────────────────────────────────────────
-  async function handleRowClick(prId: string) {
+  // คลิกแถว = ไปหน้ารายละเอียด
+  function handleRowClick(prId: string) {
+    router.push(`/requisitions/${prId}`);
+  }
+
+  // คลิก chevron = expand/collapse ข้อมูลย่อ (stopPropagation ไม่ให้ navigate)
+  async function handleChevronClick(e: React.MouseEvent, prId: string) {
+    e.stopPropagation();
     if (expandedId === prId) {
       setExpandedId(null);
       return;
@@ -303,7 +310,6 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
           <table className="min-w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
-                <th className="w-8 px-3 py-3" />
                 <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่ PR</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ / ผู้ขอ</th>
                 <th className="px-4 py-3 text-center font-medium text-slate-500 hidden md:table-cell">
@@ -314,6 +320,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                   สถานะ PO
                 </th>
                 <th className="px-4 py-3 text-right font-medium text-slate-500">มูลค่า</th>
+                <th className="w-8 px-3 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -335,11 +342,6 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                           : "hover:bg-slate-50"
                       }`}
                     >
-                      <td className="px-3 py-3 text-slate-400">
-                        {isExpanded
-                          ? <ChevronDown size={15} />
-                          : <ChevronRight size={15} />}
-                      </td>
                       <td className="px-4 py-3">
                         <div className="font-mono text-xs font-bold text-blue-600">
                           {pr.pr_number}
@@ -371,6 +373,16 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                       <td className="px-4 py-3 text-right font-medium text-slate-800">
                         {formatCurrency(pr.total_amount)}
                       </td>
+                      <td className="px-3 py-3 text-slate-400">
+                        <button
+                          onClick={(e) => handleChevronClick(e, pr.id)}
+                          className="rounded p-0.5 hover:bg-slate-200 transition-colors"
+                        >
+                          {isExpanded
+                            ? <ChevronDown size={15} />
+                            : <ChevronRight size={15} />}
+                        </button>
+                      </td>
                     </tr>
 
                     {/* Expanded detail row */}
@@ -382,7 +394,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                               กำลังโหลด...
                             </div>
                           ) : (
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               {/* รายการสินค้า */}
                               <div className="rounded-lg border border-slate-200 bg-white p-3">
                                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
@@ -438,31 +450,6 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                                       : "ยังไม่มีใบสั่งซื้อ"}
                                   </p>
                                 )}
-                              </div>
-
-                              {/* Actions */}
-                              <div className="rounded-lg border border-slate-200 bg-white p-3 flex flex-col justify-between gap-2">
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                                  ดำเนินการ
-                                </p>
-                                <div className="space-y-2">
-                                  <Link
-                                    href={`/requisitions/${pr.id}`}
-                                    onClick={e => e.stopPropagation()}
-                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-700"
-                                  >
-                                    ดูรายละเอียด →
-                                  </Link>
-                                  {pr.status === "approved" && !primaryPO && (
-                                    <Link
-                                      href={`/requisitions/${pr.id}`}
-                                      onClick={e => e.stopPropagation()}
-                                      className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700 transition hover:bg-green-100"
-                                    >
-                                      + สร้าง PO
-                                    </Link>
-                                  )}
-                                </div>
                               </div>
                             </div>
                           )}
