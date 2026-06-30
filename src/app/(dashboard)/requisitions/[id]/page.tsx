@@ -253,43 +253,43 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ── PR info card ──────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <StatusBadge kind="pr" status={pr.status as PrStatus} />
-            {pr.is_urgent && (
-              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
-                ด่วน
+      {/* ── PR info + รายการสินค้า (paper เดียวกัน) ─────────────────────── */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <StatusBadge kind="pr" status={pr.status as PrStatus} />
+              {pr.is_urgent && (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+                  ด่วน
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {prStatus === "returned" && isOwner && (
+                <Link
+                  href={`/requisitions/${pr.id}/edit`}
+                  className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-orange-600"
+                >
+                  <Edit size={13} /> แก้ไขและส่งใหม่
+                </Link>
+              )}
+              {prStatus === "rejected" && isOwner && (
+                <Link
+                  href="/requisitions/new"
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  <Plus size={13} /> สร้าง PR ใหม่
+                </Link>
+              )}
+              <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
+                {pr.pr_number}
               </span>
-            )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* ปุ่มแก้ไข — แสดงเมื่อตีกลับและเป็นเจ้าของ */}
-            {prStatus === "returned" && isOwner && (
-              <Link
-                href={`/requisitions/${pr.id}/edit`}
-                className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-orange-600"
-              >
-                <Edit size={13} /> แก้ไขและส่งใหม่
-              </Link>
-            )}
-            {/* ปุ่มสร้างใหม่ — แสดงเมื่อ rejected (ไม่อนุมัติถาวร) และเป็นเจ้าของ */}
-            {prStatus === "rejected" && isOwner && (
-              <Link
-                href="/requisitions/new"
-                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700"
-              >
-                <Plus size={13} /> สร้าง PR ใหม่
-              </Link>
-            )}
-            <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
-              {pr.pr_number}
-            </span>
-          </div>
-        </div>
-        <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>
-        <div className="border-t border-slate-100 pt-4">
+          <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
             <div>
               <p className="text-slate-500">ผู้ขอ</p>
@@ -319,11 +319,9 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             )}
           </div>
         </div>
-      </div>
 
-      {/* ── รายการสินค้า ──────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-6 py-4">
+        {/* รายการสินค้า */}
+        <div className="border-t border-slate-100 px-6 py-3">
           <h3 className="font-semibold text-slate-700">รายการสินค้า</h3>
         </div>
         <table className="min-w-full text-sm">
