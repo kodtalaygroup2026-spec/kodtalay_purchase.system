@@ -152,7 +152,7 @@ export default function NewRequisitionPage() {
     setItems((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
-        if (!productId) return { ...item, product_id: "", unit: "", unit_price: 0 };
+        if (!productId) return { ...item, product_id: "", description: "", unit: "", unit_price: 0 };
         const p = products.find((prod) => prod.id === productId);
         if (!p) return item;
         return { ...item, product_id: productId, description: p.name, unit: p.unit, unit_price: p.unit_price };
