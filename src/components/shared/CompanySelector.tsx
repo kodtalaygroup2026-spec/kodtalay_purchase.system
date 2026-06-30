@@ -36,9 +36,10 @@ interface CompanySelectorProps {
   branches: Branch[];
   selectedId: string;
   onChange: (id: string) => void;
+  compact?: boolean;
 }
 
-export function CompanySelector({ branches, selectedId, onChange }: CompanySelectorProps) {
+export function CompanySelector({ branches, selectedId, onChange, compact = false }: CompanySelectorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -56,6 +57,46 @@ export function CompanySelector({ branches, selectedId, onChange }: CompanySelec
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  if (compact) {
+    return (
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 transition-colors`}
+        >
+          <div className={`flex h-5 w-5 items-center justify-center rounded-md ${colors.bg}`}>
+            <Building2 size={11} className="text-white" />
+          </div>
+          <span>{selectedBranch?.name ?? "เลือกบริษัท"}</span>
+          <ChevronDown size={13} className={`ml-0.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+            {branches.map((branch) => {
+              const c = BRANCH_COLORS[branch.code] ?? DEFAULT_COLOR;
+              const isSelected = branch.id === selectedId;
+              return (
+                <button
+                  key={branch.id}
+                  type="button"
+                  onClick={() => { onChange(branch.id); setOpen(false); }}
+                  className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 ${isSelected ? "bg-slate-50" : ""}`}
+                >
+                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${c.bg}`}>
+                    <Building2 size={12} className="text-white" />
+                  </div>
+                  <span className="flex-1 font-medium text-slate-700">{branch.name}</span>
+                  {isSelected && <Check size={14} className="text-blue-600" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">

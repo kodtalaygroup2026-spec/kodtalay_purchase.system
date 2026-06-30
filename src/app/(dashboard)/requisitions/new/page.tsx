@@ -286,46 +286,49 @@ export default function NewRequisitionPage() {
           </div>
 
           {/* ── กล่องรวม: งานด่วน | สาขา | วันที่ ── */}
-          <div className="grid grid-cols-1 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-slate-50 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="flex flex-col divide-y divide-slate-100 sm:flex-row sm:divide-x sm:divide-y-0">
 
-            {/* งานด่วน */}
-            <div className={`flex items-center justify-between px-4 py-3 transition-colors rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none ${
-              isUrgent ? "bg-red-50" : ""
-            }`}>
-              <div>
-                <p className={`text-sm font-semibold ${isUrgent ? "text-red-700" : "text-slate-700"}`}>งานด่วน</p>
-                <p className="text-[10px] text-slate-400">เฉพาะฉุกเฉิน</p>
+              {/* งานด่วน */}
+              <div className={`flex flex-1 items-center justify-between px-4 py-3 transition-colors ${isUrgent ? "bg-red-50" : ""}`}>
+                <div>
+                  <p className={`text-sm font-semibold ${isUrgent ? "text-red-700" : "text-slate-700"}`}>งานด่วน</p>
+                  <p className="text-[10px] text-slate-400">เฉพาะฉุกเฉิน</p>
+                </div>
+                <button type="button" onClick={() => setIsUrgent((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isUrgent ? "bg-red-500" : "bg-slate-300"}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isUrgent ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
               </div>
-              <button type="button" onClick={() => setIsUrgent((v) => !v)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isUrgent ? "bg-red-500" : "bg-slate-300"}`}>
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isUrgent ? "translate-x-6" : "translate-x-1"}`} />
-              </button>
-            </div>
 
-            {/* สาขา */}
-            <div className="flex flex-col justify-center px-4 py-3">
-              <p className="mb-1.5 text-[10px] font-medium text-slate-400">สาขา</p>
-              {branches.length > 0 && (
-                <CompanySelector branches={branches} selectedId={branchId}
-                  onChange={(id) => {
-                    setBranchId(id);
-                    setBranchFromMemory(false);
-                    localStorage.setItem("last_branch_id", id);
-                  }}
-                />
-              )}
-              {branchFromMemory && selectedBranch && (
-                <span className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
-                  <Building2 size={9} /> จำไว้จากครั้งล่าสุด
-                </span>
-              )}
-            </div>
+              {/* สาขา */}
+              <div className="flex flex-1 flex-col justify-center px-4 py-3">
+                <p className="mb-1.5 text-[10px] font-medium text-slate-400">สาขา</p>
+                {branches.length > 0 && (
+                  <CompanySelector
+                    compact
+                    branches={branches}
+                    selectedId={branchId}
+                    onChange={(id) => {
+                      setBranchId(id);
+                      setBranchFromMemory(false);
+                      localStorage.setItem("last_branch_id", id);
+                    }}
+                  />
+                )}
+                {branchFromMemory && selectedBranch && (
+                  <span className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
+                    <Building2 size={9} /> จำไว้จากครั้งล่าสุด
+                  </span>
+                )}
+              </div>
 
-            {/* วันที่ต้องการ */}
-            <div className="flex flex-col justify-center px-4 py-3 rounded-b-xl sm:rounded-r-xl sm:rounded-bl-none">
-              <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
-            </div>
+              {/* วันที่ต้องการ */}
+              <div className="flex flex-1 flex-col justify-center px-4 py-3">
+                <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
+              </div>
 
+            </div>
           </div>
         </div>
 
