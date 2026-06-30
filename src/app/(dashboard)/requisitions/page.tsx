@@ -36,7 +36,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
     purchase_orders: pr.purchase_orders ?? [],
   }));
 
-  const stepLabels = ["ร่าง / ตีกลับ", "รออนุมัติ", "รอสร้าง PO", "มี PO"];
+  const stepLabels = ["ใบขอซื้อ", "รออนุมัติ", "ดำเนินการ"];
 
   return (
     <div className="space-y-5">

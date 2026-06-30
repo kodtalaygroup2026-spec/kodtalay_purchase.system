@@ -45,31 +45,26 @@ interface ExpandedItem {
 
 type StepState = "done" | "current" | "error" | "locked";
 
+// 3 steps: ใบขอซื้อ → รออนุมัติ → ดำเนินการ
 function getStepState(
   idx: number,
   prStatus: PrStatus,
   hasPO: boolean,
-  poStatus?: PoStatus,
 ): StepState {
   if (idx === 0) {
     if (["rejected", "cancelled"].includes(prStatus)) return "error";
-    if (["submitted", "pending_second_approval", "approved", "converted"].includes(prStatus) || hasPO) return "done";
+    if (["submitted", "pending_second_approval", "approved", "converted", "pending_finance", "paid"].includes(prStatus) || hasPO) return "done";
     return "current";
   }
   if (idx === 1) {
     if (prStatus === "rejected") return "error";
-    if (["approved", "converted"].includes(prStatus) || hasPO) return "done";
+    if (["approved", "converted", "pending_finance", "paid"].includes(prStatus) || hasPO) return "done";
     if (["submitted", "pending_second_approval"].includes(prStatus)) return "current";
     return "locked";
   }
-  if (idx === 2) {
-    if (hasPO) return "done";
-    if (prStatus === "approved") return "current";
-    return "locked";
-  }
-  // idx === 3
-  if (poStatus === "approved") return "done";
-  if (hasPO) return "current";
+  // idx === 2: ดำเนินการ
+  if (["paid"].includes(prStatus)) return "done";
+  if (["approved", "converted", "pending_finance"].includes(prStatus) || hasPO) return "current";
   return "locked";
 }
 
@@ -77,7 +72,6 @@ function getStepState(
 
 function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }) {
   const hasPO = pos.length > 0;
-  const poStatus = pos[0]?.status as PoStatus | undefined;
 
   const dotColor = (state: StepState) => {
     if (state === "done") return "bg-green-500";
@@ -90,12 +84,12 @@ function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }
 
   return (
     <div className="flex items-center gap-0.5 justify-center">
-      {[0, 1, 2, 3].map(i => {
-        const state = getStepState(i, prStatus, hasPO, poStatus);
+      {[0, 1, 2].map(i => {
+        const state = getStepState(i, prStatus, hasPO);
         return (
           <Fragment key={i}>
             <div className={`h-2.5 w-2.5 rounded-sm ${dotColor(state)}`} />
-            {i < 3 && <div className={`h-0.5 w-3 ${lineColor(state)}`} />}
+            {i < 2 && <div className={`h-0.5 w-3 ${lineColor(state)}`} />}
           </Fragment>
         );
       })}
@@ -105,42 +99,37 @@ function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }
 
 // ── Progress summary bar ───────────────────────────────────────────────────
 
+// สถานะที่นับในแต่ละ step (ใช้กับ status filter dropdown)
+export const STEP_STATUSES: PrStatus[][] = [
+  ["draft", "returned", "rejected", "cancelled"],
+  ["submitted", "pending_second_approval"],
+  ["approved", "converted", "pending_finance", "paid"],
+];
+
 const SUMMARY_STEPS = [
   {
     label: "ใบขอซื้อ",
     sub: "ร่าง / ตีกลับ",
     color: "text-slate-600",
     bg: "bg-slate-50",
-    border: "border-slate-200",
     dot: "bg-slate-400",
-    match: (pr: PRRow) => ["draft", "returned"].includes(pr.status),
+    match: (pr: PRRow) => (STEP_STATUSES[0] as string[]).includes(pr.status),
   },
   {
     label: "รออนุมัติ",
     sub: "ส่งแล้ว",
     color: "text-amber-700",
     bg: "bg-amber-50",
-    border: "border-amber-200",
     dot: "bg-amber-400",
-    match: (pr: PRRow) => ["submitted", "pending_second_approval"].includes(pr.status),
+    match: (pr: PRRow) => (STEP_STATUSES[1] as string[]).includes(pr.status),
   },
   {
-    label: "รอสร้าง PO",
+    label: "ดำเนินการ",
     sub: "อนุมัติแล้ว",
-    color: "text-blue-700",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    dot: "bg-blue-500",
-    match: (pr: PRRow) => pr.status === "approved" && pr.purchase_orders.length === 0,
-  },
-  {
-    label: "มี PO",
-    sub: "ดำเนินการ",
     color: "text-green-700",
     bg: "bg-green-50",
-    border: "border-green-200",
     dot: "bg-green-500",
-    match: (pr: PRRow) => pr.purchase_orders.length > 0 || pr.status === "converted",
+    match: (pr: PRRow) => (STEP_STATUSES[2] as string[]).includes(pr.status) || pr.purchase_orders.length > 0,
   },
 ];
 
@@ -275,12 +264,12 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
 
         <select
           value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value as PrStatus | ""); setActiveStep(null); }}
+          onChange={e => { setStatusFilter(e.target.value as PrStatus | ""); }}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
         >
           <option value="">สถานะทั้งหมด</option>
-          {(Object.entries(PR_STATUS_LABELS) as [PrStatus, string][]).map(([val, label]) => (
-            <option key={val} value={val}>{label}</option>
+          {(activeStep !== null ? STEP_STATUSES[activeStep] : (Object.keys(PR_STATUS_LABELS) as PrStatus[])).map(val => (
+            <option key={val} value={val}>{PR_STATUS_LABELS[val]}</option>
           ))}
         </select>
 
