@@ -38,7 +38,7 @@ export default async function DashboardLayout({
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
           {children}
         </main>
-        <MobileNav role={profile.role} />
+        <MobileNav />
       </div>
     </div>
   );
