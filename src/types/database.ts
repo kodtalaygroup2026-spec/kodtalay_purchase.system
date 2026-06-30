@@ -316,6 +316,32 @@ export interface LineLinkCode {
   created_at: string;
 }
 
+export type EvidenceType = "bill" | "slip" | "goods_receipt" | "other";
+
+export interface PaymentEvidence {
+  id: string;
+  po_id: string;
+  pr_id: string;
+  account_holder_name: string;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  notes: string | null;
+  submitted_at: string;
+  submitted_by: string | null;
+  created_at: string;
+}
+
+export interface EvidenceFile {
+  id: string;
+  evidence_id: string;
+  file_name: string;
+  file_url: string;
+  evidence_type: EvidenceType;
+  file_size: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Database schema สำหรับ supabase-js typed client
 // ---------------------------------------------------------------------------
