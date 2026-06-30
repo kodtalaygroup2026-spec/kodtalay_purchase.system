@@ -250,16 +250,15 @@ export function PRApprovalPanel({
                 <CheckCircle size={15} />
                 {canSecondApprove ? "อนุมัติ (รอบ 2)" : "อนุมัติ"}
               </button>
-              {canSecondApprove && (
-                <button
-                  onClick={() => askAction("return")}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60"
-                >
-                  <RotateCcw size={15} />
-                  ตีกลับ
-                </button>
-              )}
+              {/* ตีกลับ: ใช้ได้ทั้งรอบ 1 (submitted) และรอบ 2 (pending_second_approval) */}
+              <button
+                onClick={() => askAction("return")}
+                disabled={isLoading}
+                className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60"
+              >
+                <RotateCcw size={15} />
+                ตีกลับ
+              </button>
               <button
                 onClick={() => askAction("reject")}
                 disabled={isLoading}

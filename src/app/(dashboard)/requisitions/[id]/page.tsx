@@ -10,6 +10,7 @@ import { PODetailSection } from "@/components/po/PODetailSection";
 import Link from "next/link";
 import {
   ArrowLeft, Clock, CheckCircle2, XCircle, Send, X, FileText,
+  Edit, Plus,
 } from "lucide-react";
 import type { PrStatus, PoStatus, UserRole } from "@/types/database";
 
@@ -41,7 +42,7 @@ function computeStepState(
     return "current";
   }
   if (idx === 1) {
-    if (prStatus === "rejected") return "error";
+    if (prStatus === "rejected" || prStatus === "returned") return "error";
     if (["approved", "converted"].includes(prStatus) || hasPO) return "done";
     if (["submitted", "pending_second_approval"].includes(prStatus)) return "current";
     return "locked";
@@ -134,6 +135,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   }
 
   const currentUserRole = currentProfile?.role as UserRole | undefined;
+  const isOwner = user?.id === pr.requester_id;
   const requester = pr.profiles as { full_name: string; email: string } | null;
 
   const nameOf: Record<string, string> = Object.fromEntries(
@@ -303,9 +305,29 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               </span>
             )}
           </div>
-          <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
-            {pr.pr_number}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* ปุ่มแก้ไข — แสดงเมื่อตีกลับและเป็นเจ้าของ */}
+            {prStatus === "returned" && isOwner && (
+              <Link
+                href={`/requisitions/${pr.id}/edit`}
+                className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-orange-600"
+              >
+                <Edit size={13} /> แก้ไขและส่งใหม่
+              </Link>
+            )}
+            {/* ปุ่มสร้างใหม่ — แสดงเมื่อ rejected (ไม่อนุมัติถาวร) และเป็นเจ้าของ */}
+            {prStatus === "rejected" && isOwner && (
+              <Link
+                href="/requisitions/new"
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <Plus size={13} /> สร้าง PR ใหม่
+              </Link>
+            )}
+            <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
+              {pr.pr_number}
+            </span>
+          </div>
         </div>
         <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>
         <div className="border-t border-slate-100 pt-4">
