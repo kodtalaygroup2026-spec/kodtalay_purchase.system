@@ -342,7 +342,7 @@ export default function NewRequisitionPage() {
           {/* ── รายการสินค้า ── */}
           <div className="border-t border-slate-100">
             <div className="flex items-center justify-between px-6 py-4">
-              <h2 className="font-semibold text-slate-700">รายการสินค้า / บริการ</h2>
+              <h2 className="font-semibold text-slate-700">รายการสินค้า</h2>
               <button type="button" onClick={addItem}
                 className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
                 <Plus size={15} /> เพิ่มรายการ
@@ -357,7 +357,7 @@ export default function NewRequisitionPage() {
                     <input
                       value={item.description}
                       onChange={(e) => updateItem(index, "description", e.target.value)}
-                      placeholder="รายละเอียดสินค้า / บริการ *"
+                      placeholder="รายละเอียดสินค้า *"
                       required
                       className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                     />
