@@ -2,13 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { DisbursementList } from "@/components/disbursement/DisbursementList";
-import { type DisbursementPR } from "@/components/disbursement/DisbursementItem";
-import { Banknote, ClipboardList } from "lucide-react";
+import { DisbursementItem, type DisbursementPR } from "@/components/disbursement/DisbursementItem";
+import { Banknote, ClipboardList, Clock } from "lucide-react";
 
 export default async function DisbursementPage() {
   const supabase = await createClient();
 
-  // 1. ดึง payment_evidences ทั้งหมด (ทุกรายการที่มีการส่งหลักฐาน)
+  // Fetch all payment_evidences
   const { data: evidences } = await (supabase as any)
     .from("payment_evidences")
     .select("id, pr_id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
@@ -18,26 +18,16 @@ export default async function DisbursementPage() {
     return <EmptyPage />;
   }
 
-  // 2. Batch fetch PRs โดยใช้ pr_id จาก evidences
+  // Batch fetch PRs
   const prIds = [...new Set((evidences as any[]).map((e: any) => e.pr_id as string))];
   const { data: prs } = await (supabase as any)
     .from("purchase_requisitions")
-    .select(`
-      id,
-      pr_number,
-      title,
-      status,
-      total_amount,
-      actual_amount,
-      is_urgent,
-      created_at,
-      profiles!requester_id(full_name)
-    `)
+    .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, profiles!requester_id(full_name)`)
     .in("id", prIds);
 
   const prMap = new Map<string, any>((prs ?? []).map((pr: any) => [pr.id, pr]));
 
-  // 3. Batch fetch evidence_files
+  // Batch fetch evidence_files
   const evidenceIds = (evidences as any[]).map((e: any) => e.id as string);
   const { data: allFiles } = await (supabase as any)
     .from("evidence_files")
@@ -52,12 +42,11 @@ export default async function DisbursementPage() {
     filesMap.set(file.evidence_id, list);
   }
 
-  // 4. สร้าง DisbursementPR list
-  const prList: DisbursementPR[] = (evidences as any[])
+  // Build full list
+  const allItems: DisbursementPR[] = (evidences as any[])
     .map((evidence: any) => {
       const pr = prMap.get(evidence.pr_id);
       if (!pr) return null;
-
       const files = filesMap.get(evidence.id) ?? [];
       return {
         id: pr.id,
@@ -90,10 +79,18 @@ export default async function DisbursementPage() {
     })
     .filter(Boolean) as DisbursementPR[];
 
-  const pendingCount = prList.filter(p => p.status === "pending_finance" || p.status === "approved").length;
+  // แยก pending_finance (รอดำเนินการ) ออกจาก history (paid/cancelled)
+  const pendingItems = allItems.filter(p => p.status === "pending_finance" || p.status === "approved");
+  const historyItems = allItems.filter(p => p.status !== "pending_finance" && p.status !== "approved");
+
+  // urgent ขึ้นก่อน
+  const sortedPending = [
+    ...pendingItems.filter(p => p.is_urgent),
+    ...pendingItems.filter(p => !p.is_urgent),
+  ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -102,21 +99,46 @@ export default async function DisbursementPage() {
             <h1 className="text-xl font-bold text-slate-800">งานแนบจ่าย</h1>
           </div>
           <p className="mt-0.5 text-sm text-slate-500">
-            รายการที่ส่งหลักฐานแล้ว {prList.length} รายการ
-            {pendingCount > 0 && (
-              <span className="ml-2 font-semibold text-teal-700">รอดำเนินการ {pendingCount} รายการ</span>
-            )}
+            {pendingItems.length > 0 && `รอดำเนินการ ${pendingItems.length} รายการ`}
+            {pendingItems.length > 0 && historyItems.length > 0 && " · "}
+            {historyItems.length > 0 && `ประวัติ ${historyItems.length} รายการ`}
           </p>
         </div>
-        {pendingCount > 0 && (
+        {pendingItems.length > 0 && (
           <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-teal-100 px-2.5 text-sm font-bold text-teal-700">
-            {pendingCount}
+            {pendingItems.length}
           </span>
         )}
       </div>
 
-      {/* List with search/sort/filter */}
-      <DisbursementList items={prList} />
+      {/* ── รอดำเนินการ (pending_finance) ─────────────────────────────── */}
+      {sortedPending.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock size={15} className="text-teal-600" />
+            <h2 className="text-sm font-semibold text-slate-700">รอดำเนินการ</h2>
+            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700">
+              {sortedPending.length}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {sortedPending.map(pr => (
+              <DisbursementItem key={pr.id} pr={pr} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── ประวัติ (paid / cancelled) ─────────────────────────────────── */}
+      <section className="space-y-3">
+        {historyItems.length > 0 && (
+          <div className="flex items-center gap-2">
+            <ClipboardList size={15} className="text-slate-500" />
+            <h2 className="text-sm font-semibold text-slate-700">ประวัติการจ่าย</h2>
+          </div>
+        )}
+        <DisbursementList items={historyItems} />
+      </section>
     </div>
   );
 }

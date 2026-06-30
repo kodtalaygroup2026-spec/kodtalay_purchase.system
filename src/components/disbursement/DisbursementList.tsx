@@ -5,7 +5,7 @@ import { Search, ArrowUpDown } from "lucide-react";
 import { DisbursementItem, type DisbursementPR } from "./DisbursementItem";
 
 type SortKey = "newest" | "oldest" | "amount_desc" | "amount_asc";
-type StatusFilter = "all" | "pending_finance" | "paid" | "cancelled";
+type StatusFilter = "all" | "paid" | "cancelled";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "newest",      label: "ล่าสุดก่อน" },
@@ -15,10 +15,9 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ];
 
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
-  { value: "all",             label: "ทั้งหมด" },
-  { value: "pending_finance", label: "รอการเงิน" },
-  { value: "paid",            label: "จ่ายแล้ว" },
-  { value: "cancelled",       label: "ยกเลิก" },
+  { value: "all",       label: "ทั้งหมด" },
+  { value: "paid",      label: "จ่ายแล้ว" },
+  { value: "cancelled", label: "ยกเลิก" },
 ];
 
 interface DisbursementListProps {
@@ -26,19 +25,17 @@ interface DisbursementListProps {
 }
 
 export function DisbursementList({ items }: DisbursementListProps) {
-  const [search, setSearch]           = useState("");
-  const [sort, setSort]               = useState<SortKey>("newest");
+  const [search, setSearch]             = useState("");
+  const [sort, setSort]                 = useState<SortKey>("newest");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const filtered = useMemo(() => {
     let list = [...items];
 
-    // Filter by status
     if (statusFilter !== "all") {
       list = list.filter(pr => pr.status === statusFilter);
     }
 
-    // Search by pr_number, title, requester name
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(pr =>
@@ -48,7 +45,6 @@ export function DisbursementList({ items }: DisbursementListProps) {
       );
     }
 
-    // Sort
     list.sort((a, b) => {
       switch (sort) {
         case "newest":
@@ -64,13 +60,6 @@ export function DisbursementList({ items }: DisbursementListProps) {
       }
     });
 
-    // Urgent items float to top within same filter/sort (unless sorting by amount)
-    if (sort === "newest" || sort === "oldest") {
-      const urgent = list.filter(p => p.is_urgent);
-      const normal = list.filter(p => !p.is_urgent);
-      list = [...urgent, ...normal];
-    }
-
     return list;
   }, [items, search, sort, statusFilter]);
 
@@ -82,11 +71,19 @@ export function DisbursementList({ items }: DisbursementListProps) {
     return counts;
   }, [items]);
 
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center">
+        <Search size={24} className="mx-auto mb-2 text-slate-300" />
+        <p className="text-sm text-slate-400">ยังไม่มีประวัติการจ่าย</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Controls row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        {/* Search */}
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -98,7 +95,6 @@ export function DisbursementList({ items }: DisbursementListProps) {
           />
         </div>
 
-        {/* Sort */}
         <div className="flex items-center gap-2 shrink-0">
           <ArrowUpDown size={14} className="text-slate-400" />
           <select
@@ -114,9 +110,9 @@ export function DisbursementList({ items }: DisbursementListProps) {
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 overflow-x-auto border-b border-slate-200 pb-0">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
         {STATUS_TABS.map(tab => {
-          const count = countByStatus[tab.value === "all" ? "all" : tab.value] ?? 0;
+          const count = tab.value === "all" ? countByStatus["all"] : (countByStatus[tab.value] ?? 0);
           const isActive = statusFilter === tab.value;
           return (
             <button
@@ -132,7 +128,7 @@ export function DisbursementList({ items }: DisbursementListProps) {
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                 isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
               }`}>
-                {count}
+                {count ?? 0}
               </span>
             </button>
           );
@@ -141,10 +137,9 @@ export function DisbursementList({ items }: DisbursementListProps) {
 
       {/* Results */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-          <Search size={28} className="mx-auto mb-3 text-slate-300" />
-          <p className="font-medium text-slate-500">ไม่พบรายการที่ค้นหา</p>
-          <p className="mt-1 text-sm text-slate-400">ลองเปลี่ยนคำค้นหาหรือตัวกรองใหม่</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center">
+          <Search size={24} className="mx-auto mb-2 text-slate-300" />
+          <p className="text-sm text-slate-400">ไม่พบรายการที่ค้นหา</p>
         </div>
       ) : (
         <div className="space-y-3">

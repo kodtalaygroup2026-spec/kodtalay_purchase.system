@@ -272,11 +272,31 @@ export default function NewRequisitionPage() {
   // ── Render ──────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-center gap-3">
-        <Link href="/requisitions" className="text-slate-400 hover:text-slate-600">
-          <ArrowLeft size={20} />
-        </Link>
-        <h1 className="text-xl font-bold text-slate-800">สร้างใบขอซื้อใหม่</h1>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <Link href="/requisitions" className="text-slate-400 hover:text-slate-600">
+            <ArrowLeft size={20} />
+          </Link>
+          <h1 className="text-xl font-bold text-slate-800">สร้างใบขอซื้อใหม่</h1>
+        </div>
+
+        {/* Company selector ใต้หัวข้อ */}
+        {branches.length > 0 && (
+          <div className="flex items-center gap-2 pl-8">
+            <CompanySelector branches={branches} selectedId={branchId}
+              onChange={(id) => {
+                setBranchId(id);
+                setBranchFromMemory(false);
+                localStorage.setItem("last_branch_id", id);
+              }}
+            />
+            {branchFromMemory && selectedBranch && (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                <Building2 size={9} /> จำไว้จากครั้งล่าสุด
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -284,42 +304,23 @@ export default function NewRequisitionPage() {
         {/* ── ข้อมูลหลัก ────────────────────────────────────────────── */}
         <div className={`space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm border-l-4 ${borderColor} transition-colors`}>
 
-          {/* ผู้ขอ + บริษัท */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              {requesterAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={requesterAvatar} alt={requesterName} referrerPolicy="no-referrer"
-                  className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-200" />
-              ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
-                  {initials || <User size={14} />}
-                </div>
-              )}
-              <div>
-                <p className="text-[11px] text-slate-400">ผู้ขอ</p>
-                <p className="text-sm font-semibold text-slate-800 leading-tight">
-                  {requesterName || "กำลังโหลด..."}
-                </p>
-              </div>
-            </div>
-
-            {branches.length > 0 && (
-              <div className="flex flex-col items-end gap-0.5">
-                <CompanySelector branches={branches} selectedId={branchId}
-                  onChange={(id) => {
-                    setBranchId(id);
-                    setBranchFromMemory(false);
-                    localStorage.setItem("last_branch_id", id);
-                  }}
-                />
-                {branchFromMemory && selectedBranch && (
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                    <Building2 size={9} /> จำไว้จากครั้งล่าสุด
-                  </span>
-                )}
+          {/* ผู้ขอ */}
+          <div className="flex items-center gap-2.5">
+            {requesterAvatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={requesterAvatar} alt={requesterName} referrerPolicy="no-referrer"
+                className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-200" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
+                {initials || <User size={14} />}
               </div>
             )}
+            <div>
+              <p className="text-[11px] text-slate-400">ผู้ขอ</p>
+              <p className="text-sm font-semibold text-slate-800 leading-tight">
+                {requesterName || "กำลังโหลด..."}
+              </p>
+            </div>
           </div>
 
           {/* ชื่อเรื่อง */}
