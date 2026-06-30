@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ChevronDown, ChevronUp, AlertTriangle,
   FileText, ImageIcon, Package, ExternalLink,
-  RotateCcw, XCircle, Banknote,
+  RotateCcw, XCircle, Banknote, CheckCircle, Ban,
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 
@@ -38,10 +38,12 @@ export interface DisbursementPR {
   id: string;
   pr_number: string;
   title: string;
+  status: string;
   total_amount: number;
   actual_amount: number | null;
   is_urgent: boolean;
   created_at: string;
+  submitted_at: string;
   requester: { full_name: string } | null;
   evidence: {
     id: string;
@@ -139,7 +141,7 @@ export function DisbursementItem({ pr }: DisbursementItemProps) {
         onClick={() => setIsExpanded(o => !o)}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="font-mono text-xs font-bold text-slate-500 tracking-wider">
               {pr.pr_number}
             </span>
@@ -151,10 +153,16 @@ export function DisbursementItem({ pr }: DisbursementItemProps) {
                 <AlertTriangle size={10} /> เกินงบ {budgetDiff?.toFixed(1)}%
               </span>
             )}
+            {pr.status === "paid" && (
+              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">จ่ายแล้ว</span>
+            )}
+            {pr.status === "cancelled" && (
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">ยกเลิกแล้ว</span>
+            )}
           </div>
           <p className="font-semibold text-slate-800 truncate">{pr.title}</p>
           <p className="text-xs text-slate-400 mt-0.5">
-            ผู้ขอ: {pr.requester?.full_name ?? "—"} · ส่งหลักฐาน {formatDateTime(evidence?.submitted_at ?? pr.created_at)}
+            ผู้ขอ: {pr.requester?.full_name ?? "—"} · ส่งหลักฐาน {formatDateTime(pr.submitted_at)}
           </p>
         </div>
 
@@ -252,7 +260,17 @@ export function DisbursementItem({ pr }: DisbursementItemProps) {
 
           {/* ── Action Buttons ─────────────────────────────────────────── */}
           <div className="border-t border-slate-100 px-5 py-4">
-            {confirmAction ? (
+            {pr.status === "paid" ? (
+              <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3">
+                <CheckCircle size={16} className="shrink-0 text-teal-600" />
+                <p className="text-sm font-semibold text-teal-700">อนุมัติจ่ายแล้ว — รายการนี้เสร็จสมบูรณ์</p>
+              </div>
+            ) : pr.status === "cancelled" ? (
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <Ban size={16} className="shrink-0 text-slate-400" />
+                <p className="text-sm font-semibold text-slate-500">รายการนี้ถูกยกเลิกแล้ว</p>
+              </div>
+            ) : confirmAction ? (
               <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                 <AlertTriangle size={16} className="shrink-0 text-amber-600" />
                 <p className="flex-1 text-sm text-amber-700">
