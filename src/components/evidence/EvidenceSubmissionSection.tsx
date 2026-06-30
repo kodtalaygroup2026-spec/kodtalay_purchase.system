@@ -85,9 +85,11 @@ function FileUploadZone({
             return (
               <li key={i} className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
                 {previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewUrl} alt={file.name}
-                    className="h-8 w-8 shrink-0 rounded object-cover border border-slate-200" />
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewUrl} alt={file.name}
+                      className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
+                  </a>
                 ) : (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
                     <FileText size={14} className="text-red-400" />
