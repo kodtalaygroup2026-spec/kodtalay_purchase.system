@@ -14,11 +14,9 @@ import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB = [
-  { href: "/requisitions",        step: null, label: "ทั้งหมด" },
-  { href: "/requisitions?step=0", step: "0",  label: "ร่าง / ตีกลับ" },
-  { href: "/requisitions?step=1", step: "1",  label: "รออนุมัติ" },
-  { href: "/requisitions?step=2", step: "2",  label: "รอสร้าง PO" },
-  { href: "/requisitions?step=3", step: "3",  label: "มี PO" },
+  { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ" },
+  { href: "/requisitions?step=3", step: "3",  label: "งานแนบจ่าย" },
+  { href: "/requisitions",        step: null, label: "งานเอกสาร" },
   { href: "/requisitions/new",    step: null, label: "+ สร้าง PR" },
 ];
 
