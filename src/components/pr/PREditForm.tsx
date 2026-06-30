@@ -113,7 +113,8 @@ export function PREditForm({
 
   // ── Attachments ─────────────────────────────────────────────────────────────
   const [existingAttachments, setExistingAttachments] = useState<ExistingAttachment[]>(attachments);
-  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  // เก็บทั้ง id และ file_url เพื่อใช้ลบออกจาก Storage ด้วย
+  const [deletedAttachments, setDeletedAttachments] = useState<{ id: string; file_url: string }[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
 
   // ── Derived ─────────────────────────────────────────────────────────────────
@@ -144,9 +145,9 @@ export function PREditForm({
   }
 
   // ── Attachment handlers ─────────────────────────────────────────────────────
-  function removeExisting(id: string) {
-    setDeletedIds(prev => [...prev, id]);
-    setExistingAttachments(prev => prev.filter(a => a.id !== id));
+  function removeExisting(att: ExistingAttachment) {
+    setDeletedAttachments(prev => [...prev, { id: att.id, file_url: att.file_url }]);
+    setExistingAttachments(prev => prev.filter(a => a.id !== att.id));
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -182,9 +183,16 @@ export function PREditForm({
     setErrorMessage(null);
 
     try {
-      // 1. ลบ attachment ที่ถูก mark ว่าจะลบ
-      for (const attId of deletedIds) {
+      // 1. ลบ attachment ที่ถูก mark ว่าจะลบ (ลบทั้ง DB record และ Storage file)
+      for (const { id: attId, file_url } of deletedAttachments) {
         await (supabase as any).from("pr_attachments").delete().eq("id", attId);
+        // แยก storage path จาก public URL เพื่อลบไฟล์จริงออกจาก bucket
+        const storageMarker = "/object/public/pr-attachments/";
+        const markerIdx = file_url.indexOf(storageMarker);
+        if (markerIdx !== -1) {
+          const storagePath = file_url.slice(markerIdx + storageMarker.length);
+          await supabase.storage.from("pr-attachments").remove([storagePath]);
+        }
       }
 
       // 2. Upload ไฟล์ใหม่
@@ -194,19 +202,18 @@ export function PREditForm({
         const { error: uploadErr } = await supabase.storage
           .from("pr-attachments")
           .upload(path, file, { upsert: false });
-        if (!uploadErr) {
-          const { data: { publicUrl } } = supabase.storage
-            .from("pr-attachments")
-            .getPublicUrl(path);
-          await (supabase as any).from("pr_attachments").insert({
-            pr_id: pr.id,
-            file_name: file.name,
-            file_url: publicUrl,
-            file_type: file.type.startsWith("image/") ? "image" : "pdf",
-            file_size: file.size,
-            uploaded_by: currentUserId,
-          });
-        }
+        if (uploadErr) throw new Error(`อัปโหลด "${file.name}" ไม่สำเร็จ: ${uploadErr.message}`);
+        const { data: { publicUrl } } = supabase.storage
+          .from("pr-attachments")
+          .getPublicUrl(path);
+        await (supabase as any).from("pr_attachments").insert({
+          pr_id: pr.id,
+          file_name: file.name,
+          file_url: publicUrl,
+          file_type: file.type.startsWith("image/") ? "image" : "pdf",
+          file_size: file.size,
+          uploaded_by: currentUserId,
+        });
       }
 
       // 3. ลบรายการสินค้าเดิมทั้งหมด แล้ว insert ใหม่
@@ -498,7 +505,7 @@ export function PREditForm({
                   </a>
                   <button
                     type="button"
-                    onClick={() => removeExisting(att.id)}
+                    onClick={() => removeExisting(att)}
                     className="shrink-0 rounded p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors"
                     title="ลบไฟล์นี้"
                   >
