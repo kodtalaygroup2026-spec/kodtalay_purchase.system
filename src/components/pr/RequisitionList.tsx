@@ -51,20 +51,25 @@ function getStepState(
   prStatus: PrStatus,
   hasPO: boolean,
 ): StepState {
+  const s = prStatus as string;
+  const isTerminal = s === "cancelled" || s === "paid";
+  const isPastApproval = s === "approved" || s === "converted" || s === "pending_finance" || s === "paid" || hasPO;
+  const isPastSubmit = s === "submitted" || s === "pending_second_approval" || isPastApproval;
+
   if (idx === 0) {
-    if (["rejected", "cancelled"].includes(prStatus)) return "error";
-    if (["submitted", "pending_second_approval", "approved", "converted", "pending_finance", "paid"].includes(prStatus) || hasPO) return "done";
+    if (s === "rejected" || s === "cancelled") return "error";
+    if (isPastSubmit) return "done";
     return "current";
   }
   if (idx === 1) {
-    if (prStatus === "rejected") return "error";
-    if (["approved", "converted", "pending_finance", "paid"].includes(prStatus) || hasPO) return "done";
-    if (["submitted", "pending_second_approval"].includes(prStatus)) return "current";
+    if (s === "rejected") return "error";
+    if (isPastApproval) return "done";
+    if (s === "submitted" || s === "pending_second_approval") return "current";
     return "locked";
   }
   // idx === 2: ดำเนินการ
-  if (["paid"].includes(prStatus)) return "done";
-  if (["approved", "converted", "pending_finance"].includes(prStatus) || hasPO) return "current";
+  if (isTerminal) return "done";
+  if (isPastApproval) return "current";
   return "locked";
 }
 
@@ -99,11 +104,12 @@ function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }
 
 // ── Progress summary bar ───────────────────────────────────────────────────
 
-// สถานะที่นับในแต่ละ step (ใช้กับ status filter dropdown)
+// statuses ที่โชว์ใน dropdown เมื่อเลือก step (ใช้เป็น Set เพื่อ filter)
 export const STEP_STATUSES: PrStatus[][] = [
-  ["draft", "returned", "rejected", "cancelled"],
-  ["submitted", "pending_second_approval"],
-  ["approved", "converted", "pending_finance", "paid"],
+  ["draft", "returned", "rejected"],             // ใบขอซื้อ
+  ["submitted", "pending_second_approval"],       // รออนุมัติ
+  ["approved", "converted"],                      // ดำเนินการ
+  // หมายเหตุ: cancelled, pending_finance, paid ไม่อยู่ใน step ใด → โชว์เฉพาะ "งานเอกสาร" (ไม่กรอง)
 ];
 
 const SUMMARY_STEPS = [
@@ -113,7 +119,10 @@ const SUMMARY_STEPS = [
     color: "text-slate-600",
     bg: "bg-slate-50",
     dot: "bg-slate-400",
-    match: (pr: PRRow) => (STEP_STATUSES[0] as string[]).includes(pr.status),
+    match: (pr: PRRow) => {
+      const s = pr.status as string;
+      return s === "draft" || s === "returned" || s === "rejected";
+    },
   },
   {
     label: "รออนุมัติ",
@@ -121,7 +130,10 @@ const SUMMARY_STEPS = [
     color: "text-amber-700",
     bg: "bg-amber-50",
     dot: "bg-amber-400",
-    match: (pr: PRRow) => (STEP_STATUSES[1] as string[]).includes(pr.status),
+    match: (pr: PRRow) => {
+      const s = pr.status as string;
+      return s === "submitted" || s === "pending_second_approval";
+    },
   },
   {
     label: "ดำเนินการ",
@@ -129,7 +141,10 @@ const SUMMARY_STEPS = [
     color: "text-green-700",
     bg: "bg-green-50",
     dot: "bg-green-500",
-    match: (pr: PRRow) => (STEP_STATUSES[2] as string[]).includes(pr.status) || pr.purchase_orders.length > 0,
+    match: (pr: PRRow) => {
+      const s = pr.status as string;
+      return s === "approved" || s === "converted" || pr.purchase_orders.length > 0;
+    },
   },
 ];
 
@@ -268,7 +283,10 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
         >
           <option value="">สถานะทั้งหมด</option>
-          {(activeStep !== null ? STEP_STATUSES[activeStep] : (Object.keys(PR_STATUS_LABELS) as PrStatus[])).map(val => (
+          {(activeStep !== null
+            ? STEP_STATUSES[activeStep]
+            : (Object.keys(PR_STATUS_LABELS) as PrStatus[])
+          ).map(val => (
             <option key={val} value={val}>{PR_STATUS_LABELS[val]}</option>
           ))}
         </select>
