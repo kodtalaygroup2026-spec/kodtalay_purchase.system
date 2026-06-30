@@ -17,7 +17,7 @@ const MY_WORK_SUB = [
   { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ" },
   { href: "/requisitions?step=3", step: "3",  label: "งานแนบจ่าย" },
   { href: "/requisitions",        step: null, label: "งานเอกสาร" },
-  { href: "/requisitions/new",    step: null, label: "+ สร้าง PR" },
+  { href: "/requisitions/new",    step: null, label: "สร้าง PR" },
 ];
 
 // ── MyWorkDropdown ──────────────────────────────────────────────────────────
