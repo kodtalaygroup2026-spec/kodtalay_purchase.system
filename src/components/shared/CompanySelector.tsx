@@ -73,7 +73,7 @@ export function CompanySelector({ branches, selectedId, onChange, compact = fals
           <ChevronDown size={13} className={`ml-0.5 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
         {open && (
-          <div className="absolute left-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+          <div className="absolute left-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
             {branches.map((branch) => {
               const c = BRANCH_COLORS[branch.code] ?? DEFAULT_COLOR;
               const isSelected = branch.id === selectedId;
@@ -115,7 +115,7 @@ export function CompanySelector({ branches, selectedId, onChange, compact = fals
         </button>
 
         {open && (
-          <div className="absolute left-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+          <div className="absolute left-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
             {branches.map((branch) => {
               const c = BRANCH_COLORS[branch.code] ?? DEFAULT_COLOR;
               const isSelected = branch.id === selectedId;

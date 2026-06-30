@@ -255,7 +255,7 @@ export default function NewRequisitionPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
 
         {/* ── card เดียวรวมทุกส่วน ───────────────────────────────────── */}
-        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm border-l-4 ${borderColor} transition-colors overflow-hidden`}>
+        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm border-l-4 ${borderColor} transition-colors`}>
 
           {/* ── ส่วนบน: ผู้ขอ + ชื่อเรื่อง + options ── */}
           <div className="space-y-4 p-6">
@@ -289,7 +289,7 @@ export default function NewRequisitionPage() {
             </div>
 
             {/* งานด่วน | สาขา | วันที่ — inline row */}
-            <div className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden sm:flex-row sm:divide-x sm:divide-y-0">
+            <div className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50 sm:flex-row sm:divide-x sm:divide-y-0">
 
               {/* งานด่วน */}
               <div className={`flex flex-1 items-center justify-between px-4 py-3 transition-colors ${isUrgent ? "bg-red-50" : ""}`}>
