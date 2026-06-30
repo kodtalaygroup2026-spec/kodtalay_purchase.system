@@ -29,8 +29,8 @@ export function POApprovalPanel({ po, currentUserId, currentUserRole }: POApprov
 
   const canSubmit = isOwner && po.status === "draft";
   const canApprove = isApprover && po.status === "pending_approval";
-  // ยกเลิกได้ทั้ง draft (เก่า) และ pending_approval (flow ใหม่)
-  const canCancel = isOwner && (po.status === "draft" || po.status === "pending_approval");
+  // PO ถูกส่งแล้ว (pending_approval) ถือว่าเข้าสู่กระบวนการ — ไม่มีปุ่มยกเลิกอีก
+  const canCancel = false;
 
   async function updatePoStatus(status: string, audit: Record<string, string | null> = {}) {
     const { error } = await (supabase as any)

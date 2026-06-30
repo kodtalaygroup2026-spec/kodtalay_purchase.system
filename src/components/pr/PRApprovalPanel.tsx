@@ -39,7 +39,8 @@ export function PRApprovalPanel({
   const canSubmit = isOwner && pr.status === "draft";
   const canApprove = isApprover && pr.status === "submitted";
   const canSecondApprove = isApprover && pr.status === "pending_second_approval";
-  const canCancel = isOwner && (pr.status === "draft" || pr.status === "submitted" || pr.status === "returned");
+  // ยกเลิกได้เฉพาะก่อน submit (draft) เท่านั้น — หลัง submit ถือว่าเข้าสู่กระบวนการแล้ว
+  const canCancel = isOwner && pr.status === "draft";
 
   // ── LINE notification helpers ────────────────────────────────────────────
   function prUrl(): string {
