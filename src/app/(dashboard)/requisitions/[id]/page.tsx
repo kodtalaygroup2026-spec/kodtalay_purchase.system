@@ -25,7 +25,7 @@ type StepState = "done" | "current" | "error" | "locked";
 const TICKET_STEPS = [
   { label: "ใบขอซื้อ",         sub: "สร้างและส่ง" },
   { label: "อนุมัติการสั่งซื้อ", sub: "ตรวจสอบ" },
-  { label: "บิล & รับของ",      sub: "หลักฐานการซื้อ" },
+  { label: "หลักฐานการซื้อและรับของ", sub: "แนบบิลและยืนยัน" },
 ];
 
 function computeStepState(
@@ -423,7 +423,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         <div className="flex items-center gap-3 py-1">
           <div className="flex-1 border-t border-slate-200" />
           <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            บิล &amp; รับของ
+            หลักฐานการซื้อและรับของ
           </span>
           <div className="flex-1 border-t border-slate-200" />
         </div>
