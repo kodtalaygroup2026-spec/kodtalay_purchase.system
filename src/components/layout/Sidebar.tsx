@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +14,9 @@ import {
   Banknote,
   PiggyBank,
   Receipt,
+  ChevronDown,
+  ChevronRight,
+  Plus,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
@@ -24,11 +28,19 @@ interface NavItem {
 }
 
 const PROCUREMENT_NAV: NavItem[] = [
-  { href: "/requisitions", icon: FileText, label: "งานของฉัน" },
   { href: "/orders", icon: ShoppingCart, label: "ใบสั่งซื้อ (PO)" },
   { href: "/approvals", icon: CheckSquare, label: "การอนุมัติ" },
   { href: "/suppliers", icon: Users, label: "ผู้ขาย" },
   { href: "/products", icon: Package, label: "สินค้า" },
+];
+
+const MY_WORK_SUB = [
+  { href: "/requisitions",          label: "ทั้งหมด" },
+  { href: "/requisitions?step=0",   label: "ร่าง / ตีกลับ" },
+  { href: "/requisitions?step=1",   label: "รออนุมัติ" },
+  { href: "/requisitions?step=2",   label: "รอสร้าง PO" },
+  { href: "/requisitions?step=3",   label: "มี PO" },
+  { href: "/requisitions/new",      label: "+ สร้าง PR" },
 ];
 
 const CONSTRUCTION_NAV: NavItem[] = [
@@ -80,6 +92,51 @@ export function Sidebar({ role }: SidebarProps) {
     return !hasMoreSpecificMatch;
   }
 
+  function DropdownNavItem() {
+    const isOnMyWork = pathname.startsWith("/requisitions");
+    const [open, setOpen] = useState(isOnMyWork);
+
+    return (
+      <div>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            isOnMyWork
+              ? "bg-blue-600 text-white"
+              : "text-slate-300 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <FileText size={17} />
+          <span className="flex-1 text-left">งานของฉัน</span>
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+
+        {open && (
+          <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-700 pl-3">
+            {MY_WORK_SUB.map((sub) => {
+              const isActiveSub = pathname + (typeof window !== "undefined" ? window.location.search : "") === sub.href
+                || (sub.href === "/requisitions" && pathname === "/requisitions" && !window?.location?.search);
+              return (
+                <Link
+                  key={sub.href}
+                  href={sub.href}
+                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors ${
+                    sub.href === "/requisitions/new"
+                      ? "font-semibold text-blue-400 hover:text-blue-300"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  {sub.href === "/requisitions/new" && <Plus size={11} />}
+                  {sub.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function NavLink({ href, icon: Icon, label }: NavItem) {
     return (
       <Link
@@ -127,7 +184,17 @@ export function Sidebar({ role }: SidebarProps) {
 
         {/* จัดซื้อทั่วไป — แสดงเฉพาะเมื่ออยู่ในหน้าจัดซื้อ */}
         {section === "procurement" && (
-          <NavGroup label="จัดซื้อทั่วไป" items={PROCUREMENT_NAV} />
+          <div>
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              จัดซื้อทั่วไป
+            </p>
+            <div className="space-y-0.5">
+              <DropdownNavItem />
+              {PROCUREMENT_NAV.map((item) => (
+                <NavLink key={item.href} {...item} />
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ก่อสร้าง — แสดงเฉพาะเมื่ออยู่ในหน้าก่อสร้าง */}

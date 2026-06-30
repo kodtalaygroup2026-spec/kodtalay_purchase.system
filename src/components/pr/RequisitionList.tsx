@@ -189,12 +189,12 @@ function ProgressSummary({
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function RequisitionList({ prs }: { prs: PRRow[] }) {
+export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; initialStep?: number | null }) {
   const supabase = createClient();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PrStatus | "">("");
-  const [activeStep, setActiveStep] = useState<number | null>(null);
+  const [activeStep, setActiveStep] = useState<number | null>(initialStep);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, ExpandedItem[]>>({});
   const [loadingExpand, setLoadingExpand] = useState<string | null>(null);

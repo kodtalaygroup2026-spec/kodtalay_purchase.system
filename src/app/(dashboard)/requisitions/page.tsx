@@ -5,8 +5,14 @@ import { RequisitionList, type PRRow } from "@/components/pr/RequisitionList";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-export default async function RequisitionsPage() {
+interface PageProps {
+  searchParams: Promise<{ step?: string }>;
+}
+
+export default async function RequisitionsPage({ searchParams }: PageProps) {
   const supabase = await createClient();
+  const { step } = await searchParams;
+  const initialStep = step !== undefined ? parseInt(step, 10) : null;
 
   const { data: prs } = await (supabase as any)
     .from("purchase_requisitions")
@@ -30,12 +36,18 @@ export default async function RequisitionsPage() {
     purchase_orders: pr.purchase_orders ?? [],
   }));
 
+  const stepLabels = ["ร่าง / ตีกลับ", "รออนุมัติ", "รอสร้าง PO", "มี PO"];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">ใบขอซื้อ (PR)</h1>
-          <p className="text-sm text-slate-500">รายการใบขอซื้อทั้งหมด — คลิกแถวเพื่อดูรายละเอียด</p>
+          <h1 className="text-xl font-bold text-slate-800">งานของฉัน</h1>
+          <p className="text-sm text-slate-500">
+            {initialStep !== null && stepLabels[initialStep]
+              ? `กรอง: ${stepLabels[initialStep]}`
+              : "รายการใบขอซื้อทั้งหมด — คลิกแถวเพื่อดูรายละเอียด"}
+          </p>
         </div>
         <Link
           href="/requisitions/new"
@@ -57,7 +69,7 @@ export default async function RequisitionsPage() {
           </Link>
         </div>
       ) : (
-        <RequisitionList prs={prList} />
+        <RequisitionList prs={prList} initialStep={Number.isFinite(initialStep) ? initialStep : null} />
       )}
     </div>
   );
