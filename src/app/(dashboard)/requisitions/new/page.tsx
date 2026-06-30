@@ -285,17 +285,15 @@ export default function NewRequisitionPage() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
           </div>
 
-          {/* ── 3-col row: งานด่วน | สาขา | วันที่ ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* ── กล่องรวม: งานด่วน | สาขา | วันที่ ── */}
+          <div className="grid grid-cols-1 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-slate-50 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
 
             {/* งานด่วน */}
-            <div className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
-              isUrgent ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"
+            <div className={`flex items-center justify-between px-4 py-3 transition-colors rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none ${
+              isUrgent ? "bg-red-50" : ""
             }`}>
               <div>
-                <p className={`text-sm font-semibold ${isUrgent ? "text-red-700" : "text-slate-700"}`}>
-                  งานด่วน
-                </p>
+                <p className={`text-sm font-semibold ${isUrgent ? "text-red-700" : "text-slate-700"}`}>งานด่วน</p>
                 <p className="text-[10px] text-slate-400">เฉพาะฉุกเฉิน</p>
               </div>
               <button type="button" onClick={() => setIsUrgent((v) => !v)}
@@ -305,7 +303,7 @@ export default function NewRequisitionPage() {
             </div>
 
             {/* สาขา */}
-            <div className="flex flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-col justify-center px-4 py-3">
               <p className="mb-1.5 text-[10px] font-medium text-slate-400">สาขา</p>
               {branches.length > 0 && (
                 <CompanySelector branches={branches} selectedId={branchId}
@@ -324,11 +322,20 @@ export default function NewRequisitionPage() {
             </div>
 
             {/* วันที่ต้องการ */}
-            <div className="flex flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-col justify-center px-4 py-3 rounded-b-xl sm:rounded-r-xl sm:rounded-bl-none">
               <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
             </div>
 
           </div>
+        </div>
+
+        {/* ── เหตุผลในการสั่งซื้อ ─────────────────────────────────────── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            เหตุผลในการสั่งซื้อ <span className="font-normal text-slate-400">(ถ้ามี)</span>
+          </label>
+          <textarea name="note" rows={2} placeholder="ระบุเหตุผลหรือความจำเป็นในการสั่งซื้อครั้งนี้"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
         </div>
 
         {/* ── รายการสินค้า ───────────────────────────────────────────── */}
@@ -412,15 +419,6 @@ export default function NewRequisitionPage() {
               ฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
             </span>
           </div>
-        </div>
-
-        {/* ── เหตุผลในการสั่งซื้อ ─────────────────────────────────────── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            เหตุผลในการสั่งซื้อ <span className="font-normal text-slate-400">(ถ้ามี)</span>
-          </label>
-          <textarea name="note" rows={2} placeholder="ระบุเหตุผลหรือความจำเป็นในการสั่งซื้อครั้งนี้"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
         </div>
 
         {/* ── ไฟล์แนบ ────────────────────────────────────────────────── */}
