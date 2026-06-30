@@ -79,9 +79,10 @@ function MyWorkDropdown({ pathname }: { pathname: string }) {
 
 interface SidebarProps {
   role?: UserRole;
+  approvalCount?: number;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
@@ -118,7 +119,12 @@ export function Sidebar({ role }: SidebarProps) {
           }`}
         >
           <CheckSquare size={17} />
-          การอนุมัติ
+          <span className="flex-1">การอนุมัติ</span>
+          {approvalCount > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+              {approvalCount > 99 ? "99+" : approvalCount}
+            </span>
+          )}
         </Link>
       </nav>
 
