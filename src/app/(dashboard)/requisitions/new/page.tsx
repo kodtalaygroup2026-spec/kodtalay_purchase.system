@@ -179,12 +179,7 @@ export default function NewRequisitionPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setErrorMessage("กรุณาล็อกอินก่อน"); setIsSubmitting(false); return; }
 
-    const branchCode = selectedBranch?.code ?? "PR";
-    const { data: prNumber, error: rpcError } = await supabase.rpc("next_document_number", {
-      prefix: branchCode,
-      table_name: "purchase_requisitions",
-      column_name: "pr_number",
-    });
+    const { data: prNumber, error: rpcError } = await (supabase as any).rpc("next_pr_number");
     if (rpcError) { setErrorMessage(rpcError.message); setIsSubmitting(false); return; }
 
     const { data: pr, error: prError } = await (supabase as any)
@@ -290,48 +285,49 @@ export default function NewRequisitionPage() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
           </div>
 
-          {/* บริษัท — ใต้ชื่อเรื่อง */}
-          {branches.length > 0 && (
-            <div className="flex items-center gap-3">
-              <CompanySelector branches={branches} selectedId={branchId}
-                onChange={(id) => {
-                  setBranchId(id);
-                  setBranchFromMemory(false);
-                  localStorage.setItem("last_branch_id", id);
-                }}
-              />
+          {/* ── 3-col row: งานด่วน | สาขา | วันที่ ── */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+            {/* งานด่วน */}
+            <div className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
+              isUrgent ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"
+            }`}>
+              <div>
+                <p className={`text-sm font-semibold ${isUrgent ? "text-red-700" : "text-slate-700"}`}>
+                  งานด่วน
+                </p>
+                <p className="text-[10px] text-slate-400">เฉพาะฉุกเฉิน</p>
+              </div>
+              <button type="button" onClick={() => setIsUrgent((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isUrgent ? "bg-red-500" : "bg-slate-300"}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isUrgent ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
+            </div>
+
+            {/* สาขา */}
+            <div className="flex flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="mb-1.5 text-[10px] font-medium text-slate-400">สาขา</p>
+              {branches.length > 0 && (
+                <CompanySelector branches={branches} selectedId={branchId}
+                  onChange={(id) => {
+                    setBranchId(id);
+                    setBranchFromMemory(false);
+                    localStorage.setItem("last_branch_id", id);
+                  }}
+                />
+              )}
               {branchFromMemory && selectedBranch && (
-                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                <span className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
                   <Building2 size={9} /> จำไว้จากครั้งล่าสุด
                 </span>
               )}
             </div>
-          )}
 
-          {/* ด่วน */}
-          <div className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-slate-700">งานด่วน</p>
-              <p className="text-xs text-slate-400">ข้ามขั้นตอนอนุมัติรอบ 2 เมื่อยอดจริงเกินงบ</p>
-            </div>
-            <button type="button" onClick={() => setIsUrgent((v) => !v)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isUrgent ? "bg-red-500" : "bg-slate-200"}`}>
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isUrgent ? "translate-x-6" : "translate-x-1"}`} />
-            </button>
-          </div>
-
-          {/* วันที่ต้องการ */}
-          <div>
-            <div>
+            {/* วันที่ต้องการ */}
+            <div className="flex flex-col justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
             </div>
-          </div>
 
-          {/* หมายเหตุ */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">หมายเหตุ</label>
-            <textarea name="note" rows={2} placeholder="รายละเอียดเพิ่มเติม"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
           </div>
         </div>
 
@@ -416,6 +412,15 @@ export default function NewRequisitionPage() {
               ฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
             </span>
           </div>
+        </div>
+
+        {/* ── เหตุผลในการสั่งซื้อ ─────────────────────────────────────── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            เหตุผลในการสั่งซื้อ <span className="font-normal text-slate-400">(ถ้ามี)</span>
+          </label>
+          <textarea name="note" rows={2} placeholder="ระบุเหตุผลหรือความจำเป็นในการสั่งซื้อครั้งนี้"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
         </div>
 
         {/* ── ไฟล์แนบ ────────────────────────────────────────────────── */}

@@ -9,6 +9,13 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PR_STATUS_LABELS } from "@/lib/constants";
 import type { PrStatus, PoStatus } from "@/types/database";
 
+// ── Branch badge colors (keyed by branch code) ────────────────────────────
+const BRANCH_BADGE: Record<string, string> = {
+  CK:  "bg-blue-600 text-white",
+  BN:  "bg-emerald-600 text-white",
+  RCA: "bg-orange-500 text-white",
+};
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface LinkedPO {
@@ -22,6 +29,7 @@ interface LinkedPO {
 export interface PRRow {
   id: string;
   pr_number: string;
+  branch_code: string | null;
   title: string;
   status: PrStatus;
   total_amount: number;
@@ -349,8 +357,13 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                       }`}
                     >
                       <td className="px-4 py-3">
-                        <div className="font-mono text-xs font-bold text-blue-600">
-                          {pr.pr_number}
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-bold text-blue-600">{pr.pr_number}</span>
+                          {pr.branch_code && (
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold leading-none ${BRANCH_BADGE[pr.branch_code] ?? "bg-slate-500 text-white"}`}>
+                              {pr.branch_code}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-slate-400">{formatDate(pr.created_at)}</div>
                         {pr.is_urgent && (

@@ -65,7 +65,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     supabase.auth.getUser(),
     (supabase as any)
       .from("purchase_requisitions")
-      .select(`*, profiles!requester_id(full_name, email)`)
+      .select(`*, profiles!requester_id(full_name, email), branches!branch_id(code, name)`)
       .eq("id", id)
       .single(),
     supabase
@@ -284,9 +284,18 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                   <Plus size={13} /> สร้าง PR ใหม่
                 </Link>
               )}
-              <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
-                {pr.pr_number}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
+                  {pr.pr_number}
+                </span>
+                {pr.branches?.code && (
+                  <span className={`rounded-lg px-2.5 py-1 text-xs font-bold text-white ${
+                    { CK: "bg-blue-600", BN: "bg-emerald-600", RCA: "bg-orange-500" }[pr.branches.code as string] ?? "bg-slate-500"
+                  }`}>
+                    {pr.branches.code}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>

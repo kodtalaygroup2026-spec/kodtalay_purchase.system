@@ -19,6 +19,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
     .select(
       `id, pr_number, title, status, total_amount, created_at, needed_by, is_urgent,
        profiles!requester_id(full_name),
+       branches!branch_id(code),
        purchase_orders(id, po_number, status, total_amount, vendor_name)`
     )
     .order("created_at", { ascending: false });
@@ -26,6 +27,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
   const prList: PRRow[] = (prs ?? []).map((pr: any) => ({
     id: pr.id,
     pr_number: pr.pr_number,
+    branch_code: pr.branches?.code ?? null,
     title: pr.title,
     status: pr.status,
     total_amount: pr.total_amount,
