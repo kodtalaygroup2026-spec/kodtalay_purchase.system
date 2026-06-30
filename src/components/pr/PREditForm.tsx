@@ -453,10 +453,16 @@ export function PREditForm({
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 font-semibold text-slate-700">ไฟล์แนบ</h2>
 
-        {/* ไฟล์เดิม */}
-        {existingAttachments.length > 0 && (
-          <div className="mb-4">
-            <p className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">ไฟล์ที่แนบไว้แล้ว</p>
+        {/* ไฟล์เดิม — แสดงเสมอ ไม่ว่าจะมีไฟล์หรือไม่ */}
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+            ไฟล์ที่แนบไว้แล้ว ({existingAttachments.length})
+          </p>
+          {existingAttachments.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs text-slate-400">
+              ยังไม่มีไฟล์แนบเดิม
+            </p>
+          ) : (
             <ul className="space-y-2">
               {existingAttachments.map(att => (
                 <li
@@ -501,8 +507,8 @@ export function PREditForm({
                 </li>
               ))}
             </ul>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* เพิ่มไฟล์ใหม่ */}
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
