@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { DateTimePicker } from "@/components/shared/DateTimePicker";
+import { ProductSearchInput } from "@/components/pr/ProductSearchInput";
 import type { Branch } from "@/types/database";
 
 // -----------------------------------------------------------------------
@@ -155,8 +156,16 @@ export default function NewRequisitionPage() {
         if (!productId) return { ...item, product_id: "", unit: "", unit_price: 0 };
         const p = products.find((prod) => prod.id === productId);
         if (!p) return item;
-        return { ...item, product_id: productId, unit: p.unit, unit_price: p.unit_price };
+        return { ...item, product_id: productId, description: p.name, unit: p.unit, unit_price: p.unit_price };
       })
+    );
+  }
+
+  function clearProduct(index: number) {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i !== index ? item : { ...item, product_id: "", unit: "", unit_price: 0 }
+      )
     );
   }
 
@@ -372,10 +381,14 @@ export default function NewRequisitionPage() {
               <div key={index} className="px-5 py-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="w-5 shrink-0 text-xs font-medium text-slate-400">{index + 1}.</span>
-                  <input value={item.description}
-                    onChange={(e) => updateItem(index, "description", e.target.value)}
-                    placeholder="รายละเอียดสินค้า / บริการ *"
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                  <ProductSearchInput
+                    value={item.description}
+                    products={products}
+                    selectedProductId={item.product_id}
+                    onChange={(desc) => updateItem(index, "description", desc)}
+                    onSelectProduct={(p) => applyProduct(index, p.id)}
+                    onClearProduct={() => clearProduct(index)}
+                  />
                   {items.length > 1 && (
                     <button type="button" onClick={() => removeItem(index)}
                       className="shrink-0 rounded p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500">
@@ -385,14 +398,6 @@ export default function NewRequisitionPage() {
                 </div>
 
                 <div className="ml-7 flex flex-wrap items-center gap-2 text-sm">
-                  <select value={item.product_id} onChange={(e) => applyProduct(index, e.target.value)}
-                    className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-400 focus:outline-none">
-                    <option value="">— ระบุเอง —</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>[{p.sku}] {p.name}</option>
-                    ))}
-                  </select>
-
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-slate-400">จำนวน</span>
                     <input type="number" step="any" value={item.quantity || ""}
