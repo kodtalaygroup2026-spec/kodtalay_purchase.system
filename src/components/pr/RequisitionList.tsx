@@ -11,9 +11,9 @@ import type { PrStatus, PoStatus } from "@/types/database";
 
 // ── Branch badge colors (keyed by branch code) ────────────────────────────
 const BRANCH_BADGE: Record<string, string> = {
-  CK:  "bg-blue-600 text-white",
-  BN:  "bg-emerald-600 text-white",
-  RCA: "bg-orange-500 text-white",
+  BN:  "bg-blue-600 text-white",
+  CK:  "bg-red-600 text-white",
+  RCA: "bg-emerald-600 text-white",
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────

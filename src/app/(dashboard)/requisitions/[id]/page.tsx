@@ -290,7 +290,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                 </span>
                 {pr.branches?.code && (
                   <span className={`rounded-lg px-2.5 py-1 text-xs font-bold text-white ${
-                    { CK: "bg-blue-600", BN: "bg-emerald-600", RCA: "bg-orange-500" }[pr.branches.code as string] ?? "bg-slate-500"
+                    { BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" }[pr.branches.code as string] ?? "bg-slate-500"
                   }`}>
                     {pr.branches.code}
                   </span>

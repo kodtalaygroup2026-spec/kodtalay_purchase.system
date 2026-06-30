@@ -5,23 +5,23 @@ import { useState, useRef, useEffect } from "react";
 import type { Branch } from "@/types/database";
 
 const BRANCH_COLORS: Record<string, { border: string; bg: string; text: string; badge: string }> = {
-  CK: {
+  BN: {
     border: "border-l-blue-500",
     bg: "bg-blue-600",
     text: "text-blue-700",
     badge: "bg-blue-50 text-blue-700 border-blue-200",
   },
-  BN: {
+  CK: {
+    border: "border-l-red-500",
+    bg: "bg-red-600",
+    text: "text-red-700",
+    badge: "bg-red-50 text-red-700 border-red-200",
+  },
+  RCA: {
     border: "border-l-emerald-500",
     bg: "bg-emerald-600",
     text: "text-emerald-700",
     badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  },
-  RCA: {
-    border: "border-l-orange-500",
-    bg: "bg-orange-500",
-    text: "text-orange-700",
-    badge: "bg-orange-50 text-orange-700 border-orange-200",
   },
 };
 
