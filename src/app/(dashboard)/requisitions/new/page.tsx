@@ -254,40 +254,42 @@ export default function NewRequisitionPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
 
-        {/* ── ข้อมูลหลัก ────────────────────────────────────────────── */}
-        <div className={`space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm border-l-4 ${borderColor} transition-colors`}>
+        {/* ── card เดียวรวมทุกส่วน ───────────────────────────────────── */}
+        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm border-l-4 ${borderColor} transition-colors overflow-hidden`}>
 
-          {/* ผู้ขอ */}
-          <div className="flex items-center gap-2.5">
-            {requesterAvatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={requesterAvatar} alt={requesterName} referrerPolicy="no-referrer"
-                className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-200" />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
-                {initials || <User size={14} />}
+          {/* ── ส่วนบน: ผู้ขอ + ชื่อเรื่อง + options ── */}
+          <div className="space-y-4 p-6">
+
+            {/* ผู้ขอ */}
+            <div className="flex items-center gap-2.5">
+              {requesterAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={requesterAvatar} alt={requesterName} referrerPolicy="no-referrer"
+                  className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-200" />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-2 ring-slate-200">
+                  {initials || <User size={14} />}
+                </div>
+              )}
+              <div>
+                <p className="text-[11px] text-slate-400">ผู้ขอ</p>
+                <p className="text-sm font-semibold text-slate-800 leading-tight">
+                  {requesterName || "กำลังโหลด..."}
+                </p>
               </div>
-            )}
-            <div>
-              <p className="text-[11px] text-slate-400">ผู้ขอ</p>
-              <p className="text-sm font-semibold text-slate-800 leading-tight">
-                {requesterName || "กำลังโหลด..."}
-              </p>
             </div>
-          </div>
 
-          {/* ชื่อเรื่อง */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              ชื่อ/เรื่อง <span className="text-red-500">*</span>
-            </label>
-            <input name="title" required placeholder="เช่น ขอซื้อกระดาษ A4 ประจำไตรมาส Q3"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-          </div>
+            {/* ชื่อเรื่อง */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                ชื่อ/เรื่อง <span className="text-red-500">*</span>
+              </label>
+              <input name="title" required placeholder="เช่น ขอซื้อกระดาษ A4 ประจำไตรมาส Q3"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
 
-          {/* ── กล่องรวม: งานด่วน | สาขา | วันที่ ── */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="flex flex-col divide-y divide-slate-100 sm:flex-row sm:divide-x sm:divide-y-0">
+            {/* งานด่วน | สาขา | วันที่ — inline row */}
+            <div className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden sm:flex-row sm:divide-x sm:divide-y-0">
 
               {/* งานด่วน */}
               <div className={`flex flex-1 items-center justify-between px-4 py-3 transition-colors ${isUrgent ? "bg-red-50" : ""}`}>
@@ -305,10 +307,7 @@ export default function NewRequisitionPage() {
               <div className="flex flex-1 flex-col justify-center px-4 py-3">
                 <p className="mb-1.5 text-[10px] font-medium text-slate-400">สาขา</p>
                 {branches.length > 0 && (
-                  <CompanySelector
-                    compact
-                    branches={branches}
-                    selectedId={branchId}
+                  <CompanySelector compact branches={branches} selectedId={branchId}
                     onChange={(id) => {
                       setBranchId(id);
                       setBranchFromMemory(false);
@@ -330,98 +329,95 @@ export default function NewRequisitionPage() {
 
             </div>
           </div>
-        </div>
 
-        {/* ── เหตุผลในการสั่งซื้อ ─────────────────────────────────────── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            เหตุผลในการสั่งซื้อ <span className="font-normal text-slate-400">(ถ้ามี)</span>
-          </label>
-          <textarea name="note" rows={2} placeholder="ระบุเหตุผลหรือความจำเป็นในการสั่งซื้อครั้งนี้"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-        </div>
-
-        {/* ── รายการสินค้า ───────────────────────────────────────────── */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <h2 className="font-semibold text-slate-700">รายการสินค้า / บริการ</h2>
-            <button type="button" onClick={addItem}
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
-              <Plus size={15} /> เพิ่มรายการ
-            </button>
+          {/* ── เหตุผลในการสั่งซื้อ ── */}
+          <div className="border-t border-slate-100 px-6 py-4">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              เหตุผลในการสั่งซื้อ <span className="font-normal text-slate-400">(ถ้ามี)</span>
+            </label>
+            <textarea name="note" rows={2} placeholder="ระบุเหตุผลหรือความจำเป็นในการสั่งซื้อครั้งนี้"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {items.map((item, index) => (
-              <div key={index} className="px-5 py-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-xs font-medium text-slate-400">{index + 1}.</span>
-                  <input
-                    value={item.description}
-                    onChange={(e) => updateItem(index, "description", e.target.value)}
-                    placeholder="รายละเอียดสินค้า / บริการ *"
-                    required
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(index)}
-                      className="shrink-0 rounded p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500">
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
+          {/* ── รายการสินค้า ── */}
+          <div className="border-t border-slate-100">
+            <div className="flex items-center justify-between px-6 py-4">
+              <h2 className="font-semibold text-slate-700">รายการสินค้า / บริการ</h2>
+              <button type="button" onClick={addItem}
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+                <Plus size={15} /> เพิ่มรายการ
+              </button>
+            </div>
 
-                <div className="ml-7 flex flex-wrap items-center gap-2 text-sm">
-                  {/* เลือกจากสินค้าที่มีในระบบ */}
-                  <select
-                    value={item.product_id}
-                    onChange={(e) => applyProduct(index, e.target.value)}
-                    className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-400 focus:outline-none"
-                  >
-                    <option value="">ระบุสินค้าเพิ่ม</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>[{p.sku}] {p.name}</option>
-                    ))}
-                  </select>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400">จำนวน</span>
-                    <input type="number" step="any" value={item.quantity || ""}
-                      onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
-                      className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
+            <div className="divide-y divide-slate-100">
+              {items.map((item, index) => (
+                <div key={index} className="px-5 py-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 shrink-0 text-xs font-medium text-slate-400">{index + 1}.</span>
+                    <input
+                      value={item.description}
+                      onChange={(e) => updateItem(index, "description", e.target.value)}
+                      placeholder="รายละเอียดสินค้า / บริการ *"
+                      required
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                    {items.length > 1 && (
+                      <button type="button" onClick={() => removeItem(index)}
+                        className="shrink-0 rounded p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400">หน่วย</span>
-                    <input value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)}
-                      placeholder="ชิ้น"
-                      className="w-16 rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
-                  </div>
+                  <div className="ml-7 flex flex-wrap items-center gap-2 text-sm">
+                    <select value={item.product_id} onChange={(e) => applyProduct(index, e.target.value)}
+                      className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-400 focus:outline-none">
+                      <option value="">ระบุสินค้าเพิ่ม</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>[{p.sku}] {p.name}</option>
+                      ))}
+                    </select>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400">ราคา/หน่วย</span>
-                    <input type="number" min="0" step="0.01" value={item.unit_price}
-                      onChange={(e) => updateItem(index, "unit_price", parseFloat(e.target.value) || 0)}
-                      className="w-28 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
-                  </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">จำนวน</span>
+                      <input type="number" step="any" value={item.quantity || ""}
+                        onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                        className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
+                    </div>
 
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400">รวม</span>
-                    <span className="min-w-[80px] text-right font-semibold text-slate-800">
-                      ฿{(item.quantity * item.unit_price).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">หน่วย</span>
+                      <input value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)}
+                        placeholder="ชิ้น"
+                        className="w-16 rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">ราคา/หน่วย</span>
+                      <input type="number" min="0" step="0.01" value={item.unit_price}
+                        onChange={(e) => updateItem(index, "unit_price", parseFloat(e.target.value) || 0)}
+                        className="w-28 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
+                    </div>
+
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">รวม</span>
+                      <span className="min-w-[80px] text-right font-semibold text-slate-800">
+                        ฿{(item.quantity * item.unit_price).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-3">
+              <span className="text-sm font-semibold text-slate-700">รวมทั้งสิ้น</span>
+              <span className="text-lg font-bold text-blue-700">
+                ฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-3">
-            <span className="text-sm font-semibold text-slate-700">รวมทั้งสิ้น</span>
-            <span className="text-lg font-bold text-blue-700">
-              ฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
         </div>
 
         {/* ── ไฟล์แนบ ────────────────────────────────────────────────── */}
