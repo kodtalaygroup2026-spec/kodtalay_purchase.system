@@ -115,7 +115,7 @@ function FileUploadZone({
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 interface EvidenceSubmissionSectionProps {
-  poId: string;
+  poId: string | null;
   prId: string;
   prBankName: string | null;
   prBankAccount: string | null;

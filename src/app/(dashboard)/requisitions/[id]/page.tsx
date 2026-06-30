@@ -5,8 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PRApprovalPanel } from "@/components/pr/PRApprovalPanel";
-import { POCreationSection } from "@/components/po/POCreationSection";
-import { PODetailSection } from "@/components/po/PODetailSection";
 import { EvidenceSubmissionSection } from "@/components/evidence/EvidenceSubmissionSection";
 import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSection";
 import Link from "next/link";
@@ -14,7 +12,7 @@ import {
   ArrowLeft, Clock, CheckCircle2, XCircle, Send, X, FileText,
   Edit, Plus,
 } from "lucide-react";
-import type { PrStatus, PoStatus, UserRole } from "@/types/database";
+import type { PrStatus, UserRole } from "@/types/database";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -25,45 +23,31 @@ interface PageProps {
 type StepState = "done" | "current" | "error" | "locked";
 
 const TICKET_STEPS = [
-  { label: "ใบขอซื้อ", sub: "สร้างและส่ง" },
-  { label: "อนุมัติ PR", sub: "ตรวจสอบ" },
-  { label: "ใบสั่งซื้อ", sub: "สร้าง PO" },
-  { label: "อนุมัติ PO", sub: "ยืนยัน" },
-  { label: "แนบหลักฐาน", sub: "ยืนยันรับของ" },
+  { label: "ใบขอซื้อ",         sub: "สร้างและส่ง" },
+  { label: "อนุมัติการสั่งซื้อ", sub: "ตรวจสอบ" },
+  { label: "บิล & รับของ",      sub: "หลักฐานการซื้อ" },
 ];
 
 function computeStepState(
   idx: number,
   prStatus: PrStatus,
-  hasPO: boolean,
-  poStatus?: PoStatus,
-  hasEvidence?: boolean,
+  hasEvidence: boolean,
 ): StepState {
   if (idx === 0) {
     if (["rejected", "cancelled"].includes(prStatus)) return "error";
-    if (["submitted", "pending_second_approval", "approved", "converted"].includes(prStatus) || hasPO)
+    if (["submitted", "pending_second_approval", "approved", "converted"].includes(prStatus))
       return "done";
     return "current";
   }
   if (idx === 1) {
     if (prStatus === "rejected" || prStatus === "returned") return "error";
-    if (["approved", "converted"].includes(prStatus) || hasPO) return "done";
+    if (["approved", "converted"].includes(prStatus)) return "done";
     if (["submitted", "pending_second_approval"].includes(prStatus)) return "current";
     return "locked";
   }
-  if (idx === 2) {
-    if (hasPO) return "done";
-    if (prStatus === "approved") return "current";
-    return "locked";
-  }
-  if (idx === 3) {
-    if (poStatus === "approved") return "done";
-    if (hasPO) return "current";
-    return "locked";
-  }
-  // idx === 4 — แนบหลักฐาน
+  // idx === 2 — บิล & รับของ
   if (hasEvidence) return "done";
-  if (poStatus === "approved") return "current";
+  if (["approved", "converted"].includes(prStatus)) return "current";
   return "locked";
 }
 
@@ -98,73 +82,33 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
   const uniqueIds = [...new Set(auditIds)];
 
-  const [{ data: currentProfile }, { data: auditProfileList }, { data: linkedPOs }] =
+  const [{ data: currentProfile }, { data: auditProfileList }] =
     await Promise.all([
       supabase.from("profiles").select("role, full_name").eq("id", user?.id ?? "").single(),
       uniqueIds.length > 0
         ? (supabase as any).from("profiles").select("id, full_name").in("id", uniqueIds)
         : Promise.resolve({ data: [] }),
-      (supabase as any)
-        .from("purchase_orders")
-        .select("id, po_number, status, total_amount, created_at")
-        .eq("pr_id", id)
-        .order("created_at"),
     ]);
 
-  // ── Conditionally fetch PO detail if PO exists ────────────────────────────
-  let poDetail: any = null;
-  let poItems: any[] = [];
-  let poAttachments: any[] = [];
-  let poBills: any[] = [];
+  // ── Fetch evidence by pr_id (ไม่ผ่าน PO แล้ว) ───────────────────────────
   let paymentEvidence: any = null;
   let evidenceFiles: any[] = [];
 
-  if (linkedPOs && (linkedPOs as any[]).length > 0) {
-    const primaryPoId = (linkedPOs as any[])[0].id;
-    const [{ data: poRecord }, { data: poItemsData }, { data: poAttachmentsData }, { data: poBillsData }, { data: evidenceRecord }] =
-      await Promise.all([
-        (supabase as any)
-          .from("purchase_orders")
-          .select(
-            "id, po_number, status, vendor_name, order_date, note, subtotal, vat_rate, vat_amount, total_amount, pr_total_amount, submitted_at, approved_at, cancelled_at, created_by, created_at"
-          )
-          .eq("id", primaryPoId)
-          .single(),
-        supabase
-          .from("po_items")
-          .select("id, line_no, description, quantity, unit, unit_price, pr_unit_price, line_total, received_qty")
-          .eq("po_id", primaryPoId)
-          .order("line_no"),
-        (supabase as any)
-          .from("po_attachments")
-          .select("id, file_name, file_url, file_type, file_size")
-          .eq("po_id", primaryPoId)
-          .order("created_at"),
-        (supabase as any)
-          .from("purchase_bills")
-          .select("id, bill_number, bill_date, bill_amount, vendor_name, notes, created_at")
-          .eq("po_id", primaryPoId)
-          .order("created_at"),
-        (supabase as any)
-          .from("payment_evidences")
-          .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
-          .eq("po_id", primaryPoId)
-          .maybeSingle(),
-      ]);
-    poDetail = poRecord;
-    poItems = poItemsData ?? [];
-    poAttachments = poAttachmentsData ?? [];
-    poBills = poBillsData ?? [];
-    paymentEvidence = evidenceRecord ?? null;
+  const { data: evidenceRecord } = await (supabase as any)
+    .from("payment_evidences")
+    .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
+    .eq("pr_id", id)
+    .maybeSingle();
 
-    if (paymentEvidence) {
-      const { data: efData } = await (supabase as any)
-        .from("evidence_files")
-        .select("id, file_name, file_url, evidence_type, file_size")
-        .eq("evidence_id", paymentEvidence.id)
-        .order("evidence_type");
-      evidenceFiles = efData ?? [];
-    }
+  paymentEvidence = evidenceRecord ?? null;
+
+  if (paymentEvidence) {
+    const { data: efData } = await (supabase as any)
+      .from("evidence_files")
+      .select("id, file_name, file_url, evidence_type, file_size")
+      .eq("evidence_id", paymentEvidence.id)
+      .order("evidence_type");
+    evidenceFiles = efData ?? [];
   }
 
   const currentUserRole = currentProfile?.role as UserRole | undefined;
@@ -176,27 +120,8 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       .map(p => [p.id, p.full_name])
   );
 
-  // ── PO section logic ──────────────────────────────────────────────────────
-  const hasPO = !!poDetail;
   const hasEvidence = !!paymentEvidence;
   const prStatus = pr.status as PrStatus;
-  const poStatus = poDetail?.status as PoStatus | undefined;
-
-  const canCreatePO =
-    prStatus === "approved" &&
-    !hasPO &&
-    (user?.id === pr.requester_id ||
-      currentUserRole === "admin" ||
-      currentUserRole === "purchaser");
-
-  const prItemsForPO = ((items ?? []) as any[]).map((it: any) => ({
-    id: it.id,
-    line_no: it.line_no ?? 0,
-    description: it.description,
-    unit: it.unit,
-    quantity: Number(it.quantity),
-    pr_unit_price: Number(it.unit_price),
-  }));
 
   // ── Activity timeline ─────────────────────────────────────────────────────
   type ActivityEntry = {
@@ -280,7 +205,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         </p>
         <div className="flex items-stretch gap-1.5">
           {TICKET_STEPS.map((step, i) => {
-            const state = computeStepState(i, prStatus, hasPO, poStatus, hasEvidence);
+            const state = computeStepState(i, prStatus, hasEvidence);
             const boxCls = {
               done:    "border-green-300 bg-green-50",
               current: "border-blue-400 bg-blue-50 ring-1 ring-blue-200 shadow-sm",
@@ -319,7 +244,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                     <div className="mt-0.5 text-[9px] font-semibold text-blue-500">● ดำเนินการ</div>
                   )}
                 </div>
-                {i < 4 && (
+                {i < 2 && (
                   <div className={`self-center h-0.5 w-2 shrink-0 rounded-full ${lineCls}`} />
                 )}
               </>
@@ -493,57 +418,21 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         currentUserRole={currentUserRole}
       />
 
-      {/* ── PO section divider ───────────────────────────────────────────── */}
-      {(canCreatePO || hasPO) && (
+      {/* ── Evidence divider ─────────────────────────────────────────────── */}
+      {["approved", "converted"].includes(prStatus) && (
         <div className="flex items-center gap-3 py-1">
           <div className="flex-1 border-t border-slate-200" />
           <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            ใบสั่งซื้อ (PO)
+            บิล &amp; รับของ
           </span>
           <div className="flex-1 border-t border-slate-200" />
         </div>
       )}
 
-      {/* ── Inline PO creation ───────────────────────────────────────────── */}
-      {canCreatePO && (
-        <POCreationSection
-          prId={pr.id}
-          prNumber={pr.pr_number}
-          prTitle={pr.title}
-          prTotalAmount={pr.total_amount}
-          prItems={prItemsForPO}
-          currentUserId={user?.id ?? ""}
-        />
-      )}
-
-      {/* ── Inline PO detail ─────────────────────────────────────────────── */}
-      {hasPO && poDetail && (
-        <PODetailSection
-          po={poDetail}
-          poItems={poItems}
-          attachments={poAttachments}
-          bills={poBills}
-          currentUserId={user?.id ?? ""}
-          currentUserRole={currentUserRole}
-          prId={pr.id}
-        />
-      )}
-
-      {/* ── Step 5: Evidence section divider ────────────────────────────── */}
-      {poStatus === "approved" && (
-        <div className="flex items-center gap-3 py-1">
-          <div className="flex-1 border-t border-slate-200" />
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
-            แนบหลักฐาน
-          </span>
-          <div className="flex-1 border-t border-slate-200" />
-        </div>
-      )}
-
-      {/* ── Inline Evidence Submission (ยังไม่ส่ง + เป็นเจ้าของ) ──────────── */}
-      {poStatus === "approved" && !hasEvidence && isOwner && poDetail && (
+      {/* ── Evidence Submission (ยังไม่ส่ง + เป็นเจ้าของ) ───────────────── */}
+      {["approved", "converted"].includes(prStatus) && !hasEvidence && isOwner && (
         <EvidenceSubmissionSection
-          poId={poDetail.id}
+          poId={null}
           prId={pr.id}
           prBankName={(pr as any).bank_name ?? null}
           prBankAccount={(pr as any).bank_account_number ?? null}
@@ -551,8 +440,8 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         />
       )}
 
-      {/* รอผู้สั่งซื้อแนบหลักฐาน (แสดงเมื่อยังไม่ส่งและไม่ใช่เจ้าของ) */}
-      {poStatus === "approved" && !hasEvidence && !isOwner && (
+      {/* รอผู้สั่งซื้อแนบหลักฐาน */}
+      {["approved", "converted"].includes(prStatus) && !hasEvidence && !isOwner && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-8 text-center">
           <p className="text-sm font-medium text-slate-500">รอผู้สั่งซื้อแนบหลักฐานการรับของ</p>
           <p className="mt-1 text-xs text-slate-400">ผู้สั่งซื้อจะต้องแนบบิลและข้อมูลผู้รับเงินก่อนดำเนินการต่อ</p>
@@ -567,21 +456,6 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         />
       )}
 
-      {/* Extra POs (edge case: more than 1 PO linked) */}
-      {linkedPOs && (linkedPOs as any[]).length > 1 && (
-        <div className="space-y-1.5">
-          {(linkedPOs as any[]).slice(1).map((po: any) => (
-            <Link
-              key={po.id}
-              href={`/orders/${po.id}`}
-              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm hover:bg-slate-50"
-            >
-              <span className="font-mono text-xs font-bold text-slate-600">{po.po_number}</span>
-              <span className="text-xs text-slate-400">ดู PO →</span>
-            </Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
