@@ -14,24 +14,6 @@ import type { Branch } from "@/types/database";
 // -----------------------------------------------------------------------
 // รายชื่อธนาคารไทยที่นิยม
 // -----------------------------------------------------------------------
-const THAI_BANKS = [
-  { code: "KBANK", label: "กสิกรไทย (KBANK)" },
-  { code: "SCB",   label: "ไทยพาณิชย์ (SCB)" },
-  { code: "BBL",   label: "กรุงเทพ (BBL)" },
-  { code: "KTB",   label: "กรุงไทย (KTB)" },
-  { code: "TTB",   label: "ทีทีบี (TTB)" },
-  { code: "BAY",   label: "กรุงศรีอยุธยา (BAY)" },
-  { code: "GSB",   label: "ออมสิน (GSB)" },
-  { code: "GHB",   label: "อาคารสงเคราะห์ (GHB)" },
-  { code: "BAAC",  label: "ธ.ก.ส. (BAAC)" },
-  { code: "KKP",   label: "เกียรตินาคิน (KKP)" },
-  { code: "CIMBT", label: "ซีไอเอ็มบี (CIMBT)" },
-  { code: "UOB",   label: "ยูโอบี (UOB)" },
-  { code: "TISCO", label: "ทิสโก้ (TISCO)" },
-  { code: "LHB",   label: "แลนด์แอนด์เฮ้าส์ (LHB)" },
-];
-
-// -----------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------
 interface Product {
@@ -78,8 +60,6 @@ export default function NewRequisitionPage() {
   // ── Form fields ─────────────────────────────────────────────────────
   const [isUrgent, setIsUrgent] = useState(false);
   const [neededBy, setNeededBy] = useState(() => new Date().toISOString());
-  const [bankName, setBankName] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
 
   // ── Items ───────────────────────────────────────────────────────────
   const [items, setItems] = useState<PRItem[]>([{ ...EMPTY_ITEM }]);
@@ -218,8 +198,6 @@ export default function NewRequisitionPage() {
         needed_by: neededBy || null,
         note: (formData.get("note") as string) || null,
         is_urgent: isUrgent,
-        bank_name: bankName || null,
-        bank_account_number: bankAccount || null,
         total_amount: totalAmount,
         status: "draft",
       })
@@ -437,31 +415,6 @@ export default function NewRequisitionPage() {
             <span className="text-lg font-bold text-blue-700">
               ฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
             </span>
-          </div>
-        </div>
-
-        {/* ── บัญชีธนาคาร ────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-700">บัญชีธนาคาร (สำหรับรับเงิน)</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {/* เลือกธนาคาร */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
-              <select value={bankName} onChange={(e) => setBankName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
-                <option value="">— เลือกธนาคาร —</option>
-                {THAI_BANKS.map((b) => (
-                  <option key={b.code} value={b.code}>{b.label}</option>
-                ))}
-              </select>
-            </div>
-            {/* เลขบัญชี */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
-              <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)}
-                placeholder="เช่น 123-4-56789-0"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider focus:border-blue-500 focus:outline-none" />
-            </div>
           </div>
         </div>
 
