@@ -218,7 +218,7 @@ export function PREditForm({
 
       // 3. ลบรายการสินค้าเดิมทั้งหมด แล้ว insert ใหม่
       await supabase.from("pr_items").delete().eq("pr_id", pr.id);
-      await supabase.from("pr_items").insert(
+      const { error: itemsInsertError } = await supabase.from("pr_items").insert(
         items.map((it, i) => ({
           pr_id: pr.id,
           line_no: i + 1,
@@ -227,9 +227,10 @@ export function PREditForm({
           quantity: it.quantity,
           unit: it.unit || "ชิ้น",
           unit_price: it.unit_price,
-          line_total: it.quantity * it.unit_price,
+          // line_total เป็น generated column — ห้าม include ใน INSERT
         }))
       );
+      if (itemsInsertError) throw itemsInsertError;
 
       // 4. Update PR header + เปลี่ยน status กลับเป็น submitted
       const now = new Date().toISOString();
