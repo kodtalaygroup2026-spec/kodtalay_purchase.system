@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LineLinkButton } from "@/components/shared/LineLinkButton";
+import { DepartmentSelector } from "@/components/profile/DepartmentSelector";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
 
@@ -47,12 +48,20 @@ export default async function ProfilePage() {
             <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
               {ROLE_LABELS[profile.role as UserRole] ?? profile.role}
             </span>
+            {profile.department && (
+              <span className="ml-2 mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                {profile.department}
+              </span>
+            )}
           </div>
         </div>
-        {profile.department && (
-          <p className="mt-3 text-sm text-slate-500">แผนก: {profile.department}</p>
-        )}
       </div>
+
+      {/* เลือกแผนก */}
+      <DepartmentSelector
+        userId={user.id}
+        initialDepartment={profile.department ?? null}
+      />
 
       {/* LINE Linking */}
       <LineLinkButton userId={user.id} initialLineUserId={profile.line_user_id} />

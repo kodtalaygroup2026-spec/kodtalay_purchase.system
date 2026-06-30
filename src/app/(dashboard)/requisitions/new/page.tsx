@@ -73,6 +73,7 @@ export default function NewRequisitionPage() {
   // ── Requester info ──────────────────────────────────────────────────
   const [requesterName, setRequesterName] = useState("");
   const [requesterAvatar, setRequesterAvatar] = useState<string | null>(null);
+  const [userDepartment, setUserDepartment] = useState<string | null>(null);
 
   // ── Form fields ─────────────────────────────────────────────────────
   const [isUrgent, setIsUrgent] = useState(false);
@@ -96,13 +97,14 @@ export default function NewRequisitionPage() {
 
         const { data: profile } = await (supabase as any)
           .from("profiles")
-          .select("full_name, branch_id")
+          .select("full_name, branch_id, department")
           .eq("id", user.id)
           .single();
 
         setRequesterName(
           profile?.full_name || user.user_metadata?.full_name || user.email || ""
         );
+        setUserDepartment(profile?.department ?? null);
 
         const { data: branchData } = await (supabase as any)
           .from("branches")
@@ -212,7 +214,7 @@ export default function NewRequisitionPage() {
         title: formData.get("title") as string,
         requester_id: user.id,
         branch_id: branchId,
-        department: (formData.get("department") as string) || null,
+        department: userDepartment || null,
         needed_by: neededBy || null,
         note: (formData.get("note") as string) || null,
         is_urgent: isUrgent,
@@ -341,13 +343,8 @@ export default function NewRequisitionPage() {
             </button>
           </div>
 
-          {/* แผนก + วันที่ต้องการ */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">แผนก</label>
-              <input name="department" placeholder="เช่น บัญชี, ไอที"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-            </div>
+          {/* วันที่ต้องการ */}
+          <div>
             <div>
               <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
             </div>

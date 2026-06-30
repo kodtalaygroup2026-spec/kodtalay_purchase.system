@@ -72,3 +72,15 @@ export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
 
 // อัตรา VAT เริ่มต้น (%)
 export const DEFAULT_VAT_RATE = 7;
+
+// รายชื่อแผนกในองค์กร (ใช้เป็น dropdown ในหน้าโปรไฟล์)
+export const DEPARTMENTS: string[] = [
+  "ฝ่ายจัดซื้อ",
+  "ฝ่ายครัว",
+  "ฝ่ายปฏิบัติการหน้าร้าน",
+  "ฝ่ายการเงินและบัญชี",
+  "ฝ่ายการตลาด",
+  "ฝ่ายทรัพยากรบุคคล",
+  "ฝ่ายวิศวกรรมและช่าง",
+  "ทีมผู้บริหาร",
+];
