@@ -551,6 +551,14 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         />
       )}
 
+      {/* รอผู้สั่งซื้อแนบหลักฐาน (แสดงเมื่อยังไม่ส่งและไม่ใช่เจ้าของ) */}
+      {poStatus === "approved" && !hasEvidence && !isOwner && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-8 text-center">
+          <p className="text-sm font-medium text-slate-500">รอผู้สั่งซื้อแนบหลักฐานการรับของ</p>
+          <p className="mt-1 text-xs text-slate-400">ผู้สั่งซื้อจะต้องแนบบิลและข้อมูลผู้รับเงินก่อนดำเนินการต่อ</p>
+        </div>
+      )}
+
       {/* ── Evidence Detail (ส่งแล้ว — read-only) ───────────────────────── */}
       {hasEvidence && paymentEvidence && (
         <EvidenceDetailSection
