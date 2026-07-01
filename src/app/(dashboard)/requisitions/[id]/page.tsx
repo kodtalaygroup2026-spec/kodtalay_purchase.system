@@ -329,12 +329,17 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             <div>
               <p className="text-slate-500">แผนก</p>
               <p className="font-medium text-slate-800">{pr.department ?? "—"}</p>
-              {pr.branches?.code && (
-                <span className={`mt-1 inline-flex rounded-lg px-2.5 py-0.5 text-xs font-bold text-white ${
+            </div>
+            <div>
+              <p className="text-slate-500">สาขา</p>
+              {pr.branches?.code ? (
+                <span className={`mt-0.5 inline-flex rounded-lg px-2.5 py-0.5 text-xs font-bold text-white ${
                   { BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" }[pr.branches.code as string] ?? "bg-slate-500"
                 }`}>
                   {pr.branches.name ?? pr.branches.code}
                 </span>
+              ) : (
+                <p className="font-medium text-slate-800">—</p>
               )}
             </div>
             <div>
