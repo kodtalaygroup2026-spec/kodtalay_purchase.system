@@ -1,14 +1,16 @@
--- Migration 0022: เพิ่ม 'employee' เข้า enum user_role
--- ⚠️  รัน STEP นี้ก่อน แล้วรัน 0023 แยกต่างหาก
--- (PostgreSQL ไม่อนุญาตให้ใช้ enum value ใหม่ใน transaction เดียวกัน)
+-- Migration 0023: Migrate data + update trigger + RLS for role simplification
+-- ⚠️  รัน 0022 ให้เสร็จก่อน (ต้อง commit ADD VALUE 'employee' ก่อน)
 
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'employee';
+-- ─── 1. Migrate ข้อมูลที่มีอยู่ ──────────────────────────────────────────
+UPDATE public.profiles
+SET role = 'employee'
+WHERE role IN ('requester', 'purchaser', 'viewer');
 
--- ─── 3. เปลี่ยน column default ────────────────────────────────────────────
+-- ─── 2. เปลี่ยน column default ────────────────────────────────────────────
 ALTER TABLE public.profiles
   ALTER COLUMN role SET DEFAULT 'employee';
 
--- ─── 4. อัปเดต trigger ให้ user คนใหม่ได้ employee ────────────────────────
+-- ─── 3. อัปเดต trigger ให้ user คนใหม่ได้ employee ────────────────────────
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public AS $$
@@ -39,7 +41,7 @@ BEGIN
 END;
 $$;
 
--- ─── 5. อัปเดต RLS policy: purchaser → manager ────────────────────────────
+-- ─── 4. อัปเดต RLS policy: purchaser → manager ────────────────────────────
 -- products
 DROP POLICY IF EXISTS "Purchaser can insert products" ON public.products;
 DROP POLICY IF EXISTS "Purchaser can update products" ON public.products;
