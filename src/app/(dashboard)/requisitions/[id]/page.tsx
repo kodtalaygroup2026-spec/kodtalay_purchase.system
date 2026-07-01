@@ -11,7 +11,7 @@ import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSecti
 import Link from "next/link";
 import {
   ArrowLeft, Clock, CheckCircle2, XCircle, Send, X, FileText,
-  Edit, Plus,
+  Edit, Plus, Pencil,
 } from "lucide-react";
 import type { PrStatus, UserRole } from "@/types/database";
 
@@ -78,8 +78,35 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
   if (!pr) notFound();
 
-  // Audit trail profile IDs
-  const auditIds = [pr.submitted_by, pr.approved_by, pr.rejected_by, pr.cancelled_by]
+  // ── fetch evidence + item edit logs ──────────────────────────────────────
+  const [{ data: evidenceRecord }, { data: itemEditLogs }] = await Promise.all([
+    (supabase as any)
+      .from("payment_evidences")
+      .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
+      .eq("pr_id", id)
+      .maybeSingle(),
+    (supabase as any)
+      .from("pr_item_edit_logs")
+      .select("id, edited_at, edited_by, changes")
+      .eq("pr_id", id)
+      .order("edited_at"),
+  ]);
+
+  const paymentEvidence: any = evidenceRecord ?? null;
+  let evidenceFiles: any[] = [];
+
+  if (paymentEvidence) {
+    const { data: efData } = await (supabase as any)
+      .from("evidence_files")
+      .select("id, file_name, file_url, evidence_type, file_size")
+      .eq("evidence_id", paymentEvidence.id)
+      .order("evidence_type");
+    evidenceFiles = efData ?? [];
+  }
+
+  // ── Audit trail profile IDs (รวม editor ของ item edits ด้วย) ────────────
+  const editLogEditorIds = ((itemEditLogs ?? []) as any[]).map((l: any) => l.edited_by).filter(Boolean);
+  const auditIds = [pr.submitted_by, pr.approved_by, pr.rejected_by, pr.cancelled_by, ...editLogEditorIds]
     .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
   const uniqueIds = [...new Set(auditIds)];
 
@@ -90,27 +117,6 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         ? (supabase as any).from("profiles").select("id, full_name").in("id", uniqueIds)
         : Promise.resolve({ data: [] }),
     ]);
-
-  // ── Fetch evidence by pr_id (ไม่ผ่าน PO แล้ว) ───────────────────────────
-  let paymentEvidence: any = null;
-  let evidenceFiles: any[] = [];
-
-  const { data: evidenceRecord } = await (supabase as any)
-    .from("payment_evidences")
-    .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
-    .eq("pr_id", id)
-    .maybeSingle();
-
-  paymentEvidence = evidenceRecord ?? null;
-
-  if (paymentEvidence) {
-    const { data: efData } = await (supabase as any)
-      .from("evidence_files")
-      .select("id, file_name, file_url, evidence_type, file_size")
-      .eq("evidence_id", paymentEvidence.id)
-      .order("evidence_type");
-    evidenceFiles = efData ?? [];
-  }
 
   const currentUserRole = currentProfile?.role as UserRole | undefined;
   const isOwner = user?.id === pr.requester_id;
@@ -125,6 +131,15 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   const prStatus = pr.status as PrStatus;
 
   // ── Activity timeline ─────────────────────────────────────────────────────
+  type ItemChange = {
+    item_id: string;
+    description: string;
+    quantity_old: number;
+    quantity_new: number;
+    unit_price_old: number;
+    unit_price_new: number;
+  };
+
   type ActivityEntry = {
     at: string;
     label: string;
@@ -132,6 +147,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     color: "slate" | "blue" | "green" | "red" | "orange";
     icon: React.ElementType;
     reason?: string;
+    itemChanges?: ItemChange[];
   };
 
   const timeline: ActivityEntry[] = [
@@ -178,6 +194,16 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       by: nameOf[pr.cancelled_by] ?? "—",
       color: "red",
       icon: X,
+    });
+  }
+  for (const log of (itemEditLogs ?? []) as any[]) {
+    timeline.push({
+      at: log.edited_at,
+      label: "แก้ไขรายการสินค้า",
+      by: nameOf[log.edited_by] ?? "—",
+      color: "blue",
+      icon: Pencil,
+      itemChanges: (log.changes ?? []) as ItemChange[],
     });
   }
   timeline.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
@@ -347,11 +373,14 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* รายการสินค้า — dropdown เฉพาะขั้นตอน 3 (approved/converted ขึ้นไป) */}
+        {/* รายการสินค้า — dropdown + edit เฉพาะขั้นตอน 3 */}
         <PRItemsDropdown
           items={(items ?? []) as any[]}
           totalAmount={pr.total_amount}
           collapsible={["approved", "converted", "pending_finance", "paid"].includes(prStatus)}
+          editable={["approved", "converted"].includes(prStatus) && isOwner}
+          prId={pr.id}
+          currentUserId={user?.id ?? ""}
         />
       </div>
 
@@ -462,6 +491,25 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                   <p className={`mt-1 rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
                     &ldquo;{entry.reason}&rdquo;
                   </p>
+                )}
+                {entry.itemChanges && entry.itemChanges.length > 0 && (
+                  <ul className="mt-1.5 space-y-1">
+                    {entry.itemChanges.map((ch, ci) => (
+                      <li key={ci} className={`rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
+                        <span className="font-medium">{ch.description}</span>
+                        {ch.quantity_old !== ch.quantity_new && (
+                          <span className="ml-2 text-slate-500">
+                            จำนวน: {ch.quantity_old} → <span className="font-semibold">{ch.quantity_new}</span>
+                          </span>
+                        )}
+                        {ch.unit_price_old !== ch.unit_price_new && (
+                          <span className="ml-2 text-slate-500">
+                            ราคา: ฿{ch.unit_price_old} → <span className="font-semibold">฿{ch.unit_price_new}</span>
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </li>
             );

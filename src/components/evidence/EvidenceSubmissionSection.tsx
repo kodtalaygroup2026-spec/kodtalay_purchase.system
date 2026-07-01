@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   Upload, FileText, ImageIcon, X as XIcon,
-  AlertTriangle, CheckCircle2, Package,
-  ChevronDown, ChevronUp, Receipt, Paperclip,
+  AlertTriangle, CheckCircle2, Package, Paperclip,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 
@@ -85,7 +84,7 @@ function FileUploadZone({
             return (
               <li key={i} className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
                 {previewUrl ? (
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewUrl} alt={file.name}
                       className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
@@ -134,20 +133,6 @@ export function EvidenceSubmissionSection({
   const router = useRouter();
   const supabase = createClient();
 
-  // ── Section 1: ยอดที่ซื้อจริง ─────────────────────────────────────────────
-  const [isPriceOpen, setIsPriceOpen] = useState(true);
-  const [actualAmountStr, setActualAmountStr] = useState("");
-  const [priceSaved, setPriceSaved] = useState(false);
-
-  const actualAmountNum = parseFloat(actualAmountStr.replace(/,/g, "")) || 0;
-  const priceDiff = originalAmount > 0 && actualAmountNum > 0
-    ? ((actualAmountNum - originalAmount) / originalAmount) * 100
-    : null;
-  const isOverBudget = priceDiff !== null && priceDiff > 10;
-  const isUnderBudget = priceDiff !== null && priceDiff < -10;
-
-  // ── Section 2: แนบหลักฐาน ────────────────────────────────────────────────
-  const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -187,16 +172,8 @@ export function EvidenceSubmissionSection({
     }
   }
 
-  function handleSavePrice() {
-    if (!actualAmountNum) return;
-    setPriceSaved(true);
-    setIsPriceOpen(false);
-    setIsEvidenceOpen(true);
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!actualAmountNum) { setErrorMessage("กรุณาระบุยอดที่ซื้อจริง"); return; }
     if (!accountHolderName.trim()) { setErrorMessage("กรุณาระบุชื่อเจ้าของบัญชี"); return; }
     if (billFiles.length === 0) { setErrorMessage("กรุณาแนบบิลอย่างน้อย 1 ไฟล์"); return; }
 
@@ -204,8 +181,6 @@ export function EvidenceSubmissionSection({
     setErrorMessage(null);
 
     try {
-      // 1. สร้าง payment_evidences record
-      // หมายเหตุ: actual_amount บันทึกไว้ที่ purchase_requisitions แทน (migration 0018)
       const { data: evidence, error: evidenceError } = await (supabase as any)
         .from("payment_evidences")
         .insert({
@@ -222,23 +197,20 @@ export function EvidenceSubmissionSection({
 
       if (evidenceError || !evidence) throw evidenceError ?? new Error("ไม่สามารถสร้างข้อมูลหลักฐานได้");
 
-      // 2. อัปโหลดไฟล์แยกตามประเภท
       await uploadFiles(evidence.id, billFiles, "bill");
       await uploadFiles(evidence.id, slipFiles, "slip");
       await uploadFiles(evidence.id, goodsReceiptFiles, "goods_receipt");
 
-      // 3. บันทึก actual_amount ลง PR และเปลี่ยนสถานะเป็น pending_finance
-      // (pending_finance ต้องรัน migration 0018 ใน Supabase Dashboard ก่อน)
+      // บันทึก actual_amount และเปลี่ยน status
       const { error: prUpdateError } = await (supabase as any)
         .from("purchase_requisitions")
-        .update({ status: "pending_finance", actual_amount: actualAmountNum })
+        .update({ status: "pending_finance", actual_amount: originalAmount })
         .eq("id", prId);
 
       if (prUpdateError) {
-        // ถ้า enum ยังไม่อัปเดต — อย่างน้อยบันทึก actual_amount ก่อน
         await (supabase as any)
           .from("purchase_requisitions")
-          .update({ actual_amount: actualAmountNum })
+          .update({ actual_amount: originalAmount })
           .eq("id", prId);
       }
 
@@ -249,237 +221,138 @@ export function EvidenceSubmissionSection({
     }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="space-y-3">
-
-      {/* ── Section 1: ยอดที่ซื้อจริง ─────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <button
-          type="button"
-          onClick={() => setIsPriceOpen(o => !o)}
-          className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-slate-50"
-        >
-          <Receipt size={16} className={priceSaved ? "text-green-600" : "text-blue-600"} />
-          <div className="flex-1">
-            <span className="text-sm font-semibold text-slate-700">ยอดที่ซื้อจริง</span>
-            {priceSaved && actualAmountNum > 0 && (
-              <span className="ml-2 text-sm font-medium text-green-700">
-                {formatCurrency(actualAmountNum)}
-              </span>
-            )}
-          </div>
-          {priceSaved
-            ? <CheckCircle2 size={16} className="text-green-600" />
-            : isPriceOpen
-              ? <ChevronUp size={15} className="text-slate-400" />
-              : <ChevronDown size={15} className="text-slate-400" />
-          }
-        </button>
-
-        {isPriceOpen && (
-          <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-            {/* ยอดอ้างอิงจาก PR */}
-            <div className="mb-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-              <span className="text-slate-500">ยอดประมาณการตาม PR</span>
-              <span className="font-semibold text-slate-700">{formatCurrency(originalAmount)}</span>
-            </div>
-
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              ยอดที่ซื้อจริง <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={actualAmountStr}
-              onChange={e => { setActualAmountStr(e.target.value); setPriceSaved(false); }}
-              placeholder="กรอกยอดที่จ่ายจริง (บาท)"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            />
-
-            {/* สถานะราคา */}
-            {actualAmountNum > 0 && priceDiff !== null && (
-              isOverBudget ? (
-                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                  <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
-                  <p className="text-xs text-amber-700">
-                    ยอดเกินงบ <strong>{priceDiff.toFixed(1)}%</strong> ({formatCurrency(actualAmountNum - originalAmount)}) —
-                    จะแจ้งเตือนฝ่ายบัญชีโดยอัตโนมัติ
-                  </p>
-                </div>
-              ) : isUnderBudget ? (
-                <div className="mt-2 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
-                  <CheckCircle2 size={14} className="text-blue-600" />
-                  <p className="text-xs text-blue-700">
-                    ยอดต่ำกว่างบ {Math.abs(priceDiff).toFixed(1)}% — สามารถแนบหลักฐานได้เลย
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-2 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-                  <CheckCircle2 size={14} className="text-green-600" />
-                  <p className="text-xs text-green-700">ยอดอยู่ในงบประมาณ — สามารถแนบหลักฐานได้เลย</p>
-                </div>
-              )
-            )}
-
-            <button
-              type="button"
-              disabled={!actualAmountNum}
-              onClick={handleSavePrice}
-              className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-40"
-            >
-              บันทึกยอด → ไปแนบหลักฐาน
-            </button>
-          </div>
-        )}
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* Section header */}
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+        <Paperclip size={16} className="text-blue-600" />
+        <span className="text-sm font-semibold text-slate-700">แนบหลักฐานการรับของ</span>
       </div>
 
-      {/* ── Section 2: แนบหลักฐาน (แสดงหลังจากบันทึกยอดแล้ว) ───────────── */}
-      {priceSaved && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <button
-            type="button"
-            onClick={() => setIsEvidenceOpen(o => !o)}
-            className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-slate-50"
-          >
-            <Paperclip size={16} className="text-blue-600" />
-            <span className="flex-1 text-sm font-semibold text-slate-700">แนบหลักฐานการรับของ</span>
-            {isEvidenceOpen
-              ? <ChevronUp size={15} className="text-slate-400" />
-              : <ChevronDown size={15} className="text-slate-400" />
-            }
-          </button>
+      <form onSubmit={handleSubmit} className="divide-y divide-slate-100">
 
-          {isEvidenceOpen && (
-            <form onSubmit={handleSubmit} className="divide-y divide-slate-100">
-
-              {/* ข้อมูลผู้รับเงิน */}
-              <div className="px-5 py-4">
-                <h3 className="mb-3 text-sm font-semibold text-slate-700">ข้อมูลผู้รับเงิน</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                      ชื่อเจ้าของบัญชี <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      value={accountHolderName}
-                      onChange={e => setAccountHolderName(e.target.value)}
-                      placeholder="ชื่อ-นามสกุล ตามหน้าบัญชี"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
-                      <select
-                        value={bankName}
-                        onChange={e => setBankName(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="">— เลือกธนาคาร —</option>
-                        {THAI_BANKS.map(b => (
-                          <option key={b.code} value={b.code}>{b.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
-                      <input
-                        value={bankAccount}
-                        onChange={e => setBankAccount(e.target.value)}
-                        placeholder="เช่น 123-4-56789-0"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
+        {/* ข้อมูลผู้รับเงิน */}
+        <div className="px-5 py-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-700">ข้อมูลผู้รับเงิน</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                ชื่อเจ้าของบัญชี <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={accountHolderName}
+                onChange={e => setAccountHolderName(e.target.value)}
+                placeholder="ชื่อ-นามสกุล ตามหน้าบัญชี"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
+                <select
+                  value={bankName}
+                  onChange={e => setBankName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">— เลือกธนาคาร —</option>
+                  {THAI_BANKS.map(b => (
+                    <option key={b.code} value={b.code}>{b.label}</option>
+                  ))}
+                </select>
               </div>
-
-              {/* ไฟล์หลักฐาน */}
-              <div className="px-5 py-4">
-                <h3 className="mb-1 text-sm font-semibold text-slate-700">ไฟล์หลักฐาน</h3>
-                <p className="mb-3 text-xs text-slate-400">แนบบิลอย่างน้อย 1 ไฟล์ — สลิปและรูปรับของไม่บังคับ</p>
-                <div className="space-y-3">
-                  <FileUploadZone
-                    label="บิล / ใบเสร็จ"
-                    description="ใบเสร็จหรือบิลจากร้านค้า"
-                    files={billFiles}
-                    onAdd={addFiles(setBillFiles)}
-                    onRemove={removeFile(setBillFiles)}
-                    required
-                    icon={FileText}
-                    accentColor="text-orange-500"
-                  />
-                  <FileUploadZone
-                    label="สลิปการโอนเงิน"
-                    description="หลักฐานการชำระเงิน / สลิปโอนเงิน"
-                    files={slipFiles}
-                    onAdd={addFiles(setSlipFiles)}
-                    onRemove={removeFile(setSlipFiles)}
-                    icon={ImageIcon}
-                    accentColor="text-blue-500"
-                  />
-                  <FileUploadZone
-                    label="รูปถ่ายการรับของ"
-                    description="ภาพถ่ายสินค้าที่รับมาจริง"
-                    files={goodsReceiptFiles}
-                    onAdd={addFiles(setGoodsReceiptFiles)}
-                    onRemove={removeFile(setGoodsReceiptFiles)}
-                    icon={Package}
-                    accentColor="text-green-500"
-                  />
-                </div>
-              </div>
-
-              {/* หมายเหตุ */}
-              <div className="px-5 py-4">
-                <label className="mb-2 block text-sm font-semibold text-slate-700">หมายเหตุ (ถ้ามี)</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  rows={2}
-                  placeholder="ข้อมูลเพิ่มเติมสำหรับฝ่ายการเงิน"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
+                <input
+                  value={bankAccount}
+                  onChange={e => setBankAccount(e.target.value)}
+                  placeholder="เช่น 123-4-56789-0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider focus:border-blue-500 focus:outline-none"
                 />
               </div>
-
-              {/* Summary + Submit */}
-              <div className="px-5 py-4">
-                <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
-                  <span className={billFiles.length > 0 ? "font-semibold text-green-700" : "text-slate-400"}>
-                    {billFiles.length > 0
-                      ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />บิล {billFiles.length} ไฟล์</>
-                      : <><AlertTriangle size={11} className="mr-1 inline text-red-400" />ยังไม่มีบิล</>}
-                  </span>
-                  <span className="text-slate-500">สลิป {slipFiles.length} ไฟล์</span>
-                  <span className="text-slate-500">รูปรับของ {goodsReceiptFiles.length} ไฟล์</span>
-                  <span className="ml-auto font-semibold text-blue-800">
-                    ยอดรวม: {formatCurrency(actualAmountNum)}
-                  </span>
-                </div>
-
-                {errorMessage && (
-                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                    <AlertTriangle size={14} className="text-red-500" />
-                    <p className="text-sm text-red-700">{errorMessage}</p>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {isSubmitting ? "กำลังส่ง..." : "ส่งแนบจ่าย →"}
-                </button>
-              </div>
-
-            </form>
-          )}
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* ไฟล์หลักฐาน */}
+        <div className="px-5 py-4">
+          <h3 className="mb-1 text-sm font-semibold text-slate-700">ไฟล์หลักฐาน</h3>
+          <p className="mb-3 text-xs text-slate-400">แนบบิลอย่างน้อย 1 ไฟล์ — สลิปและรูปรับของไม่บังคับ</p>
+          <div className="space-y-3">
+            <FileUploadZone
+              label="บิล / ใบเสร็จ"
+              description="ใบเสร็จหรือบิลจากร้านค้า"
+              files={billFiles}
+              onAdd={addFiles(setBillFiles)}
+              onRemove={removeFile(setBillFiles)}
+              required
+              icon={FileText}
+              accentColor="text-orange-500"
+            />
+            <FileUploadZone
+              label="สลิปการโอนเงิน"
+              description="หลักฐานการชำระเงิน / สลิปโอนเงิน"
+              files={slipFiles}
+              onAdd={addFiles(setSlipFiles)}
+              onRemove={removeFile(setSlipFiles)}
+              icon={ImageIcon}
+              accentColor="text-blue-500"
+            />
+            <FileUploadZone
+              label="รูปถ่ายการรับของ"
+              description="ภาพถ่ายสินค้าที่รับมาจริง"
+              files={goodsReceiptFiles}
+              onAdd={addFiles(setGoodsReceiptFiles)}
+              onRemove={removeFile(setGoodsReceiptFiles)}
+              icon={Package}
+              accentColor="text-green-500"
+            />
+          </div>
+        </div>
+
+        {/* หมายเหตุ */}
+        <div className="px-5 py-4">
+          <label className="mb-2 block text-sm font-semibold text-slate-700">หมายเหตุ (ถ้ามี)</label>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={2}
+            placeholder="ข้อมูลเพิ่มเติมสำหรับฝ่ายการเงิน"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        {/* Summary + Submit */}
+        <div className="px-5 py-4">
+          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
+            <span className={billFiles.length > 0 ? "font-semibold text-green-700" : "text-slate-400"}>
+              {billFiles.length > 0
+                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />บิล {billFiles.length} ไฟล์</>
+                : <><AlertTriangle size={11} className="mr-1 inline text-red-400" />ยังไม่มีบิล</>}
+            </span>
+            <span className="text-slate-500">สลิป {slipFiles.length} ไฟล์</span>
+            <span className="text-slate-500">รูปรับของ {goodsReceiptFiles.length} ไฟล์</span>
+            <span className="ml-auto font-semibold text-blue-800">
+              ยอดรวม: {formatCurrency(originalAmount)}
+            </span>
+          </div>
+
+          {errorMessage && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <AlertTriangle size={14} className="text-red-500" />
+              <p className="text-sm text-red-700">{errorMessage}</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+          >
+            {isSubmitting ? "กำลังส่ง..." : "ส่งแนบจ่าย →"}
+          </button>
+        </div>
+
+      </form>
     </div>
   );
 }
