@@ -277,16 +277,38 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
     setExpandedId(prId);
     if (!expandedItems[prId]) {
       setLoadingExpand(prId);
-      const { data } = await supabase
-        .from("pr_items")
-        .select("id, line_no, description, quantity, unit, unit_price")
-        .eq("pr_id", prId)
-        .order("line_no")
-        .limit(6); // โหลด 6 เพื่อเช็คว่ามีเกิน 5 ไหม
-      setExpandedItems(prev => ({
-        ...prev,
-        [prId]: (data ?? []) as ExpandedItem[],
-      }));
+      const [{ data: itemsData }, { data: editLogs }] = await Promise.all([
+        supabase
+          .from("pr_items")
+          .select("id, line_no, description, quantity, unit, unit_price")
+          .eq("pr_id", prId)
+          .order("line_no")
+          .limit(6),
+        (supabase as any)
+          .from("pr_item_edit_logs")
+          .select("changes")
+          .eq("pr_id", prId)
+          .order("edited_at", { ascending: true }),
+      ]);
+
+      // apply edit logs ทับราคาเก่าใน pr_items (รองรับกรณี pr_items ยังไม่ถูก update)
+      let items: ExpandedItem[] = (itemsData ?? []) as ExpandedItem[];
+      for (const log of (editLogs ?? []) as any[]) {
+        const changeMap = new Map(
+          (log.changes as any[]).map((c: any) => [c.item_id, c])
+        );
+        items = items.map((item) => {
+          const ch = changeMap.get(item.id);
+          if (!ch) return item;
+          return {
+            ...item,
+            quantity: ch.quantity_new,
+            unit_price: ch.unit_price_new,
+          };
+        });
+      }
+
+      setExpandedItems(prev => ({ ...prev, [prId]: items }));
       setLoadingExpand(null);
     }
   }
