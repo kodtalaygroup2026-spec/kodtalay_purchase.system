@@ -289,6 +289,9 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
+                {pr.pr_number}
+              </span>
               {prStatus === "draft" && isOwner && (
                 <Link
                   href={`/requisitions/${pr.id}/edit`}
@@ -313,18 +316,6 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                   <Plus size={13} /> สร้าง PR ใหม่
                 </Link>
               )}
-              <div className="flex items-center gap-2">
-                <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
-                  {pr.pr_number}
-                </span>
-                {pr.branches?.code && (
-                  <span className={`rounded-lg px-2.5 py-1 text-xs font-bold text-white ${
-                    { BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" }[pr.branches.code as string] ?? "bg-slate-500"
-                  }`}>
-                    {pr.branches.code}
-                  </span>
-                )}
-              </div>
             </div>
           </div>
           <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>
@@ -338,6 +329,13 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             <div>
               <p className="text-slate-500">แผนก</p>
               <p className="font-medium text-slate-800">{pr.department ?? "—"}</p>
+              {pr.branches?.code && (
+                <span className={`mt-1 inline-flex rounded-lg px-2.5 py-0.5 text-xs font-bold text-white ${
+                  { BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" }[pr.branches.code as string] ?? "bg-slate-500"
+                }`}>
+                  {pr.branches.name ?? pr.branches.code}
+                </span>
+              )}
             </div>
             <div>
               <p className="text-slate-500">วันที่สร้าง</p>
