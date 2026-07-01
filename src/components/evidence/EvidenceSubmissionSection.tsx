@@ -191,7 +191,9 @@ export function EvidenceSubmissionSection({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!accountHolderName.trim()) { setErrorMessage("กรุณาระบุชื่อเจ้าของบัญชี"); return; }
-    if (billFiles.length === 0) { setErrorMessage("กรุณาแนบบิลอย่างน้อย 1 ไฟล์"); return; }
+    if (billFiles.length === 0) { setErrorMessage("กรุณาแนบบิล / ใบเสร็จ อย่างน้อย 1 ไฟล์"); return; }
+    if (slipFiles.length === 0) { setErrorMessage("กรุณาแนบสลิปการโอนเงิน อย่างน้อย 1 ไฟล์"); return; }
+    if (goodsReceiptFiles.length === 0) { setErrorMessage("กรุณาแนบรูปถ่ายการรับของ อย่างน้อย 1 ไฟล์"); return; }
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -340,6 +342,7 @@ export function EvidenceSubmissionSection({
               files={slipFiles}
               onAdd={addFiles(setSlipFiles)}
               onRemove={removeFile(setSlipFiles)}
+              required
               icon={ImageIcon}
               accentColor="text-blue-500"
             />
@@ -349,6 +352,7 @@ export function EvidenceSubmissionSection({
               files={goodsReceiptFiles}
               onAdd={addFiles(setGoodsReceiptFiles)}
               onRemove={removeFile(setGoodsReceiptFiles)}
+              required
               icon={Package}
               accentColor="text-green-500"
             />
@@ -370,13 +374,21 @@ export function EvidenceSubmissionSection({
         {/* Summary + Submit */}
         <div className="px-5 py-4">
           <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
-            <span className={billFiles.length > 0 ? "font-semibold text-green-700" : "text-slate-400"}>
+            <span className={billFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
               {billFiles.length > 0
                 ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />บิล {billFiles.length} ไฟล์</>
-                : <><AlertTriangle size={11} className="mr-1 inline text-red-400" />ยังไม่มีบิล</>}
+                : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีบิล *</>}
             </span>
-            <span className="text-slate-500">สลิป {slipFiles.length} ไฟล์</span>
-            <span className="text-slate-500">รูปรับของ {goodsReceiptFiles.length} ไฟล์</span>
+            <span className={slipFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
+              {slipFiles.length > 0
+                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />สลิป {slipFiles.length} ไฟล์</>
+                : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีสลิป *</>}
+            </span>
+            <span className={goodsReceiptFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
+              {goodsReceiptFiles.length > 0
+                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />รูปรับของ {goodsReceiptFiles.length} ไฟล์</>
+                : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีรูปรับของ *</>}
+            </span>
             <span className="ml-auto font-semibold text-blue-800">
               ยอดรวม: {formatCurrency(originalAmount)}
             </span>
