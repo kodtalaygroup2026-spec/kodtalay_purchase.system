@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { CheckCircle, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { CheckCircle, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown, RotateCcw, XCircle, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { PrStatus } from "@/types/database";
@@ -93,6 +93,8 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [pendingBulk, setPendingBulk] = useState<"return" | "reject" | null>(null);
+  const [bulkNote, setBulkNote] = useState("");
 
   function handleSort(col: SortKey) {
     if (col === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -116,6 +118,16 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
     });
   }
 
+  async function sendLineNotify(lineUserId: string, message: string) {
+    try {
+      await fetch("/api/notifications/line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineUserId, message }),
+      });
+    } catch { /* ไม่ block flow หลัก */ }
+  }
+
   async function handleBulkApprove() {
     if (selected.size === 0 || isLoading) return;
     setIsLoading(true);
@@ -133,19 +145,13 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
       const origin = window.location.origin;
       for (const pr of prs.filter((p) => ids.includes(p.id))) {
         if (pr.requester_line_id) {
-          void fetch("/api/notifications/line", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lineUserId: pr.requester_line_id,
-              message:
-                `✅ ใบขอซื้อของคุณได้รับการอนุมัติ\n\n` +
-                `เลขที่: ${pr.pr_number}\n` +
-                `หัวข้อ: ${pr.title}\n` +
-                `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
-                `👉 ดูรายละเอียด:\n${origin}/requisitions/${pr.id}`,
-            }),
-          });
+          void sendLineNotify(
+            pr.requester_line_id,
+            `✅ ใบขอซื้อของคุณได้รับการอนุมัติ\n\n` +
+            `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
+            `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
+            `👉 ดูรายละเอียด:\n${origin}/requisitions/${pr.id}`
+          );
         }
       }
       setSelected(new Set());
@@ -155,22 +161,147 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
     setIsLoading(false);
   }
 
+  async function handleBulkConfirm() {
+    if (!pendingBulk || !bulkNote.trim() || selected.size === 0 || isLoading) return;
+    setIsLoading(true);
+
+    const now = new Date().toISOString();
+    const ids = [...selected];
+
+    const isReturn = pendingBulk === "return";
+    const newStatus = isReturn ? "returned" : "rejected";
+    const update = {
+      status: newStatus,
+      rejected_at: now,
+      rejected_by: currentUserId,
+      rejection_reason: bulkNote.trim(),
+    };
+
+    const { error } = await (supabase as any)
+      .from("purchase_requisitions")
+      .update(update)
+      .in("id", ids)
+      .eq("status", "submitted");
+
+    if (!error) {
+      const origin = window.location.origin;
+      const icon = isReturn ? "↩️" : "❌";
+      const label = isReturn ? "ถูกตีกลับ" : "ไม่ได้รับการอนุมัติ";
+      for (const pr of prs.filter((p) => ids.includes(p.id))) {
+        if (pr.requester_line_id) {
+          void sendLineNotify(
+            pr.requester_line_id,
+            `${icon} ใบขอซื้อของคุณ${label}\n\n` +
+            `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
+            `เหตุผล: ${bulkNote.trim()}\n\n` +
+            `👉 ดูรายละเอียด:\n${origin}/requisitions/${pr.id}`
+          );
+        }
+      }
+      setSelected(new Set());
+      setPendingBulk(null);
+      setBulkNote("");
+      router.refresh();
+    }
+
+    setIsLoading(false);
+  }
+
+  function cancelBulk() {
+    setPendingBulk(null);
+    setBulkNote("");
+  }
+
   return (
     <div className="space-y-3">
       {/* ── Bulk action bar ─────────────────────────────────────────────────── */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 shadow-sm">
-          <span className="text-sm font-medium text-green-700">
-            เลือก {selected.size} รายการ
-          </span>
-          <button
-            onClick={handleBulkApprove}
-            disabled={isLoading}
-            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-60"
-          >
-            <CheckCircle size={15} />
-            {isLoading ? "กำลังอนุมัติ..." : `อนุมัติ ${selected.size} รายการ`}
-          </button>
+        <div className={`rounded-xl border px-4 py-3 shadow-sm space-y-3 ${
+          pendingBulk === "reject" ? "border-red-200 bg-red-50"
+          : pendingBulk === "return" ? "border-orange-200 bg-orange-50"
+          : "border-green-200 bg-green-50"
+        }`}>
+          {/* Row 1: label + action buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className={`text-sm font-medium ${
+              pendingBulk === "reject" ? "text-red-700"
+              : pendingBulk === "return" ? "text-orange-700"
+              : "text-green-700"
+            }`}>
+              เลือก {selected.size} รายการ
+            </span>
+
+            {!pendingBulk ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* อนุมัติ */}
+                <button
+                  onClick={handleBulkApprove}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-60"
+                >
+                  <CheckCircle size={14} />
+                  {isLoading ? "กำลังดำเนินการ..." : `อนุมัติ ${selected.size} รายการ`}
+                </button>
+                {/* ตีกลับ */}
+                <button
+                  onClick={() => setPendingBulk("return")}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-orange-600 disabled:opacity-60"
+                >
+                  <RotateCcw size={14} />
+                  ตีกลับ
+                </button>
+                {/* ไม่อนุมัติ */}
+                <button
+                  onClick={() => setPendingBulk("reject")}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+                >
+                  <XCircle size={14} />
+                  ไม่อนุมัติ
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={cancelBulk}
+                disabled={isLoading}
+                className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+              >
+                <X size={14} /> ยกเลิก
+              </button>
+            )}
+          </div>
+
+          {/* Row 2: note input เมื่อเลือก ตีกลับ / ไม่อนุมัติ */}
+          {pendingBulk && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">
+                เหตุผล <span className="text-red-500">*</span>
+                <span className="ml-1 text-xs font-normal text-slate-400">
+                  ({pendingBulk === "return" ? "ตีกลับ" : "ไม่อนุมัติ"} {selected.size} รายการ)
+                </span>
+              </label>
+              <textarea
+                value={bulkNote}
+                onChange={(e) => setBulkNote(e.target.value)}
+                rows={2}
+                placeholder="ระบุเหตุผล..."
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              />
+              <button
+                onClick={handleBulkConfirm}
+                disabled={isLoading || !bulkNote.trim()}
+                className={`flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium text-white transition disabled:opacity-60 ${
+                  pendingBulk === "return"
+                    ? "bg-orange-500 hover:bg-orange-600"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {pendingBulk === "return" ? <RotateCcw size={14} /> : <XCircle size={14} />}
+                {isLoading ? "กำลังดำเนินการ..." : pendingBulk === "return" ? `ตีกลับ ${selected.size} รายการ` : `ไม่อนุมัติ ${selected.size} รายการ`}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
