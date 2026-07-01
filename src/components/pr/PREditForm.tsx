@@ -11,25 +11,6 @@ import { CompanySelector, getBranchBorderColor } from "@/components/shared/Compa
 import { DateTimePicker } from "@/components/shared/DateTimePicker";
 import type { Branch } from "@/types/database";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const THAI_BANKS = [
-  { code: "KBANK", label: "กสิกรไทย (KBANK)" },
-  { code: "SCB",   label: "ไทยพาณิชย์ (SCB)" },
-  { code: "BBL",   label: "กรุงเทพ (BBL)" },
-  { code: "KTB",   label: "กรุงไทย (KTB)" },
-  { code: "TTB",   label: "ทีทีบี (TTB)" },
-  { code: "BAY",   label: "กรุงศรีอยุธยา (BAY)" },
-  { code: "GSB",   label: "ออมสิน (GSB)" },
-  { code: "GHB",   label: "อาคารสงเคราะห์ (GHB)" },
-  { code: "BAAC",  label: "ธ.ก.ส. (BAAC)" },
-  { code: "KKP",   label: "เกียรตินาคิน (KKP)" },
-  { code: "CIMBT", label: "ซีไอเอ็มบี (CIMBT)" },
-  { code: "UOB",   label: "ยูโอบี (UOB)" },
-  { code: "TISCO", label: "ทิสโก้ (TISCO)" },
-  { code: "LHB",   label: "แลนด์แอนด์เฮ้าส์ (LHB)" },
-];
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface EditItem {
@@ -99,8 +80,6 @@ export function PREditForm({
   const [isUrgent, setIsUrgent] = useState(pr.is_urgent);
   const [neededBy, setNeededBy] = useState(pr.needed_by ?? new Date().toISOString());
   const [branchId, setBranchId] = useState(pr.branch_id);
-  const [bankName, setBankName] = useState(pr.bank_name ?? "");
-  const [bankAccount, setBankAccount] = useState(pr.bank_account_number ?? "");
 
   // ── Items ───────────────────────────────────────────────────────────────────
   const [items, setItems] = useState<EditItem[]>(() =>
