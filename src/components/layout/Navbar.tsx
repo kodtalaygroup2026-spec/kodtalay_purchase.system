@@ -3,11 +3,10 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ROLE_LABELS } from "@/lib/constants";
 import type { Profile } from "@/types/database";
 
 interface NavbarProps {
-  profile: Pick<Profile, "full_name" | "email" | "role">;
+  profile: Pick<Profile, "full_name" | "email" | "role" | "department">;
   avatarUrl?: string;
 }
 
@@ -57,7 +56,7 @@ export function Navbar({ profile, avatarUrl }: NavbarProps) {
             <p className="text-sm font-medium text-slate-800 leading-tight">
               {profile.full_name || profile.email}
             </p>
-            <p className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</p>
+            <p className="text-xs text-slate-500">{profile.department ?? "—"}</p>
           </div>
         </Link>
 
