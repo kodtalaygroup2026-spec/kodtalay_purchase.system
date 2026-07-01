@@ -18,7 +18,7 @@ interface PRItem {
 
 interface PRItemsDropdownProps {
   items: PRItem[];
-  totalAmount: number;
+  totalAmount?: number; // ไม่ใช้ใน render แล้ว — คำนวณจาก items โดยตรง
   collapsible?: boolean;
   defaultOpen?: boolean;
   // edit mode — ใช้เฉพาะเมื่อ collapsible=true และ PR อนุมัติแล้ว
@@ -123,7 +123,6 @@ function ItemsTable({
 
 export function PRItemsDropdown({
   items,
-  totalAmount,
   collapsible = true,
   defaultOpen = false,
   editable = false,
@@ -229,6 +228,13 @@ export function PRItemsDropdown({
   }
 
   // ── collapsible (ขั้นตอน 3): dropdown + optional edit ────────────────────
+
+  // คำนวณจาก pr_items จริงๆ เสมอ (ไม่ใช้ totalAmount prop ที่อาจ stale)
+  const computedTotal = items.reduce(
+    (s, it) => s + (it.line_total ?? it.quantity * it.unit_price),
+    0
+  );
+
   return (
     <div>
       {/* Header bar */}
@@ -241,7 +247,7 @@ export function PRItemsDropdown({
           <h3 className="font-semibold text-slate-700">รายการสินค้า</h3>
           <div className="flex items-center gap-2">
             {!isOpen && !isEditing && (
-              <span className="text-sm font-semibold text-slate-600">{formatCurrency(totalAmount)}</span>
+              <span className="text-sm font-semibold text-slate-600">{formatCurrency(computedTotal)}</span>
             )}
             {isOpen
               ? <ChevronUp size={15} className="text-slate-400" />
