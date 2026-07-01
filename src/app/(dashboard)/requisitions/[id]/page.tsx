@@ -2,9 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDateTime } from "@/lib/utils/format";
+import { formatDateTime } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PRApprovalPanel } from "@/components/pr/PRApprovalPanel";
+import { PRItemsDropdown } from "@/components/pr/PRItemsDropdown";
 import { EvidenceSubmissionSection } from "@/components/evidence/EvidenceSubmissionSection";
 import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSection";
 import Link from "next/link";
@@ -277,21 +278,39 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       {/* ── PR info + รายการสินค้า (paper เดียวกัน) ─────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        {/* Header — compact card style */}
+        <div className="px-6 pt-5 pb-4">
+
+          {/* Row 1: status badge + title | branch badge */}
+          <div className="mb-1.5 flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <StatusBadge kind="pr" status={pr.status as PrStatus} />
               {pr.is_urgent && (
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
                   ด่วน
                 </span>
               )}
+              <h2 className="text-lg font-bold leading-snug text-slate-800">{pr.title}</h2>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-slate-100 px-3 py-1 font-mono text-sm font-bold text-slate-700 tracking-wider border border-slate-200">
-                {pr.pr_number}
+            {pr.branches?.code ? (
+              <span className={`mt-0.5 shrink-0 inline-flex rounded-lg px-2.5 py-0.5 text-xs font-bold text-white ${
+                ({ BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" } as Record<string, string>)[pr.branches.code as string] ?? "bg-slate-500"
+              }`}>
+                {pr.branches.name ?? pr.branches.code}
               </span>
+            ) : null}
+          </div>
+
+          {/* Row 2: โดย name · department · ticket | edit buttons */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-slate-400">
+              โดย{" "}
+              <span className="text-slate-600">{requester?.full_name ?? requester?.email ?? "—"}</span>
+              {pr.department && <span> · {pr.department}</span>}
+              {" · "}
+              <span className="font-mono text-xs text-slate-500">{pr.pr_number}</span>
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
               {prStatus === "draft" && isOwner && (
                 <Link
                   href={`/requisitions/${pr.id}/edit`}
@@ -318,133 +337,30 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
-          <h2 className="mb-4 text-xl font-bold text-slate-800">{pr.title}</h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+
+          {/* Info fields: dates + note */}
+          <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 border-t border-slate-100 pt-3 text-sm">
             <div>
-              <p className="text-slate-500">ผู้ขอ</p>
-              <p className="font-medium text-slate-800">
-                {requester?.full_name ?? requester?.email ?? "—"}
-              </p>
+              <p className="text-xs text-slate-400">วันที่สร้าง</p>
+              <p className="font-medium text-slate-700">{formatDateTime(pr.created_at)}</p>
             </div>
             <div>
-              <p className="text-slate-500">แผนก</p>
-              <p className="font-medium text-slate-800">{pr.department ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">สาขา</p>
-              {pr.branches?.code ? (
-                <span className={`mt-0.5 inline-flex rounded-lg px-2.5 py-0.5 text-xs font-bold text-white ${
-                  { BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" }[pr.branches.code as string] ?? "bg-slate-500"
-                }`}>
-                  {pr.branches.name ?? pr.branches.code}
-                </span>
-              ) : (
-                <p className="font-medium text-slate-800">—</p>
-              )}
-            </div>
-            <div>
-              <p className="text-slate-500">วันที่สร้าง</p>
-              <p className="font-medium text-slate-800">{formatDateTime(pr.created_at)}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">วันที่ต้องการ</p>
-              <p className="font-medium text-slate-800">
+              <p className="text-xs text-slate-400">วันที่ต้องการ</p>
+              <p className="font-medium text-slate-700">
                 {pr.needed_by ? formatDateTime(pr.needed_by) : "—"}
               </p>
             </div>
             {pr.note && (
               <div className="col-span-2">
-                <p className="text-slate-500">เหตุผลในการสั่งซื้อ</p>
-                <p className="font-medium text-slate-800">{pr.note}</p>
+                <p className="text-xs text-slate-400">เหตุผลในการสั่งซื้อ</p>
+                <p className="font-medium text-slate-700">{pr.note}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* รายการสินค้า */}
-        <div className="border-t border-slate-100 px-6 py-3">
-          <h3 className="font-semibold text-slate-700">รายการสินค้า</h3>
-        </div>
-        <table className="min-w-full text-sm">
-          <thead className="border-b border-slate-100 bg-slate-50">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium text-slate-500">#</th>
-              <th className="px-4 py-2 text-left font-medium text-slate-500">สินค้า</th>
-              <th className="px-4 py-2 text-right font-medium text-slate-500">จำนวน</th>
-              <th className="px-4 py-2 text-left font-medium text-slate-500">หน่วย</th>
-              <th className="px-4 py-2 text-right font-medium text-slate-500">ราคา/หน่วย</th>
-              <th className="px-4 py-2 text-right font-medium text-slate-500">รวม</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {((items ?? []) as any[]).map((item) => {
-              const product = item.products as { name: string; unit: string; sku: string } | null;
-              return (
-                <tr key={item.id}>
-                  <td className="px-4 py-2 text-slate-400">{item.line_no}</td>
-                  <td className="px-4 py-2">
-                    <p className="font-medium text-slate-800">{item.description}</p>
-                    {product && <p className="text-xs text-slate-400">{product.sku}</p>}
-                  </td>
-                  <td className="px-4 py-2 text-right text-slate-700">
-                    {Number(item.quantity).toLocaleString("th-TH")}
-                  </td>
-                  <td className="px-4 py-2 text-slate-500">{item.unit}</td>
-                  <td className="px-4 py-2 text-right text-slate-700">
-                    {formatCurrency(item.unit_price)}
-                  </td>
-                  <td className="px-4 py-2 text-right font-medium text-slate-800">
-                    {formatCurrency(item.line_total ?? item.quantity * item.unit_price)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot className="border-t border-slate-200 bg-slate-50">
-            <tr>
-              <td colSpan={5} className="px-4 py-3 text-right font-semibold text-slate-700">
-                รวมทั้งสิ้น
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-slate-900">
-                {formatCurrency(pr.total_amount)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {/* ── Activity timeline ─────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <Clock size={16} className="text-slate-400" />
-          <h3 className="font-semibold text-slate-700">ประวัติการดำเนินการ PR</h3>
-        </div>
-        <ol className="relative border-l border-slate-200 ml-2 space-y-5">
-          {timeline.map((entry, i) => {
-            const c = colorMap[entry.color];
-            const Icon = entry.icon;
-            return (
-              <li key={i} className="ml-5">
-                <span
-                  className={`absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full ${c.dot}`}
-                />
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className={`text-sm font-semibold ${c.text}`}>
-                    <Icon size={13} className="mr-1 inline-block" />
-                    {entry.label}
-                  </span>
-                  <span className="text-sm text-slate-700">โดย {entry.by}</span>
-                  <span className="text-xs text-slate-400">{formatDateTime(entry.at)}</span>
-                </div>
-                {entry.reason && (
-                  <p className={`mt-1 rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
-                    &ldquo;{entry.reason}&rdquo;
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ol>
+        {/* รายการสินค้า — collapsible dropdown */}
+        <PRItemsDropdown items={(items ?? []) as any[]} totalAmount={pr.total_amount} />
       </div>
 
       {/* ── PR Approval Panel ────────────────────────────────────────────── */}
@@ -526,6 +442,40 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           files={evidenceFiles}
         />
       )}
+
+      {/* ── Activity timeline — ล่างสุดเสมอ ─────────────────────────────── */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Clock size={16} className="text-slate-400" />
+          <h3 className="font-semibold text-slate-700">ประวัติการดำเนินการ PR</h3>
+        </div>
+        <ol className="relative ml-2 space-y-5 border-l border-slate-200">
+          {timeline.map((entry, i) => {
+            const c = colorMap[entry.color];
+            const Icon = entry.icon;
+            return (
+              <li key={i} className="ml-5">
+                <span
+                  className={`absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full ${c.dot}`}
+                />
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className={`text-sm font-semibold ${c.text}`}>
+                    <Icon size={13} className="mr-1 inline-block" />
+                    {entry.label}
+                  </span>
+                  <span className="text-sm text-slate-700">โดย {entry.by}</span>
+                  <span className="text-xs text-slate-400">{formatDateTime(entry.at)}</span>
+                </div>
+                {entry.reason && (
+                  <p className={`mt-1 rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
+                    &ldquo;{entry.reason}&rdquo;
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
 
     </div>
   );
