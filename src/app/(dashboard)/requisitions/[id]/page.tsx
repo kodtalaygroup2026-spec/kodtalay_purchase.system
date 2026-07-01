@@ -338,25 +338,13 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Info fields: dates + note */}
-          <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 border-t border-slate-100 pt-3 text-sm">
-            <div>
-              <p className="text-xs text-slate-400">วันที่สร้าง</p>
-              <p className="font-medium text-slate-700">{formatDateTime(pr.created_at)}</p>
+          {/* Note only (dates removed) */}
+          {pr.note && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <p className="text-xs text-slate-400">เหตุผลในการสั่งซื้อ</p>
+              <p className="text-sm font-medium text-slate-700">{pr.note}</p>
             </div>
-            <div>
-              <p className="text-xs text-slate-400">วันที่ต้องการ</p>
-              <p className="font-medium text-slate-700">
-                {pr.needed_by ? formatDateTime(pr.needed_by) : "—"}
-              </p>
-            </div>
-            {pr.note && (
-              <div className="col-span-2">
-                <p className="text-xs text-slate-400">เหตุผลในการสั่งซื้อ</p>
-                <p className="font-medium text-slate-700">{pr.note}</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* รายการสินค้า — collapsible dropdown */}

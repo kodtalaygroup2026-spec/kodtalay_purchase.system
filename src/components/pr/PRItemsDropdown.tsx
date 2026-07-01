@@ -32,7 +32,9 @@ export function PRItemsDropdown({ items, totalAmount, defaultOpen = false }: PRI
       >
         <h3 className="font-semibold text-slate-700">รายการสินค้า</h3>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-600">{formatCurrency(totalAmount)}</span>
+          {!isOpen && (
+            <span className="text-sm font-semibold text-slate-600">{formatCurrency(totalAmount)}</span>
+          )}
           {isOpen
             ? <ChevronUp size={15} className="text-slate-400" />
             : <ChevronDown size={15} className="text-slate-400" />
