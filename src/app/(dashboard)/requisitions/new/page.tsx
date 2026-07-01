@@ -431,14 +431,15 @@ export default function NewRequisitionPage() {
 
         </div>
 
-        {/* ── ไฟล์แนบ ────────────────────────────────────────────────── */}
+        {/* ── ใบเสนอราคา ──────────────────────────────────────────────── */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-700">ไฟล์แนบ</h2>
+          <h2 className="mb-1 font-semibold text-slate-700">ใบเสนอราคา</h2>
+          <p className="mb-4 text-xs text-slate-400">แนบใบเสนอราคาจากผู้ขาย (ถ้ามี)</p>
 
           {/* Drop zone / select button */}
           <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
             <Paperclip size={22} className="text-slate-400" />
-            <p className="text-sm font-medium text-slate-600">คลิกเพื่อเลือกไฟล์</p>
+            <p className="text-sm font-medium text-slate-600">คลิกเพื่อแนบใบเสนอราคา</p>
             <p className="text-xs text-slate-400">รองรับ JPG, PNG, WEBP, PDF — หลายไฟล์ได้</p>
             <input ref={fileInputRef} type="file" multiple
               accept="image/jpeg,image/png,image/webp,application/pdf"
