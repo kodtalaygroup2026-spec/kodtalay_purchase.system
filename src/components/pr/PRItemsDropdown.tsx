@@ -186,7 +186,7 @@ export function PRItemsDropdown({
 
         await supabase
           .from("pr_items")
-          .update({ quantity: ev.quantity, unit_price: ev.unit_price, line_total: ev.quantity * ev.unit_price })
+          .update({ quantity: ev.quantity, unit_price: ev.unit_price })
           .eq("id", item.id);
       }
 
