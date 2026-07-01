@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Plus, Trash2, Building2, User,
   Paperclip, FileText, ImageIcon, X as XIcon,
+  HelpCircle, CheckCircle2, AlertCircle, Clock, Send,
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { DateTimePicker } from "@/components/shared/DateTimePicker";
@@ -45,6 +46,7 @@ export default function NewRequisitionPage() {
   // ── General state ───────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   // ── Products & branches ─────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([]);
@@ -250,6 +252,14 @@ export default function NewRequisitionPage() {
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-xl font-bold text-slate-800">สร้างใบขอซื้อใหม่</h1>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          className="ml-1 flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+        >
+          <HelpCircle size={13} />
+          คู่มือการใช้งาน
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -485,6 +495,147 @@ export default function NewRequisitionPage() {
           </button>
         </div>
       </form>
+
+      {/* ── Help Modal ──────────────────────────────────────────────────── */}
+      {showHelp && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-6 py-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+                  <FileText size={16} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-800">คู่มือการสร้างใบขอซื้อ</h2>
+                  <p className="text-[11px] text-slate-400">Purchase Request Guide</p>
+                </div>
+              </div>
+              <button onClick={() => setShowHelp(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                <XIcon size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-5 px-6 py-5">
+
+              {/* กระบวนการ */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">กระบวนการทำงาน</p>
+                <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                  {[
+                    { label: "สร้าง PR", sub: "กรอกข้อมูล", color: "bg-amber-100 text-amber-700 border-amber-200" },
+                    { label: "รออนุมัติ", sub: "หัวหน้าตรวจสอบ", color: "bg-blue-100 text-blue-700 border-blue-200" },
+                    { label: "แนบบิล", sub: "รับของ+หลักฐาน", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+                    { label: "ตั้งจ่าย", sub: "การเงินดำเนินการ", color: "bg-violet-100 text-violet-700 border-violet-200" },
+                  ].map((s, i, arr) => (
+                    <div key={s.label} className="flex shrink-0 items-center gap-1">
+                      <div className={`rounded-lg border px-2.5 py-1.5 text-center ${s.color}`}>
+                        <p className="text-xs font-bold">{s.label}</p>
+                        <p className="text-[10px] opacity-70">{s.sub}</p>
+                      </div>
+                      {i < arr.length - 1 && <span className="text-slate-300">→</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* วิธีกรอก */}
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">วิธีกรอกข้อมูล</p>
+                <div className="space-y-3">
+                  {[
+                    {
+                      icon: CheckCircle2,
+                      color: "text-emerald-500",
+                      title: "ชื่อ / เรื่อง",
+                      desc: "ระบุชื่อสินค้าหรือหัวเรื่องหลักให้ชัดเจน เช่น 'ขอซื้อกระดาษ A4 ประจำไตรมาส Q3'",
+                    },
+                    {
+                      icon: CheckCircle2,
+                      color: "text-emerald-500",
+                      title: "สาขา",
+                      desc: "เลือกสาขาที่จะออกใบขอซื้อในนาม ระบบจะจำค่านี้ไว้สำหรับครั้งถัดไป",
+                    },
+                    {
+                      icon: CheckCircle2,
+                      color: "text-emerald-500",
+                      title: "วันที่ต้องการ",
+                      desc: "กำหนดวันที่ต้องการสินค้าหรือบริการ ช่วยให้ฝ่ายจัดซื้อจัดลำดับงานได้",
+                    },
+                    {
+                      icon: AlertCircle,
+                      color: "text-amber-500",
+                      title: "งานด่วน",
+                      desc: "เปิดเฉพาะเมื่อต้องการเร่งด่วนจริงๆ เพื่อให้ผู้อนุมัติเห็นสัญลักษณ์ ⚡ ชัดเจน",
+                    },
+                    {
+                      icon: CheckCircle2,
+                      color: "text-emerald-500",
+                      title: "รายการสินค้า",
+                      desc: "เพิ่มสินค้าอย่างน้อย 1 รายการ ระบุชื่อสินค้า จำนวน หน่วย และราคาต่อหน่วยให้ครบ",
+                    },
+                    {
+                      icon: CheckCircle2,
+                      color: "text-emerald-500",
+                      title: "เหตุผลในการสั่งซื้อ",
+                      desc: "อธิบายความจำเป็นหรือที่มาของการสั่งซื้อ ช่วยให้ผู้อนุมัติตัดสินใจได้ง่ายขึ้น (ไม่บังคับ)",
+                    },
+                  ].map(item => (
+                    <div key={item.title} className="flex gap-3">
+                      <item.icon size={15} className={`mt-0.5 shrink-0 ${item.color}`} />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">{item.title}</p>
+                        <p className="text-xs leading-relaxed text-slate-500">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* หลังบันทึก */}
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <div className="flex gap-2">
+                  <Send size={14} className="mt-0.5 shrink-0 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-700">หลังจากบันทึกร่างแล้ว</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-blue-600">
+                      PR จะถูกบันทึกเป็น &lsquo;ร่าง&rsquo; ก่อน คุณสามารถแก้ไขได้จนกว่าจะกด &lsquo;ส่งอนุมัติ&rsquo; ซึ่งจะส่งแจ้งเตือนไปยัง LINE ของผู้อนุมัติโดยอัตโนมัติ
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* หมายเหตุ */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex gap-2">
+                  <Clock size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    เลขที่ PR จะถูกออกโดยอัตโนมัติในรูปแบบ <span className="font-mono font-semibold text-slate-700">PUR-YYMM-NNNN</span> หลังจากบันทึกสำเร็จ
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 px-6 py-4">
+              <button
+                onClick={() => setShowHelp(false)}
+                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              >
+                เข้าใจแล้ว เริ่มกรอกข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
