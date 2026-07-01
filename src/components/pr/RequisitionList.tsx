@@ -3,9 +3,8 @@
 import { useState, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Search, X, FileText, Settings2, Clock, ImagePlus } from "lucide-react";
+import { ChevronDown, Search, X, FileText, Settings2, Clock, ImagePlus } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PR_STATUS_LABELS } from "@/lib/constants";
 import type { PrStatus, PoStatus } from "@/types/database";
 
@@ -49,21 +48,15 @@ interface ExpandedItem {
   unit_price: number;
 }
 
-// ── Step state helper ──────────────────────────────────────────────────────
-
+// ── Step state helper (ใช้ในตาราง Progress column เดิม — ถูก comment เพราะเปลี่ยนเป็นตารางใหม่) ──
+/*
 type StepState = "done" | "current" | "error" | "locked";
 
-// 3 steps: ใบขอซื้อ → รออนุมัติ → ดำเนินการ
-function getStepState(
-  idx: number,
-  prStatus: PrStatus,
-  hasPO: boolean,
-): StepState {
+function getStepState(idx: number, prStatus: PrStatus, hasPO: boolean): StepState {
   const s = prStatus as string;
   const isTerminal = s === "cancelled" || s === "paid";
   const isPastApproval = s === "approved" || s === "converted" || s === "pending_finance" || s === "paid" || hasPO;
   const isPastSubmit = s === "submitted" || s === "pending_second_approval" || isPastApproval;
-
   if (idx === 0) {
     if (s === "rejected" || s === "cancelled") return "error";
     if (isPastSubmit) return "done";
@@ -75,26 +68,20 @@ function getStepState(
     if (s === "submitted" || s === "pending_second_approval") return "current";
     return "locked";
   }
-  // idx === 2: ดำเนินการ
   if (isTerminal) return "done";
   if (isPastApproval) return "current";
   return "locked";
 }
 
-// ── Progress dots ──────────────────────────────────────────────────────────
-
 function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }) {
   const hasPO = pos.length > 0;
-
   const dotColor = (state: StepState) => {
     if (state === "done") return "bg-green-500";
     if (state === "current") return "bg-blue-500";
     if (state === "error") return "bg-red-400";
     return "bg-slate-200";
   };
-  const lineColor = (state: StepState) =>
-    state === "done" ? "bg-green-300" : "bg-slate-200";
-
+  const lineColor = (state: StepState) => state === "done" ? "bg-green-300" : "bg-slate-200";
   return (
     <div className="flex items-center gap-0.5 justify-center">
       {[0, 1, 2].map(i => {
@@ -109,6 +96,7 @@ function ProgressDots({ prStatus, pos }: { prStatus: PrStatus; pos: LinkedPO[] }
     </div>
   );
 }
+*/
 
 // ── Progress summary bar ───────────────────────────────────────────────────
 
@@ -268,7 +256,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
     router.push(`/requisitions/${prId}`);
   }
 
-  // คลิก chevron = expand/collapse ข้อมูลย่อ (stopPropagation ไม่ให้ navigate)
+  // คลิกปุ่ม ดู▾ = expand/collapse dropdown รายการสินค้า
   async function handleChevronClick(e: React.MouseEvent, prId: string) {
     e.stopPropagation();
     if (expandedId === prId) {
@@ -283,7 +271,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
         .select("id, line_no, description, quantity, unit, unit_price")
         .eq("pr_id", prId)
         .order("line_no")
-        .limit(4);
+        .limit(6); // โหลด 6 เพื่อเช็คว่ามีเกิน 5 ไหม
       setExpandedItems(prev => ({
         ...prev,
         [prId]: (data ?? []) as ExpandedItem[],
@@ -357,25 +345,20 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่ PR</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">วันที่</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">สาขา</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ / ผู้ขอ</th>
-                <th className="px-4 py-3 text-center font-medium text-slate-500 hidden md:table-cell">
-                  Progress
-                </th>
-                <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ PR</th>
-                <th className="px-4 py-3 text-center font-medium text-slate-500 hidden lg:table-cell">
-                  สถานะ PO
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-slate-500">มูลค่า</th>
-                <th className="w-8 px-3 py-3" />
+                <th className="px-4 py-3 text-right font-medium text-slate-500">จำนวนเงิน</th>
+                <th className="w-20 px-3 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.map(pr => {
                 const isExpanded = expandedId === pr.id;
-                const pos = pr.purchase_orders ?? [];
-                const primaryPO = pos[0] ?? null;
                 const items = expandedItems[pr.id] ?? [];
                 const isLoading = loadingExpand === pr.id;
+                const visibleItems = items.slice(0, 5);
+                const remainingCount = items.length > 5 ? items.length - 5 : 0;
 
                 return (
                   <Fragment key={pr.id}>
@@ -383,124 +366,114 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                     <tr
                       onClick={() => handleRowClick(pr.id)}
                       className={`border-b border-slate-100 cursor-pointer transition-colors select-none ${
-                        isExpanded
-                          ? "bg-blue-50 border-blue-100"
-                          : "hover:bg-slate-50"
+                        isExpanded ? "bg-blue-50/60 border-blue-100" : "hover:bg-slate-50"
                       }`}
                     >
+                      {/* เลขที่ PR */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-bold text-blue-600">{pr.pr_number}</span>
-                          {pr.branch_code && (
-                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold leading-none ${BRANCH_BADGE[pr.branch_code] ?? "bg-slate-500 text-white"}`}>
-                              {pr.branch_code}
+                          <span className="font-mono text-xs font-bold text-blue-700">{pr.pr_number}</span>
+                          {pr.is_urgent && (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                              ⚡ ด่วน
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-400">{formatDate(pr.created_at)}</div>
-                        {pr.is_urgent && (
-                          <span className="text-[10px] font-semibold text-red-600">⚡ ด่วน</span>
-                        )}
                       </td>
-                      <td className="px-4 py-3 max-w-[220px]">
-                        <div className="font-medium text-slate-800 truncate">{pr.title}</div>
-                        <div className="text-xs text-slate-400">
-                          {pr.profiles?.full_name ?? "—"}
-                        </div>
+
+                      {/* วันที่ */}
+                      <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap">
+                        <span className="text-xs text-slate-500">{formatDate(pr.created_at)}</span>
                       </td>
+
+                      {/* สาขา */}
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <ProgressDots prStatus={pr.status} pos={pos} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <StatusBadge kind="pr" status={pr.status} />
-                      </td>
-                      <td className="px-4 py-3 text-center hidden lg:table-cell">
-                        {primaryPO ? (
-                          <StatusBadge kind="po" status={primaryPO.status} />
+                        {pr.branch_code ? (
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${BRANCH_BADGE[pr.branch_code] ?? "bg-slate-500 text-white"}`}>
+                            {pr.branch_code}
+                          </span>
                         ) : (
                           <span className="text-xs text-slate-300">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-800">
+
+                      {/* ชื่อ / ผู้ขอ */}
+                      <td className="px-4 py-3 max-w-[220px]">
+                        <div className="font-medium text-slate-800 truncate">{pr.title}</div>
+                        <div className="text-xs text-slate-400 truncate">{pr.profiles?.full_name ?? "—"}</div>
+                      </td>
+
+                      {/* จำนวนเงิน */}
+                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                         {formatCurrency(pr.total_amount)}
                       </td>
-                      <td className="px-3 py-3 text-slate-400">
+
+                      {/* ปุ่มดู */}
+                      <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={(e) => handleChevronClick(e, pr.id)}
-                          className="rounded p-0.5 hover:bg-slate-200 transition-colors"
+                          className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                            isExpanded
+                              ? "border-blue-200 bg-blue-100 text-blue-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                          }`}
                         >
-                          {isExpanded
-                            ? <ChevronDown size={15} />
-                            : <ChevronRight size={15} />}
+                          ดู
+                          <ChevronDown
+                            size={12}
+                            className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                          />
                         </button>
                       </td>
                     </tr>
 
-                    {/* Expanded detail row */}
+                    {/* Expanded dropdown row */}
                     {isExpanded && (
-                      <tr className="bg-blue-50/60 border-b border-blue-100">
-                        <td colSpan={7} className="px-4 pb-4 pt-1">
+                      <tr className="border-b border-blue-100 bg-blue-50/30">
+                        <td colSpan={6} className="px-4 pb-4 pt-2">
                           {isLoading ? (
-                            <div className="py-3 text-center text-sm text-slate-400">
-                              กำลังโหลด...
-                            </div>
+                            <div className="py-4 text-center text-sm text-slate-400">กำลังโหลด...</div>
                           ) : (
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                               {/* รายการสินค้า */}
-                              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                                  รายการสินค้า
-                                </p>
-                                {items.length === 0 ? (
-                                  <p className="text-xs text-slate-400">ไม่มีรายการ</p>
-                                ) : (
-                                  <ul className="space-y-1.5">
-                                    {items.slice(0, 3).map(it => (
-                                      <li key={it.id} className="flex items-baseline justify-between gap-2">
-                                        <span className="text-xs text-slate-600 truncate flex-1">
-                                          {it.line_no}. {it.description}
-                                        </span>
-                                        <span className="text-[11px] text-slate-400 shrink-0">
+                              {visibleItems.length === 0 ? (
+                                <div className="px-4 py-3 text-xs text-slate-400">ไม่มีรายการสินค้า</div>
+                              ) : (
+                                <ul className="divide-y divide-slate-50">
+                                  {visibleItems.map(it => (
+                                    <li key={it.id} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+                                      <div className="flex min-w-0 items-baseline gap-2">
+                                        <span className="shrink-0 text-[11px] font-medium text-slate-400">{it.line_no}.</span>
+                                        <span className="truncate text-sm text-slate-700">{it.description}</span>
+                                      </div>
+                                      <div className="flex shrink-0 items-baseline gap-3">
+                                        <span className="text-xs text-slate-400">
                                           ×{Number(it.quantity).toLocaleString("th-TH")} {it.unit}
                                         </span>
-                                      </li>
-                                    ))}
-                                    {items.length >= 4 && (
-                                      <li className="text-[11px] text-slate-400">
-                                        และอีกหลายรายการ...
-                                      </li>
-                                    )}
-                                  </ul>
-                                )}
-                              </div>
-
-                              {/* PO info */}
-                              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                                  ใบสั่งซื้อ (PO)
-                                </p>
-                                {primaryPO ? (
-                                  <div className="space-y-1.5">
-                                    <div className="font-mono text-xs font-bold text-slate-700">
-                                      {primaryPO.po_number}
-                                    </div>
-                                    {primaryPO.vendor_name && (
-                                      <div className="text-xs text-slate-500">
-                                        {primaryPO.vendor_name}
+                                        <span className="whitespace-nowrap text-xs font-medium text-slate-600">
+                                          {formatCurrency(Number(it.unit_price) * Number(it.quantity))}
+                                        </span>
                                       </div>
-                                    )}
-                                    <StatusBadge kind="po" status={primaryPO.status} />
-                                    <div className="text-xs font-semibold text-slate-700">
-                                      {formatCurrency(primaryPO.total_amount)}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-slate-400">
-                                    {pr.status === "approved"
-                                      ? "✅ อนุมัติแล้ว รอสร้าง PO"
-                                      : "ยังไม่มีใบสั่งซื้อ"}
-                                  </p>
-                                )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+
+                              {/* อีก N รายการ */}
+                              {remainingCount > 0 && (
+                                <div className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+                                  ··· อีก {remainingCount} รายการ
+                                </div>
+                              )}
+
+                              {/* ลิงก์ไปหน้ารายละเอียด */}
+                              <div className="border-t border-slate-100 px-4 py-2.5">
+                                <button
+                                  onClick={() => handleRowClick(pr.id)}
+                                  className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                                >
+                                  → ดูรายละเอียดทั้งหมด
+                                </button>
                               </div>
                             </div>
                           )}
