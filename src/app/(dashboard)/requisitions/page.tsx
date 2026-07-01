@@ -14,7 +14,17 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
   const { step } = await searchParams;
   const initialStep = step !== undefined ? parseInt(step, 10) : null;
 
-  const { data: prs } = await (supabase as any)
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user?.id ?? "")
+    .single();
+
+  // admin / manager เห็นทุก PR — role อื่นเห็นเฉพาะของตัวเอง
+  const isPrivileged = profile?.role === "admin" || profile?.role === "manager";
+
+  let query = (supabase as any)
     .from("purchase_requisitions")
     .select(
       `id, pr_number, title, status, total_amount, created_at, needed_by, is_urgent,
@@ -23,6 +33,12 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
        purchase_orders(id, po_number, status, total_amount, vendor_name)`
     )
     .order("created_at", { ascending: false });
+
+  if (!isPrivileged) {
+    query = query.eq("requester_id", user?.id ?? "");
+  }
+
+  const { data: prs } = await query;
 
   const prList: PRRow[] = (prs ?? []).map((pr: any) => ({
     id: pr.id,
