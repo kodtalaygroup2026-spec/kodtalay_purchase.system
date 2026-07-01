@@ -3,7 +3,7 @@
 import { useState, Fragment } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X, FileText, Settings2, Clock, ImagePlus } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PR_STATUS_LABELS } from "@/lib/constants";
@@ -123,10 +123,15 @@ export const STEP_STATUSES: PrStatus[][] = [
 const SUMMARY_STEPS = [
   {
     label: "ใบขอซื้อ",
-    sub: "ร่าง / ตีกลับ",
-    color: "text-slate-600",
-    bg: "bg-slate-50",
-    dot: "bg-slate-400",
+    sublabel: "ร่าง / รอแก้ไข",
+    subEn: "draft / editable",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-600",
+    subIconBg: "bg-amber-500",
+    badgeBg: "bg-amber-500",
+    activeBorder: "ring-amber-400",
+    activeBg: "bg-amber-50",
+    SubIcon: Settings2,
     match: (pr: PRRow) => {
       const s = pr.status as string;
       return s === "draft" || s === "returned" || s === "rejected";
@@ -134,10 +139,15 @@ const SUMMARY_STEPS = [
   },
   {
     label: "รออนุมัติ",
-    sub: "ส่งแล้ว",
-    color: "text-amber-700",
-    bg: "bg-amber-50",
-    dot: "bg-amber-400",
+    sublabel: "ส่งแล้ว",
+    subEn: "pending approval",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+    subIconBg: "bg-blue-500",
+    badgeBg: "bg-blue-500",
+    activeBorder: "ring-blue-400",
+    activeBg: "bg-blue-50",
+    SubIcon: Clock,
     match: (pr: PRRow) => {
       const s = pr.status as string;
       return s === "submitted" || s === "pending_second_approval";
@@ -145,10 +155,15 @@ const SUMMARY_STEPS = [
   },
   {
     label: "ดำเนินการ",
-    sub: "อนุมัติแล้ว",
-    color: "text-green-700",
-    bg: "bg-green-50",
-    dot: "bg-green-500",
+    sublabel: "อนุมัติแล้ว",
+    subEn: "add bill & receipt",
+    iconBg: "bg-emerald-100",
+    iconColor: "text-emerald-600",
+    subIconBg: "bg-emerald-500",
+    badgeBg: "bg-emerald-500",
+    activeBorder: "ring-emerald-400",
+    activeBg: "bg-emerald-50",
+    SubIcon: ImagePlus,
     match: (pr: PRRow) => {
       const s = pr.status as string;
       return s === "approved" || s === "converted" || pr.purchase_orders.length > 0;
@@ -167,30 +182,47 @@ function ProgressSummary({
 }) {
   const counts = SUMMARY_STEPS.map((s) => prs.filter(s.match).length);
   return (
-    <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="grid grid-cols-3 gap-3">
       {SUMMARY_STEPS.map((step, i) => {
         const isActive = activeStep === i;
+        const { SubIcon } = step;
         return (
           <button
             key={step.label}
             onClick={() => onStep(i)}
-            className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 px-3 py-3 text-center transition-colors ${
-              isActive ? step.bg + " ring-inset ring-2 ring-blue-400" : "bg-white hover:" + step.bg
-            } ${i < SUMMARY_STEPS.length - 1 ? "border-r border-slate-200" : ""}`}
+            className={`relative flex flex-col items-center gap-3 rounded-2xl border-2 px-4 py-5 text-center transition-all hover:shadow-md ${
+              isActive
+                ? `${step.activeBg} border-transparent ring-2 ${step.activeBorder} shadow-md`
+                : "border-transparent bg-white shadow-sm hover:border-slate-100"
+            }`}
           >
-            {/* Badge มุมขวาบน */}
+            {/* Badge จำนวน มุมขวาบน */}
             {counts[i] > 0 && (
-              <span className={`absolute right-2 top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white ${step.dot}`}>
+              <span className={`absolute right-3 top-3 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white ${step.badgeBg}`}>
                 {counts[i]}
               </span>
             )}
-            <span className={`h-2 w-2 rounded-full ${step.dot} shrink-0`} />
-            <span className={`text-xs font-semibold leading-tight ${step.color}`}>
-              {step.label}
-            </span>
-            <span className="text-[10px] text-slate-400 hidden sm:block">{step.sub}</span>
+
+            {/* Icon composition */}
+            <div className="relative">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${step.iconBg}`}>
+                <FileText size={36} className={step.iconColor} strokeWidth={1.5} />
+              </div>
+              {/* Sub icon badge ล่างขวา */}
+              <div className={`absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-lg ${step.subIconBg} shadow-sm`}>
+                <SubIcon size={13} className="text-white" strokeWidth={2.5} />
+              </div>
+            </div>
+
+            {/* Label */}
+            <div>
+              <p className="text-sm font-bold text-slate-800">{step.label}</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">{step.subEn}</p>
+            </div>
+
+            {/* Active indicator */}
             {isActive && (
-              <span className="mt-0.5 text-[9px] font-semibold text-blue-500">● กำลังดู</span>
+              <span className="text-[10px] font-semibold text-blue-500">● กำลังดู</span>
             )}
           </button>
         );
