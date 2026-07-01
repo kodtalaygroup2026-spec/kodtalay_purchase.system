@@ -6,6 +6,8 @@ import { FileText, CheckSquare } from "lucide-react";
 export function MobileNav() {
   const pathname = usePathname() ?? "/";
 
+  if (pathname === "/") return null;
+
   const items = [
     { href: "/requisitions", icon: FileText,    label: "งานของฉัน" },
     { href: "/approvals",    icon: CheckSquare, label: "การอนุมัติ" },

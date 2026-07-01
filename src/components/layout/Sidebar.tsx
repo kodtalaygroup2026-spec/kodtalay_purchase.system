@@ -90,6 +90,8 @@ export function Sidebar({ role, approvalCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
+  if (pathname === "/") return null;
+
   const isApprovalsActive = pathname.startsWith("/approvals");
 
   return (
