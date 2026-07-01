@@ -268,6 +268,14 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {prStatus === "draft" && isOwner && (
+                <Link
+                  href={`/requisitions/${pr.id}/edit`}
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  <Edit size={13} /> แก้ไข
+                </Link>
+              )}
               {prStatus === "returned" && isOwner && (
                 <Link
                   href={`/requisitions/${pr.id}/edit`}

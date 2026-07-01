@@ -51,8 +51,8 @@ export default async function EditRequisitionPage({ params }: PageProps) {
       .order("name"),
   ]);
 
-  // Guard: เฉพาะเจ้าของ PR และสถานะ returned เท่านั้น
-  if (!pr || pr.requester_id !== user.id || pr.status !== "returned") {
+  // Guard: เฉพาะเจ้าของ PR และสถานะ draft หรือ returned เท่านั้น
+  if (!pr || pr.requester_id !== user.id || !["draft", "returned"].includes(pr.status)) {
     redirect(`/requisitions/${id}`);
   }
 
@@ -65,23 +65,28 @@ export default async function EditRequisitionPage({ params }: PageProps) {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-slate-800">แก้ไขใบขอซื้อ</h1>
+          <h1 className="text-xl font-bold text-slate-800">
+            {pr.status === "returned" ? "แก้ไขและส่งใหม่" : "แก้ไขใบขอซื้อ"}
+          </h1>
           <p className="text-sm text-slate-500 font-mono">{pr.pr_number}</p>
         </div>
       </div>
 
-      {/* Banner ตีกลับ */}
-      <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-        <RotateCcw size={16} className="mt-0.5 shrink-0 text-orange-500" />
-        <div>
-          <p className="text-sm font-semibold text-orange-700">ใบขอซื้อถูกตีกลับ</p>
-          <p className="text-xs text-orange-600 mt-0.5">
-            กรุณาแก้ไขข้อมูลหรือไฟล์แนบที่ไม่ถูกต้อง แล้วกด &quot;ส่งขออนุมัติใหม่&quot;
-          </p>
+      {/* Banner ตีกลับ — แสดงเฉพาะสถานะ returned */}
+      {pr.status === "returned" && (
+        <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+          <RotateCcw size={16} className="mt-0.5 shrink-0 text-orange-500" />
+          <div>
+            <p className="text-sm font-semibold text-orange-700">ใบขอซื้อถูกตีกลับ</p>
+            <p className="text-xs text-orange-600 mt-0.5">
+              กรุณาแก้ไขข้อมูลหรือไฟล์แนบที่ไม่ถูกต้อง แล้วกด &quot;ส่งขออนุมัติใหม่&quot;
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <PREditForm
+        prStatus={pr.status as "draft" | "returned"}
         pr={{
           id: pr.id,
           pr_number: pr.pr_number,

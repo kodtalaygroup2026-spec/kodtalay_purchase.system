@@ -49,6 +49,7 @@ interface ExistingAttachment {
 }
 
 interface PREditFormProps {
+  prStatus: "draft" | "returned";
   pr: {
     id: string;
     pr_number: string;
@@ -77,6 +78,7 @@ interface PREditFormProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function PREditForm({
+  prStatus,
   pr,
   prItems,
   attachments,
@@ -232,8 +234,12 @@ export function PREditForm({
       );
       if (itemsInsertError) throw itemsInsertError;
 
-      // 4. Update PR header + เปลี่ยน status กลับเป็น submitted
+      // 4. Update PR header — draft บันทึกเป็น draft, returned ส่งใหม่เป็น submitted
       const now = new Date().toISOString();
+      const statusUpdate = prStatus === "returned"
+        ? { status: "submitted", rejected_at: null, rejected_by: null, submitted_at: now, submitted_by: currentUserId }
+        : { status: "draft" };
+
       const { error: prError } = await (supabase as any)
         .from("purchase_requisitions")
         .update({
@@ -245,11 +251,7 @@ export function PREditForm({
           bank_name: bankName || null,
           bank_account_number: bankAccount || null,
           total_amount: totalAmount,
-          status: "submitted",
-          rejected_at: null,
-          rejected_by: null,
-          submitted_at: now,
-          submitted_by: currentUserId,
+          ...statusUpdate,
         })
         .eq("id", pr.id);
 
@@ -590,9 +592,17 @@ export function PREditForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60"
+          className={`rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition disabled:opacity-60 ${
+            prStatus === "returned"
+              ? "bg-orange-500 hover:bg-orange-600"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          {isSubmitting ? "กำลังส่ง..." : "ส่งขออนุมัติใหม่"}
+          {isSubmitting
+            ? "กำลังบันทึก..."
+            : prStatus === "returned"
+            ? "ส่งขออนุมัติใหม่"
+            : "บันทึกการแก้ไข"}
         </button>
       </div>
     </form>
