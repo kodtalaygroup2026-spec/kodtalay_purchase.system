@@ -7,6 +7,7 @@ import {
   ArrowLeft, Plus, Trash2, Building2, User,
   Paperclip, FileText, ImageIcon, X as XIcon,
   HelpCircle, CheckCircle2, AlertCircle, Clock, Send,
+  ChevronRight, ChevronLeft, ChevronDown,
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { DateTimePicker } from "@/components/shared/DateTimePicker";
@@ -528,23 +529,53 @@ export default function NewRequisitionPage() {
               {/* กระบวนการ */}
               <div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">กระบวนการทำงาน</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { step: "A1", label: "สร้าง PR", sub: "กรอกข้อมูล", color: "bg-amber-50 text-amber-700 border-amber-200" },
-                    { step: "A2", label: "รออนุมัติ", sub: "หัวหน้าตรวจสอบ", color: "bg-blue-50 text-blue-700 border-blue-200" },
-                    { step: "A3", label: "แนบบิล+รับของ", sub: "อัปโหลดหลักฐาน", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-                    { step: "A4", label: "ตั้งจ่าย", sub: "การเงินดำเนินการ", color: "bg-violet-50 text-violet-700 border-violet-200" },
-                  ].map((s) => (
-                    <div key={s.step} className={`flex items-center gap-2.5 rounded-xl border p-2.5 ${s.color}`}>
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/70 text-[10px] font-bold">
-                        {s.step}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold leading-tight">{s.label}</p>
-                        <p className="text-[10px] opacity-60 leading-tight">{s.sub}</p>
+                {/* Z-flow: A1→A2 ↓ A3←A4 */}
+                <div className="space-y-1">
+                  {/* Row 1: A1 → A2 */}
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      { step: "A1", label: "สร้าง PR", sub: "กรอกข้อมูล", color: "bg-amber-50 text-amber-700 border-amber-200" },
+                      { step: "A2", label: "รออนุมัติ", sub: "หัวหน้าตรวจสอบ", color: "bg-blue-50 text-blue-700 border-blue-200" },
+                    ].map((s, i) => (
+                      <div key={s.step} className="flex flex-1 items-center gap-2.5">
+                        <div className={`flex flex-1 items-center gap-2 rounded-xl border p-2.5 ${s.color}`}>
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/70 text-[10px] font-bold">{s.step}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold leading-tight">{s.label}</p>
+                            <p className="text-[10px] opacity-60 leading-tight">{s.sub}</p>
+                          </div>
+                        </div>
+                        {i === 0 && <ChevronRight size={14} className="shrink-0 text-slate-300" />}
                       </div>
+                    ))}
+                  </div>
+
+                  {/* ↓ connector อยู่ขวา (ใต้ A2) */}
+                  <div className="flex">
+                    <div className="flex-1" />
+                    <div className="flex flex-1 justify-center py-0.5">
+                      <ChevronDown size={14} className="text-slate-300" />
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Row 2: A4 ← A3 (Z-snake: A3 อยู่ขวาใต้ A2, A4 อยู่ซ้าย) */}
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      { step: "A4", label: "ตั้งจ่าย", sub: "การเงินดำเนินการ", color: "bg-violet-50 text-violet-700 border-violet-200" },
+                      { step: "A3", label: "แนบบิล+รับของ", sub: "อัปโหลดหลักฐาน", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                    ].map((s, i) => (
+                      <div key={s.step} className="flex flex-1 items-center gap-2.5">
+                        {i === 1 && <ChevronLeft size={14} className="shrink-0 text-slate-300" />}
+                        <div className={`flex flex-1 items-center gap-2 rounded-xl border p-2.5 ${s.color}`}>
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/70 text-[10px] font-bold">{s.step}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold leading-tight">{s.label}</p>
+                            <p className="text-[10px] opacity-60 leading-tight">{s.sub}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
