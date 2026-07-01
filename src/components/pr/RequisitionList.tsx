@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Search, X, FileText, Settings2, Clock, ImagePlus, Banknote } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { PR_STATUS_LABELS } from "@/lib/constants";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { PrStatus, PoStatus } from "@/types/database";
 
 // ── Branch badge colors (keyed by branch code) ────────────────────────────
@@ -358,6 +359,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                 <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">วันที่</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">สาขา</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ / ผู้ขอ</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">สถานะ</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-500">จำนวนเงิน</th>
                 <th className="w-20 px-3 py-3" />
               </tr>
@@ -412,6 +414,11 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                         <div className="text-xs text-slate-400 truncate">{pr.profiles?.full_name ?? "—"}</div>
                       </td>
 
+                      {/* สถานะ */}
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <StatusBadge kind="pr" status={pr.status} />
+                      </td>
+
                       {/* จำนวนเงิน */}
                       <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                         {formatCurrency(pr.total_amount)}
@@ -439,7 +446,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                     {/* Expanded dropdown row */}
                     {isExpanded && (
                       <tr className="border-b border-blue-100 bg-blue-50/30">
-                        <td colSpan={6} className="px-4 pb-4 pt-2">
+                        <td colSpan={7} className="px-4 pb-4 pt-2">
                           {isLoading ? (
                             <div className="py-4 text-center text-sm text-slate-400">กำลังโหลด...</div>
                           ) : (
