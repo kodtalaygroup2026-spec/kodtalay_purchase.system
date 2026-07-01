@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -127,6 +127,9 @@ interface EvidenceSubmissionSectionProps {
   originalAmount: number;
 }
 
+const LS_NAMES = "evidence_account_names";
+const LS_BANK  = "evidence_last_bank";
+
 export function EvidenceSubmissionSection({
   poId, prId, prBankName, prBankAccount, currentUserId, originalAmount,
 }: EvidenceSubmissionSectionProps) {
@@ -136,9 +139,22 @@ export function EvidenceSubmissionSection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // ── localStorage: ชื่อที่เคยใช้ + ธนาคารล่าสุด ─────────────────────────
+  const [savedNames, setSavedNames] = useState<string[]>([]);
+  const [showNameList, setShowNameList] = useState(false);
+
   const [accountHolderName, setAccountHolderName] = useState("");
   const [bankName, setBankName] = useState(prBankName ?? "");
   const [bankAccount, setBankAccount] = useState(prBankAccount ?? "");
+
+  useEffect(() => {
+    try {
+      const names: string[] = JSON.parse(localStorage.getItem(LS_NAMES) ?? "[]");
+      setSavedNames(names);
+      const lastBank = localStorage.getItem(LS_BANK);
+      if (lastBank && !prBankName) setBankName(lastBank);
+    } catch { /* ignore parse errors */ }
+  }, [prBankName]);
   const [notes, setNotes] = useState("");
 
   const [billFiles, setBillFiles] = useState<File[]>([]);
@@ -214,6 +230,16 @@ export function EvidenceSubmissionSection({
           .eq("id", prId);
       }
 
+      // บันทึกชื่อและธนาคารลง localStorage
+      try {
+        const trimmedName = accountHolderName.trim();
+        const existing: string[] = JSON.parse(localStorage.getItem(LS_NAMES) ?? "[]");
+        if (trimmedName && !existing.includes(trimmedName)) {
+          localStorage.setItem(LS_NAMES, JSON.stringify([trimmedName, ...existing]));
+        }
+        if (bankName) localStorage.setItem(LS_BANK, bankName);
+      } catch { /* ignore */ }
+
       router.refresh();
     } catch (err: unknown) {
       setErrorMessage((err as Error).message ?? "เกิดข้อผิดพลาด");
@@ -235,16 +261,36 @@ export function EvidenceSubmissionSection({
         <div className="px-5 py-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-700">ข้อมูลผู้รับเงิน</h3>
           <div className="space-y-3">
-            <div>
+            <div className="relative">
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 ชื่อเจ้าของบัญชี <span className="text-red-500">*</span>
               </label>
               <input
                 value={accountHolderName}
-                onChange={e => setAccountHolderName(e.target.value)}
+                onChange={e => { setAccountHolderName(e.target.value); setShowNameList(true); }}
+                onFocus={() => setShowNameList(true)}
+                onBlur={() => setTimeout(() => setShowNameList(false), 150)}
                 placeholder="ชื่อ-นามสกุล ตามหน้าบัญชี"
+                autoComplete="off"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
               />
+              {/* dropdown ชื่อที่เคยใช้ */}
+              {showNameList && savedNames.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-md">
+                  {savedNames
+                    .filter(n => !accountHolderName || n.toLowerCase().includes(accountHolderName.toLowerCase()))
+                    .slice(0, 5)
+                    .map(name => (
+                      <li
+                        key={name}
+                        onMouseDown={() => { setAccountHolderName(name); setShowNameList(false); }}
+                        className="cursor-pointer px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        {name}
+                      </li>
+                    ))}
+                </ul>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
