@@ -130,6 +130,24 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   const hasEvidence = !!paymentEvidence;
   const prStatus = pr.status as PrStatus;
 
+  // apply edit logs ทับราคาใน pr_items เพื่อให้แสดงราคาที่แก้ไขแล้วเสมอ
+  let displayItems: any[] = [...(items ?? [])];
+  for (const log of (itemEditLogs ?? []) as any[]) {
+    const changeMap = new Map(
+      ((log.changes ?? []) as any[]).map((c: any) => [c.item_id, c])
+    );
+    displayItems = displayItems.map((item: any) => {
+      const ch = changeMap.get(item.id);
+      if (!ch) return item;
+      return {
+        ...item,
+        quantity: ch.quantity_new,
+        unit_price: ch.unit_price_new,
+        line_total: ch.quantity_new * ch.unit_price_new,
+      };
+    });
+  }
+
   // ── Activity timeline ─────────────────────────────────────────────────────
   type ItemChange = {
     item_id: string;
@@ -375,7 +393,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
         {/* รายการสินค้า — dropdown + edit เฉพาะขั้นตอน 3 */}
         <PRItemsDropdown
-          items={(items ?? []) as any[]}
+          items={displayItems}
           totalAmount={pr.total_amount}
           collapsible={["approved", "converted", "pending_finance", "paid"].includes(prStatus)}
           editable={["approved", "converted"].includes(prStatus) && isOwner}
