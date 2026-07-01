@@ -1,12 +1,33 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { DisbursementList } from "@/components/disbursement/DisbursementList";
 import { DisbursementItem, type DisbursementPR } from "@/components/disbursement/DisbursementItem";
 import { Banknote, ClipboardList, Clock } from "lucide-react";
 
 export default async function DisbursementPage() {
   const supabase = await createClient();
+
+  // ── Role guard: เฉพาะ finance และ admin เท่านั้น ─────────────────────────
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isFinance = profile?.role === "finance" || profile?.role === "admin";
+  if (!isFinance) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white py-16 text-center">
+        <p className="text-slate-500">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+        <p className="mt-1 text-sm text-slate-400">เฉพาะฝ่ายการเงินและผู้ดูแลระบบเท่านั้น</p>
+      </div>
+    );
+  }
 
   // Fetch all payment_evidences
   const { data: evidences } = await (supabase as any)

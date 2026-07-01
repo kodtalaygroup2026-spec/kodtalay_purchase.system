@@ -14,21 +14,24 @@ import {
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
 
-const MY_WORK_SUB = [
-  { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ" },
-  { href: "/disbursement",        step: null, label: "งานแนบจ่าย" },
-  { href: "/requisitions",        step: null, label: "งานเอกสาร" },
-  { href: "/requisitions/new",    step: null, label: "สร้าง PR" },
+const MY_WORK_SUB_BASE = [
+  { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ",  financeOnly: false },
+  { href: "/disbursement",        step: null, label: "งานแนบจ่าย", financeOnly: true  },
+  { href: "/requisitions",        step: null, label: "งานเอกสาร",  financeOnly: false },
+  { href: "/requisitions/new",    step: null, label: "สร้าง PR",    financeOnly: false },
 ];
 
 // ── MyWorkDropdown ──────────────────────────────────────────────────────────
 // แยกออกมาระดับ module เพื่อให้ state ไม่ถูก reset เมื่อ parent re-render
 
-function MyWorkDropdown({ pathname }: { pathname: string }) {
+function MyWorkDropdown({ pathname, role }: { pathname: string; role?: UserRole }) {
   const searchParams = useSearchParams();
   const currentStep = searchParams?.get("step") ?? null;
   const isOnMyWork = pathname.startsWith("/requisitions") || pathname.startsWith("/disbursement");
   const [open, setOpen] = useState(isOnMyWork);
+
+  const isFinance = role === "finance" || role === "admin";
+  const MY_WORK_SUB = MY_WORK_SUB_BASE.filter(s => !s.financeOnly || isFinance);
 
   return (
     <div>
@@ -192,7 +195,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0 }: SidebarPro
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} />
+          <MyWorkDropdown pathname={pathname} role={role} />
         </Suspense>
 
         {/* การอนุมัติ */}
