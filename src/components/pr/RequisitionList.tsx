@@ -364,8 +364,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                   <Fragment key={pr.id}>
                     {/* Main row */}
                     <tr
-                      onClick={() => handleRowClick(pr.id)}
-                      className={`border-b border-slate-100 cursor-pointer transition-colors select-none ${
+                      className={`border-b border-slate-100 transition-colors select-none ${
                         isExpanded ? "bg-blue-50/60 border-blue-100" : "hover:bg-slate-50"
                       }`}
                     >
