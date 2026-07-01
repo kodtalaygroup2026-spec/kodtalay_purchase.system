@@ -20,7 +20,7 @@ interface UserRoleTableProps {
   currentUserId: string;
 }
 
-const ROLE_OPTIONS: UserRole[] = ["requester", "manager", "purchaser", "finance", "admin", "viewer"];
+const ROLE_OPTIONS: UserRole[] = ["employee", "manager", "finance", "admin"];
 
 export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
   const supabase = createClient();

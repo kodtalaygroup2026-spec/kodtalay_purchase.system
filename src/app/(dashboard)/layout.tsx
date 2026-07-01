@@ -46,12 +46,6 @@ export default async function DashboardLayout({
     ]);
     approvalCount = count ?? 0;
     editedCount = new Set(((editedPRIds ?? []) as any[]).map((r) => r.pr_id)).size;
-  } else if (profile.role === "purchaser") {
-    const { count } = await (supabase as any)
-      .from("purchase_requisitions")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "approved");
-    approvalCount = count ?? 0;
   }
 
   return (

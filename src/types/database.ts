@@ -5,7 +5,7 @@
 //          npx supabase gen types typescript --project-id <ref> > src/types/database.ts
 // ===========================================================================
 
-export type UserRole = "admin" | "manager" | "purchaser" | "requester" | "viewer" | "finance";
+export type UserRole = "admin" | "manager" | "employee" | "finance";
 
 export type PrStatus =
   | "draft"

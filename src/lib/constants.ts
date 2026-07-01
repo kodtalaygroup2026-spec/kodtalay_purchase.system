@@ -11,10 +11,8 @@ export const APP_NAME = "ระบบจัดซื้อ Kodtalay";
 // label ภาษาไทยของบทบาทผู้ใช้
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "ผู้ดูแลระบบ",
-  manager: "ผู้อนุมัติ",
-  purchaser: "เจ้าหน้าที่จัดซื้อ",
-  requester: "ผู้ขอซื้อ",
-  viewer: "ผู้ดูข้อมูล",
+  manager: "หัวหน้า",
+  employee: "พนักงาน",
   finance: "ฝ่ายการเงิน",
 };
 
