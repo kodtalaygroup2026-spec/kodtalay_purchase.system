@@ -98,7 +98,9 @@ export function Sidebar({ role, approvalCount = 0 }: SidebarProps) {
     <aside className="hidden lg:flex lg:flex-col w-64 min-h-screen bg-slate-900 text-white shrink-0">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
-        <span className="font-bold text-sm text-white">{APP_NAME}</span>
+        <Link href="/" className="font-bold text-sm text-white hover:text-slate-300 transition-colors">
+          {APP_NAME}
+        </Link>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
