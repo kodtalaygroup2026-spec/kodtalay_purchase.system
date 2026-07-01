@@ -248,8 +248,6 @@ export function PREditForm({
           is_urgent: isUrgent,
           needed_by: neededBy || null,
           branch_id: branchId,
-          bank_name: bankName || null,
-          bank_account_number: bankAccount || null,
           total_amount: totalAmount,
           ...statusUpdate,
         })
@@ -430,43 +428,15 @@ export function PREditForm({
         </div>
       </div>
 
-      {/* ── บัญชีธนาคาร ──────────────────────────────────────────────────── */}
+      {/* ── ใบเสนอราคา ───────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-700">บัญชีธนาคาร (สำหรับรับเงิน)</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
-            <select
-              value={bankName}
-              onChange={e => setBankName(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">— เลือกธนาคาร —</option>
-              {THAI_BANKS.map(b => (
-                <option key={b.code} value={b.code}>{b.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
-            <input
-              value={bankAccount}
-              onChange={e => setBankAccount(e.target.value)}
-              placeholder="เช่น 123-4-56789-0"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ── ไฟล์แนบ ──────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-700">ไฟล์แนบ</h2>
+        <h2 className="mb-1 font-semibold text-slate-700">ใบเสนอราคา</h2>
+        <p className="mb-4 text-xs text-slate-400">แนบใบเสนอราคาจากผู้ขาย (ถ้ามี)</p>
 
         {/* ไฟล์เดิม — แสดงเสมอ ไม่ว่าจะมีไฟล์หรือไม่ */}
         <div className="mb-4">
           <p className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
-            ไฟล์ที่แนบไว้แล้ว ({existingAttachments.length})
+            ใบเสนอราคาที่แนบไว้แล้ว ({existingAttachments.length})
           </p>
           {existingAttachments.length === 0 ? (
             <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs text-slate-400">
@@ -523,7 +493,7 @@ export function PREditForm({
         {/* เพิ่มไฟล์ใหม่ */}
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
           <Paperclip size={22} className="text-slate-400" />
-          <p className="text-sm font-medium text-slate-600">คลิกเพื่อเพิ่มไฟล์ใหม่</p>
+          <p className="text-sm font-medium text-slate-600">คลิกเพื่อแนบใบเสนอราคา</p>
           <p className="text-xs text-slate-400">รองรับ JPG, PNG, WEBP, PDF — หลายไฟล์ได้</p>
           <input
             ref={fileInputRef}
