@@ -130,6 +130,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     by: string;
     color: "slate" | "blue" | "green" | "red" | "orange";
     icon: React.ElementType;
+    reason?: string;
   };
 
   const timeline: ActivityEntry[] = [
@@ -166,6 +167,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       by: nameOf[pr.rejected_by] ?? "—",
       color: pr.status === "returned" ? "orange" : "red",
       icon: XCircle,
+      reason: pr.rejection_reason ?? undefined,
     });
   }
   if (pr.cancelled_at && pr.cancelled_by) {
@@ -253,6 +255,25 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* ── Banner เหตุผลตีกลับ / ไม่อนุมัติ ──────────────────────────────── */}
+      {(prStatus === "returned" || prStatus === "rejected") && pr.rejection_reason && (
+        <div className={`flex items-start gap-3 rounded-xl border px-5 py-4 ${
+          prStatus === "returned"
+            ? "border-orange-200 bg-orange-50"
+            : "border-red-200 bg-red-50"
+        }`}>
+          <XCircle size={18} className={`mt-0.5 shrink-0 ${prStatus === "returned" ? "text-orange-500" : "text-red-500"}`} />
+          <div>
+            <p className={`text-sm font-semibold ${prStatus === "returned" ? "text-orange-700" : "text-red-700"}`}>
+              {prStatus === "returned" ? "เหตุผลที่ตีกลับ" : "เหตุผลที่ไม่อนุมัติ"}
+            </p>
+            <p className={`mt-0.5 text-sm ${prStatus === "returned" ? "text-orange-600" : "text-red-600"}`}>
+              {pr.rejection_reason}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── PR info + รายการสินค้า (paper เดียวกัน) ─────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
@@ -330,7 +351,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             </div>
             {pr.note && (
               <div className="col-span-2">
-                <p className="text-slate-500">หมายเหตุ</p>
+                <p className="text-slate-500">เหตุผลในการสั่งซื้อ</p>
                 <p className="font-medium text-slate-800">{pr.note}</p>
               </div>
             )}
@@ -412,6 +433,11 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                   <span className="text-sm text-slate-700">โดย {entry.by}</span>
                   <span className="text-xs text-slate-400">{formatDateTime(entry.at)}</span>
                 </div>
+                {entry.reason && (
+                  <p className={`mt-1 rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
+                    &ldquo;{entry.reason}&rdquo;
+                  </p>
+                )}
               </li>
             );
           })}

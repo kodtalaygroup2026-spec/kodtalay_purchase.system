@@ -176,9 +176,9 @@ export function PRApprovalPanel({
       cancel_pr: "cancelled",
     };
     const auditMap: Record<string, Record<string, string | null>> = {
-      approve: { approved_at: now, approved_by: currentUserId },
-      reject:  { rejected_at: now, rejected_by: currentUserId },
-      return:  { rejected_at: now, rejected_by: currentUserId },
+      approve:   { approved_at: now, approved_by: currentUserId, rejection_reason: null },
+      reject:    { rejected_at: now, rejected_by: currentUserId, rejection_reason: note || null },
+      return:    { rejected_at: now, rejected_by: currentUserId, rejection_reason: note || null },
       cancel_pr: { cancelled_at: now, cancelled_by: currentUserId },
     };
 

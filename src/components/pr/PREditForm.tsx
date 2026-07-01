@@ -237,7 +237,7 @@ export function PREditForm({
       // 4. Update PR header — draft บันทึกเป็น draft, returned ส่งใหม่เป็น submitted
       const now = new Date().toISOString();
       const statusUpdate = prStatus === "returned"
-        ? { status: "submitted", rejected_at: null, rejected_by: null, submitted_at: now, submitted_by: currentUserId }
+        ? { status: "submitted", rejected_at: null, rejected_by: null, rejection_reason: null, submitted_at: now, submitted_by: currentUserId }
         : { status: "draft" };
 
       const { error: prError } = await (supabase as any)
