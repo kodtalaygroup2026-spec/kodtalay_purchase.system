@@ -36,8 +36,8 @@ function ItemsTable({
 }: {
   items: PRItem[];
   isEditing: boolean;
-  editValues: Record<string, { quantity: number; unit_price: number }>;
-  onEdit: (id: string, field: "quantity" | "unit_price", val: number) => void;
+  editValues: Record<string, { quantity: string; unit_price: string }>;
+  onEdit: (id: string, field: "quantity" | "unit_price", val: string) => void;
 }) {
   return (
     <table className="min-w-full text-sm">
@@ -53,8 +53,8 @@ function ItemsTable({
       </thead>
       <tbody className="divide-y divide-slate-100">
         {items.map((item) => {
-          const ev = editValues[item.id] ?? { quantity: item.quantity, unit_price: item.unit_price };
-          const lineTotal = ev.quantity * ev.unit_price;
+          const ev = editValues[item.id] ?? { quantity: String(item.quantity), unit_price: String(item.unit_price) };
+          const lineTotal = (parseFloat(ev.quantity) || 0) * (parseFloat(ev.unit_price) || 0);
           return (
             <tr key={item.id}>
               <td className="px-4 py-2 text-slate-400">{item.line_no}</td>
@@ -68,7 +68,7 @@ function ItemsTable({
                     type="text"
                     inputMode="decimal"
                     value={ev.quantity}
-                    onChange={e => onEdit(item.id, "quantity", parseFloat(e.target.value) || 0)}
+                    onChange={e => onEdit(item.id, "quantity", e.target.value)}
                     className="w-20 rounded border border-blue-300 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
                 ) : (
@@ -82,7 +82,7 @@ function ItemsTable({
                     type="text"
                     inputMode="decimal"
                     value={ev.unit_price}
-                    onChange={e => onEdit(item.id, "unit_price", parseFloat(e.target.value) || 0)}
+                    onChange={e => onEdit(item.id, "unit_price", e.target.value)}
                     className="w-24 rounded border border-blue-300 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
                 ) : (
@@ -105,8 +105,8 @@ function ItemsTable({
             {formatCurrency(
               isEditing
                 ? items.reduce((s, it) => {
-                    const ev = editValues[it.id] ?? { quantity: it.quantity, unit_price: it.unit_price };
-                    return s + ev.quantity * ev.unit_price;
+                    const ev = editValues[it.id] ?? { quantity: String(it.quantity), unit_price: String(it.unit_price) };
+                    return s + (parseFloat(ev.quantity) || 0) * (parseFloat(ev.unit_price) || 0);
                   }, 0)
                 : items.reduce((s, it) => s + (it.line_total ?? it.quantity * it.unit_price), 0)
             )}
@@ -131,12 +131,12 @@ export function PRItemsDropdown({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [editValues, setEditValues] = useState<Record<string, { quantity: number; unit_price: number }>>({});
+  const [editValues, setEditValues] = useState<Record<string, { quantity: string; unit_price: string }>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
 
   function startEditing() {
-    const init: Record<string, { quantity: number; unit_price: number }> = {};
-    items.forEach(it => { init[it.id] = { quantity: it.quantity, unit_price: it.unit_price }; });
+    const init: Record<string, { quantity: string; unit_price: string }> = {};
+    items.forEach(it => { init[it.id] = { quantity: String(it.quantity), unit_price: String(it.unit_price) }; });
     setEditValues(init);
     setIsEditing(true);
     setIsOpen(true);
@@ -148,10 +148,10 @@ export function PRItemsDropdown({
     setSaveError(null);
   }
 
-  function handleEdit(id: string, field: "quantity" | "unit_price", val: number) {
+  function handleEdit(id: string, field: "quantity" | "unit_price", val: string) {
     setEditValues(prev => ({
       ...prev,
-      [id]: { ...(prev[id] ?? { quantity: 0, unit_price: 0 }), [field]: val },
+      [id]: { ...(prev[id] ?? { quantity: "0", unit_price: "0" }), [field]: val },
     }));
   }
 
@@ -168,29 +168,31 @@ export function PRItemsDropdown({
       for (const item of items) {
         const ev = editValues[item.id];
         if (!ev) continue;
-        const qChanged = ev.quantity !== item.quantity;
-        const pChanged = ev.unit_price !== item.unit_price;
+        const newQty = parseFloat(ev.quantity) || 0;
+        const newPrice = parseFloat(ev.unit_price) || 0;
+        const qChanged = newQty !== item.quantity;
+        const pChanged = newPrice !== item.unit_price;
         if (!qChanged && !pChanged) continue;
 
         changes.push({
           item_id: item.id,
           description: item.description,
           quantity_old: item.quantity,
-          quantity_new: ev.quantity,
+          quantity_new: newQty,
           unit_price_old: item.unit_price,
-          unit_price_new: ev.unit_price,
+          unit_price_new: newPrice,
         });
 
         await supabase
           .from("pr_items")
-          .update({ quantity: ev.quantity, unit_price: ev.unit_price })
+          .update({ quantity: newQty, unit_price: newPrice })
           .eq("id", item.id);
       }
 
       if (changes.length > 0) {
         const newTotal = items.reduce((s, it) => {
-          const ev = editValues[it.id] ?? { quantity: it.quantity, unit_price: it.unit_price };
-          return s + ev.quantity * ev.unit_price;
+          const ev = editValues[it.id] ?? { quantity: String(it.quantity), unit_price: String(it.unit_price) };
+          return s + (parseFloat(ev.quantity) || 0) * (parseFloat(ev.unit_price) || 0);
         }, 0);
 
         await (supabase as any)

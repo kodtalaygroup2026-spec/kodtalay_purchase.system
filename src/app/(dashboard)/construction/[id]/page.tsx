@@ -31,6 +31,7 @@ export default function ConstructionTicketPage() {
   // BOQ editing state
   const [editRows, setEditRows] = useState<EditableBOQRow[]>([]);
   const [isEditingBOQ, setIsEditingBOQ] = useState(false);
+  const [rawBOQInputs, setRawBOQInputs] = useState<Record<string, string>>({});
 
   // Payment request form state
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -280,8 +281,11 @@ export default function ConstructionTicketPage() {
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={row.quantity}
-                          onChange={(e) => updateEditRow(i, "quantity", parseFloat(e.target.value) || 0)}
+                          value={rawBOQInputs[`${i}_q`] ?? String(row.quantity)}
+                          onChange={(e) => {
+                            setRawBOQInputs(p => ({ ...p, [`${i}_q`]: e.target.value }));
+                            updateEditRow(i, "quantity", parseFloat(e.target.value) || 0);
+                          }}
                           className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-violet-500 focus:outline-none"
                         />
                       </td>
@@ -289,8 +293,11 @@ export default function ConstructionTicketPage() {
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={row.unit_price}
-                          onChange={(e) => updateEditRow(i, "unit_price", parseFloat(e.target.value) || 0)}
+                          value={rawBOQInputs[`${i}_p`] ?? String(row.unit_price)}
+                          onChange={(e) => {
+                            setRawBOQInputs(p => ({ ...p, [`${i}_p`]: e.target.value }));
+                            updateEditRow(i, "unit_price", parseFloat(e.target.value) || 0);
+                          }}
                           className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-violet-500 focus:outline-none"
                         />
                       </td>

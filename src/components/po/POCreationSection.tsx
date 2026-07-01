@@ -57,6 +57,7 @@ export function POCreationSection({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [rawPoPrices, setRawPoPrices] = useState<Record<number, string>>({});
 
   // ── PO fields ──────────────────────────────────────────────────────────────
   const [vendorName, setVendorName] = useState("");
@@ -284,8 +285,11 @@ export function POCreationSection({
                       <input
                         type="text"
                         inputMode="decimal"
-                        value={item.po_unit_price}
-                        onChange={e => updatePoPrice(idx, parseFloat(e.target.value) || 0)}
+                        value={rawPoPrices[idx] ?? String(item.po_unit_price)}
+                        onChange={e => {
+                          setRawPoPrices(p => ({ ...p, [idx]: e.target.value }));
+                          updatePoPrice(idx, parseFloat(e.target.value) || 0);
+                        }}
                         className={`w-24 rounded border px-2 py-1 text-right text-sm focus:outline-none ${
                           isOver
                             ? "border-red-400 bg-red-50 text-red-700 focus:border-red-500"

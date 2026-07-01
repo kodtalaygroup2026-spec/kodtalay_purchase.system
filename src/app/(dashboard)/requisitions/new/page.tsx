@@ -65,6 +65,7 @@ export default function NewRequisitionPage() {
   const [neededBy, setNeededBy] = useState(() => new Date().toISOString());
 
   // ── Items ───────────────────────────────────────────────────────────
+  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
   const [items, setItems] = useState<PRItem[]>([{ ...EMPTY_ITEM }]);
 
   // ── Attachments ─────────────────────────────────────────────────────
@@ -391,8 +392,12 @@ export default function NewRequisitionPage() {
 
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-slate-400">จำนวน</span>
-                      <input type="text" inputMode="decimal" value={item.quantity || ""}
-                        onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                      <input type="text" inputMode="decimal"
+                        value={rawInputs[`${index}_q`] ?? String(item.quantity || "")}
+                        onChange={(e) => {
+                          setRawInputs(p => ({ ...p, [`${index}_q`]: e.target.value }));
+                          updateItem(index, "quantity", parseFloat(e.target.value) || 0);
+                        }}
                         className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
                     </div>
 
@@ -405,8 +410,12 @@ export default function NewRequisitionPage() {
 
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-slate-400">ราคา/หน่วย</span>
-                      <input type="text" inputMode="decimal" value={item.unit_price}
-                        onChange={(e) => updateItem(index, "unit_price", parseFloat(e.target.value) || 0)}
+                      <input type="text" inputMode="decimal"
+                        value={rawInputs[`${index}_p`] ?? String(item.unit_price)}
+                        onChange={(e) => {
+                          setRawInputs(p => ({ ...p, [`${index}_p`]: e.target.value }));
+                          updateItem(index, "unit_price", parseFloat(e.target.value) || 0);
+                        }}
                         className="w-28 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
                     </div>
 

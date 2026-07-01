@@ -82,6 +82,7 @@ export function PREditForm({
   const [branchId, setBranchId] = useState(pr.branch_id);
 
   // ── Items ───────────────────────────────────────────────────────────────────
+  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
   const [items, setItems] = useState<EditItem[]>(() =>
     prItems.map(it => ({
       description: it.description,
@@ -363,8 +364,11 @@ export function PREditForm({
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={item.quantity || ""}
-                    onChange={e => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                    value={rawInputs[`${index}_q`] ?? String(item.quantity || "")}
+                    onChange={e => {
+                      setRawInputs(p => ({ ...p, [`${index}_q`]: e.target.value }));
+                      updateItem(index, "quantity", parseFloat(e.target.value) || 0);
+                    }}
                     className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
                   />
                 </div>
@@ -384,8 +388,11 @@ export function PREditForm({
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={item.unit_price}
-                    onChange={e => updateItem(index, "unit_price", parseFloat(e.target.value) || 0)}
+                    value={rawInputs[`${index}_p`] ?? String(item.unit_price)}
+                    onChange={e => {
+                      setRawInputs(p => ({ ...p, [`${index}_p`]: e.target.value }));
+                      updateItem(index, "unit_price", parseFloat(e.target.value) || 0);
+                    }}
                     className="w-28 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
                   />
                 </div>
