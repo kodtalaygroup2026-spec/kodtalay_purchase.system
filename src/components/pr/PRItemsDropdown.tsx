@@ -65,24 +65,22 @@ function ItemsTable({
               <td className="px-4 py-2 text-right text-slate-700">
                 {isEditing ? (
                   <input
-                    type="number"
-                    min="0"
-                    step="1"
+                    type="text"
+                    inputMode="decimal"
                     value={ev.quantity}
                     onChange={e => onEdit(item.id, "quantity", parseFloat(e.target.value) || 0)}
                     className="w-20 rounded border border-blue-300 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
                 ) : (
-                  Number(item.quantity).toLocaleString("th-TH")
+                  Number(item.quantity).toLocaleString("th-TH", { maximumFractionDigits: 3 })
                 )}
               </td>
               <td className="px-4 py-2 text-slate-500">{item.unit}</td>
               <td className="px-4 py-2 text-right text-slate-700">
                 {isEditing ? (
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={ev.unit_price}
                     onChange={e => onEdit(item.id, "unit_price", parseFloat(e.target.value) || 0)}
                     className="w-24 rounded border border-blue-300 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"

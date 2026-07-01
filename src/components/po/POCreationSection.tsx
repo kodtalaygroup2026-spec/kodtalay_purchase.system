@@ -282,7 +282,8 @@ export function POCreationSection({
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <input
-                        type="number" min="0" step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={item.po_unit_price}
                         onChange={e => updatePoPrice(idx, parseFloat(e.target.value) || 0)}
                         className={`w-24 rounded border px-2 py-1 text-right text-sm focus:outline-none ${

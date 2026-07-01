@@ -278,7 +278,8 @@ export default function ConstructionTicketPage() {
                       </td>
                       <td className="px-3 py-2">
                         <input
-                          type="number" min="0" step="any"
+                          type="text"
+                          inputMode="decimal"
                           value={row.quantity}
                           onChange={(e) => updateEditRow(i, "quantity", parseFloat(e.target.value) || 0)}
                           className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-violet-500 focus:outline-none"
@@ -286,7 +287,8 @@ export default function ConstructionTicketPage() {
                       </td>
                       <td className="px-3 py-2">
                         <input
-                          type="number" min="0" step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           value={row.unit_price}
                           onChange={(e) => updateEditRow(i, "unit_price", parseFloat(e.target.value) || 0)}
                           className="w-full rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-violet-500 focus:outline-none"

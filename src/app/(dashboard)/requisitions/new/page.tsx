@@ -391,7 +391,7 @@ export default function NewRequisitionPage() {
 
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-slate-400">จำนวน</span>
-                      <input type="number" step="any" value={item.quantity || ""}
+                      <input type="text" inputMode="decimal" value={item.quantity || ""}
                         onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
                         className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
                     </div>
@@ -405,7 +405,7 @@ export default function NewRequisitionPage() {
 
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-slate-400">ราคา/หน่วย</span>
-                      <input type="number" min="0" step="0.01" value={item.unit_price}
+                      <input type="text" inputMode="decimal" value={item.unit_price}
                         onChange={(e) => updateItem(index, "unit_price", parseFloat(e.target.value) || 0)}
                         className="w-28 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
                     </div>
