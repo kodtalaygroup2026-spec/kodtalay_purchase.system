@@ -528,19 +528,21 @@ export default function NewRequisitionPage() {
               {/* กระบวนการ */}
               <div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">กระบวนการทำงาน</p>
-                <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: "สร้าง PR", sub: "กรอกข้อมูล", color: "bg-amber-100 text-amber-700 border-amber-200" },
-                    { label: "รออนุมัติ", sub: "หัวหน้าตรวจสอบ", color: "bg-blue-100 text-blue-700 border-blue-200" },
-                    { label: "แนบบิล", sub: "รับของ+หลักฐาน", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-                    { label: "ตั้งจ่าย", sub: "การเงินดำเนินการ", color: "bg-violet-100 text-violet-700 border-violet-200" },
-                  ].map((s, i, arr) => (
-                    <div key={s.label} className="flex shrink-0 items-center gap-1">
-                      <div className={`rounded-lg border px-2.5 py-1.5 text-center ${s.color}`}>
-                        <p className="text-xs font-bold">{s.label}</p>
-                        <p className="text-[10px] opacity-70">{s.sub}</p>
+                    { step: "A1", label: "สร้าง PR", sub: "กรอกข้อมูล", color: "bg-amber-50 text-amber-700 border-amber-200" },
+                    { step: "A2", label: "รออนุมัติ", sub: "หัวหน้าตรวจสอบ", color: "bg-blue-50 text-blue-700 border-blue-200" },
+                    { step: "A3", label: "แนบบิล+รับของ", sub: "อัปโหลดหลักฐาน", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                    { step: "A4", label: "ตั้งจ่าย", sub: "การเงินดำเนินการ", color: "bg-violet-50 text-violet-700 border-violet-200" },
+                  ].map((s) => (
+                    <div key={s.step} className={`flex items-center gap-2.5 rounded-xl border p-2.5 ${s.color}`}>
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/70 text-[10px] font-bold">
+                        {s.step}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold leading-tight">{s.label}</p>
+                        <p className="text-[10px] opacity-60 leading-tight">{s.sub}</p>
                       </div>
-                      {i < arr.length - 1 && <span className="text-slate-300">→</span>}
                     </div>
                   ))}
                 </div>
