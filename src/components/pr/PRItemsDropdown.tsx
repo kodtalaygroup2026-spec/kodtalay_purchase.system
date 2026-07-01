@@ -17,12 +17,68 @@ interface PRItem {
 interface PRItemsDropdownProps {
   items: PRItem[];
   totalAmount: number;
+  collapsible?: boolean;
   defaultOpen?: boolean;
 }
 
-export function PRItemsDropdown({ items, totalAmount, defaultOpen = false }: PRItemsDropdownProps) {
+export function PRItemsDropdown({ items, totalAmount, collapsible = true, defaultOpen = false }: PRItemsDropdownProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
+  // ── non-collapsible: แสดงตารางเต็มเหมือนเดิม ──────────────────────────
+  if (!collapsible) {
+    return (
+      <div>
+        <div className="border-t border-slate-100 px-6 py-3">
+          <h3 className="font-semibold text-slate-700">รายการสินค้า</h3>
+        </div>
+        <table className="min-w-full text-sm">
+          <thead className="border-b border-slate-100 bg-slate-50">
+            <tr>
+              <th className="px-4 py-2 text-left font-medium text-slate-500">#</th>
+              <th className="px-4 py-2 text-left font-medium text-slate-500">สินค้า</th>
+              <th className="px-4 py-2 text-right font-medium text-slate-500">จำนวน</th>
+              <th className="px-4 py-2 text-left font-medium text-slate-500">หน่วย</th>
+              <th className="px-4 py-2 text-right font-medium text-slate-500">ราคา/หน่วย</th>
+              <th className="px-4 py-2 text-right font-medium text-slate-500">รวม</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td className="px-4 py-2 text-slate-400">{item.line_no}</td>
+                <td className="px-4 py-2">
+                  <p className="font-medium text-slate-800">{item.description}</p>
+                  {item.products && <p className="text-xs text-slate-400">{item.products.sku}</p>}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-700">
+                  {Number(item.quantity).toLocaleString("th-TH")}
+                </td>
+                <td className="px-4 py-2 text-slate-500">{item.unit}</td>
+                <td className="px-4 py-2 text-right text-slate-700">
+                  {formatCurrency(item.unit_price)}
+                </td>
+                <td className="px-4 py-2 text-right font-medium text-slate-800">
+                  {formatCurrency(item.line_total ?? item.quantity * item.unit_price)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="border-t border-slate-200 bg-slate-50">
+            <tr>
+              <td colSpan={5} className="px-4 py-3 text-right font-semibold text-slate-700">
+                รวมทั้งสิ้น
+              </td>
+              <td className="px-4 py-3 text-right font-bold text-slate-900">
+                {formatCurrency(totalAmount)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    );
+  }
+
+  // ── collapsible: dropdown accordion ───────────────────────────────────
   return (
     <div>
       <button

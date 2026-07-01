@@ -347,8 +347,12 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* รายการสินค้า — collapsible dropdown */}
-        <PRItemsDropdown items={(items ?? []) as any[]} totalAmount={pr.total_amount} />
+        {/* รายการสินค้า — dropdown เฉพาะขั้นตอน 3 (approved/converted ขึ้นไป) */}
+        <PRItemsDropdown
+          items={(items ?? []) as any[]}
+          totalAmount={pr.total_amount}
+          collapsible={["approved", "converted", "pending_finance", "paid"].includes(prStatus)}
+        />
       </div>
 
       {/* ── PR Approval Panel ────────────────────────────────────────────── */}
