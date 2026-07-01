@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  Pencil,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
@@ -145,10 +144,7 @@ function ApprovalsDropdown({
                 : "text-slate-400 hover:bg-slate-800 hover:text-white"
             }`}
           >
-            <span className="flex items-center gap-1">
-              <Pencil size={10} />
-              รายการแก้ไข
-            </span>
+            <span>รายการแก้ไข</span>
             {editedCount > 0 && (
               <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
                 {editedCount > 99 ? "99+" : editedCount}
