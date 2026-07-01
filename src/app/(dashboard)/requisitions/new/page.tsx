@@ -507,7 +507,7 @@ export default function NewRequisitionPage() {
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-6 py-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-6 py-4">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
                   <FileText size={16} className="text-blue-600" />
