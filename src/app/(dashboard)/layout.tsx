@@ -32,12 +32,20 @@ export default async function DashboardLayout({
 
   // นับรายการที่รอการอนุมัติตาม role
   let approvalCount = 0;
+  let editedCount = 0;
   if (profile.role === "manager" || profile.role === "admin") {
-    const { count } = await (supabase as any)
-      .from("purchase_requisitions")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["submitted", "pending_second_approval"]);
+    const [{ count }, { data: editedPRIds }] = await Promise.all([
+      (supabase as any)
+        .from("purchase_requisitions")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["submitted", "pending_second_approval"]),
+      (supabase as any)
+        .from("pr_item_edit_logs")
+        .select("pr_id")
+        .limit(200),
+    ]);
     approvalCount = count ?? 0;
+    editedCount = new Set(((editedPRIds ?? []) as any[]).map((r) => r.pr_id)).size;
   } else if (profile.role === "purchaser") {
     const { count } = await (supabase as any)
       .from("purchase_requisitions")
@@ -48,7 +56,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} />
+      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">

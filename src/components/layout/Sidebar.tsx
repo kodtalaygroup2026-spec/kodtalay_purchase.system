@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  Pencil,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
@@ -79,20 +80,97 @@ function MyWorkDropdown({ pathname }: { pathname: string }) {
   );
 }
 
+// ── ApprovalsDropdown ────────────────────────────────────────────────────────
+
+function ApprovalsDropdown({
+  pathname,
+  approvalCount,
+  editedCount,
+}: {
+  pathname: string;
+  approvalCount: number;
+  editedCount: number;
+}) {
+  const isOnApprovals = pathname.startsWith("/approvals");
+  const [open, setOpen] = useState(isOnApprovals);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          isOnApprovals
+            ? "bg-blue-600 text-white"
+            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+        }`}
+      >
+        <CheckSquare size={17} />
+        <span className="flex-1 text-left">การอนุมัติ</span>
+        {approvalCount > 0 && (
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+            {approvalCount > 99 ? "99+" : approvalCount}
+          </span>
+        )}
+        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      </button>
+
+      {open && (
+        <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-700 pl-3">
+          {/* รออนุมัติ */}
+          <Link
+            href="/approvals"
+            className={`flex items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors ${
+              pathname === "/approvals"
+                ? "bg-slate-700 font-semibold text-white"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <span>รออนุมัติ</span>
+            {approvalCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {approvalCount > 99 ? "99+" : approvalCount}
+              </span>
+            )}
+          </Link>
+
+          {/* รายการแก้ไข */}
+          <Link
+            href="/approvals/edited-items"
+            className={`flex items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors ${
+              pathname.startsWith("/approvals/edited-items")
+                ? "bg-slate-700 font-semibold text-white"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <span className="flex items-center gap-1">
+              <Pencil size={10} />
+              รายการแก้ไข
+            </span>
+            {editedCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                {editedCount > 99 ? "99+" : editedCount}
+              </span>
+            )}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sidebar ─────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   role?: UserRole;
   approvalCount?: number;
+  editedCount?: number;
 }
 
-export function Sidebar({ role, approvalCount = 0 }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
   if (pathname === "/") return null;
-
-  const isApprovalsActive = pathname.startsWith("/approvals");
 
   return (
     <aside className="hidden lg:flex lg:flex-col w-64 min-h-screen bg-slate-900 text-white shrink-0">
@@ -118,22 +196,11 @@ export function Sidebar({ role, approvalCount = 0 }: SidebarProps) {
         </Suspense>
 
         {/* การอนุมัติ */}
-        <Link
-          href="/approvals"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-            isApprovalsActive
-              ? "bg-blue-600 text-white"
-              : "text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          <CheckSquare size={17} />
-          <span className="flex-1">การอนุมัติ</span>
-          {approvalCount > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
-              {approvalCount > 99 ? "99+" : approvalCount}
-            </span>
-          )}
-        </Link>
+        <ApprovalsDropdown
+          pathname={pathname}
+          approvalCount={approvalCount}
+          editedCount={editedCount}
+        />
       </nav>
 
       {/* Admin */}
