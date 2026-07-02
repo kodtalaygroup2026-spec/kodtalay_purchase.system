@@ -40,6 +40,18 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
 
   const { data: prs } = await query;
 
+  // ── ตรวจ PR ที่ฝ่ายการเงินตีกลับ (evidence ล่าสุด = returned, PR กลับเป็น approved) ──
+  const prIdList = (prs ?? []).map((pr: any) => pr.id);
+  const { data: returnedEvidence } =
+    prIdList.length > 0
+      ? await (supabase as any)
+          .from("payment_evidences")
+          .select("pr_id")
+          .eq("status", "returned")
+          .in("pr_id", prIdList)
+      : { data: [] };
+  const returnedPrSet = new Set((returnedEvidence ?? []).map((e: any) => e.pr_id));
+
   const prList: PRRow[] = (prs ?? []).map((pr: any) => ({
     id: pr.id,
     pr_number: pr.pr_number,
@@ -50,6 +62,8 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
     created_at: pr.created_at,
     needed_by: pr.needed_by ?? null,
     is_urgent: pr.is_urgent ?? false,
+    // ถูกตีกลับการจ่าย = มี evidence returned + PR กลับมาขั้น approved/converted
+    payment_returned: returnedPrSet.has(pr.id) && ["approved", "converted"].includes(pr.status),
     profiles: pr.profiles ?? null,
     purchase_orders: pr.purchase_orders ?? [],
   }));

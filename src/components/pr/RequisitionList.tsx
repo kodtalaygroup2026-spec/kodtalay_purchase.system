@@ -36,6 +36,7 @@ export interface PRRow {
   created_at: string;
   needed_by: string | null;
   is_urgent: boolean;
+  payment_returned: boolean;
   profiles: { full_name: string } | null;
   purchase_orders: LinkedPO[];
 }
@@ -152,7 +153,8 @@ const SUMMARY_STEPS = [
     SubIcon: ImagePlus,
     match: (pr: PRRow) => {
       const s = pr.status as string;
-      return s === "approved" || s === "converted";
+      // PR ที่ถูกตีกลับการจ่ายให้ไปนับในขั้น "รอตั้งจ่าย" แทน
+      return (s === "approved" || s === "converted") && !pr.payment_returned;
     },
   },
   {
@@ -167,7 +169,8 @@ const SUMMARY_STEPS = [
     SubIcon: Banknote,
     match: (pr: PRRow) => {
       const s = pr.status as string;
-      return s === "pending_finance";
+      // รวม PR ที่ถูกฝ่ายบัญชีตีกลับ (รอผู้สร้างแก้หลักฐานแล้วส่งกลับเข้าจ่าย)
+      return s === "pending_finance" || pr.payment_returned;
     },
   },
 ];
@@ -439,7 +442,13 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
 
                       {/* สถานะ */}
                       <td className="px-4 py-3">
-                        <StatusBadge kind="pr" status={pr.status} />
+                        {pr.payment_returned ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                            ↩️ ตีกลับ—แก้หลักฐาน
+                          </span>
+                        ) : (
+                          <StatusBadge kind="pr" status={pr.status} />
+                        )}
                       </td>
 
                       {/* จำนวนเงิน */}
