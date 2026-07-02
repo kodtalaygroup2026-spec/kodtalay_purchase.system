@@ -32,15 +32,16 @@ export default async function ConstructionPage() {
 
       {tickets && tickets.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่องาน</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">สถานที่</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden lg:table-cell">ผู้เปิด</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden lg:table-cell">วันที่</th>
-                <th className="px-4 py-3 text-right font-medium text-slate-500">ยอด BOQ</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">สถานที่</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">ผู้เปิด</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่</th>
+                <th className="px-4 py-3 text-right font-medium text-slate-500 whitespace-nowrap">ยอด BOQ</th>
                 <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
               </tr>
             </thead>
@@ -57,7 +58,7 @@ export default async function ConstructionPage() {
                         {t.ticket_number}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3 min-w-[160px]">
                       <Link
                         href={`/construction/${t.id}`}
                         className="font-medium text-slate-800 hover:text-violet-600 truncate block"
@@ -65,13 +66,13 @@ export default async function ConstructionPage() {
                         {t.title}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-500 hidden md:table-cell">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {t.location ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {requester?.full_name ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {formatDate(t.created_at)}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-800">
@@ -85,6 +86,7 @@ export default async function ConstructionPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white py-20 text-center">

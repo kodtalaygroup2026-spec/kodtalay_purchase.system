@@ -307,6 +307,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
 
       {/* ── Table ───────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="border-b border-slate-100 bg-slate-50">
             <tr>
@@ -319,9 +320,9 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
               </th>
               <SortTh label="เลขที่ PR"   col="pr_number"     active={sortKey} dir={sortDir} onSort={handleSort} />
               <SortTh label="ชื่อ / ผู้ขอ" col="title"        active={sortKey} dir={sortDir} onSort={handleSort} />
-              <SortTh label="แผนก"         col="department"    active={sortKey} dir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
+              <SortTh label="แผนก"         col="department"    active={sortKey} dir={sortDir} onSort={handleSort} />
               <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
-              <SortTh label="วันที่"        col="created_at"   active={sortKey} dir={sortDir} onSort={handleSort} className="hidden sm:table-cell" />
+              <SortTh label="วันที่"        col="created_at"   active={sortKey} dir={sortDir} onSort={handleSort} />
               <SortTh label="มูลค่า"        col="total_amount" active={sortKey} dir={sortDir} onSort={handleSort} className="text-right" />
               <th className="px-4 py-3 w-24" />
             </tr>
@@ -353,13 +354,13 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                     <p className="truncate font-medium text-slate-800">{pr.title}</p>
                     <p className="text-xs text-slate-400">{pr.requester_name}</p>
                   </td>
-                  <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
+                  <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
                     {pr.department ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <StatusBadge kind="pr" status={pr.status} />
                   </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className="text-xs text-slate-400">{formatDate(pr.created_at)}</span>
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-800">
@@ -378,6 +379,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

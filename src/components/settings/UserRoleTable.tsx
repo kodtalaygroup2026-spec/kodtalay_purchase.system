@@ -65,12 +65,13 @@ export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead className="border-b border-slate-100 bg-slate-50">
           <tr>
             <SortTh label="ชื่อ"   col="full_name"  activeCol={sortKey} dir={sortDir} onSort={handleSort} />
             <SortTh label="อีเมล"  col="email"      activeCol={sortKey} dir={sortDir} onSort={handleSort} />
-            <SortTh label="แผนก"   col="department" activeCol={sortKey} dir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
+            <SortTh label="แผนก"   col="department" activeCol={sortKey} dir={sortDir} onSort={handleSort} />
             <SortTh label="บทบาท" col="role"        activeCol={sortKey} dir={sortDir} onSort={handleSort} />
             <th className="px-4 py-3 w-20" />
           </tr>
@@ -94,7 +95,7 @@ export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
                   </p>
                 </td>
                 <td className="px-4 py-3 text-slate-500">{profile.email}</td>
-                <td className="px-4 py-3 text-slate-500 hidden md:table-cell">
+                <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                   {profile.department ?? "—"}
                 </td>
                 <td className="px-4 py-3">
@@ -121,6 +122,7 @@ export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
           })}
         </tbody>
       </table>
+      </div>
 
       {profiles.length === 0 && (
         <div className="py-12 text-center text-slate-400">ยังไม่มีผู้ใช้ในระบบ</div>

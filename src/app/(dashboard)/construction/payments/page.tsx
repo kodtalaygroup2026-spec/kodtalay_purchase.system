@@ -26,12 +26,13 @@ export default async function ConstructionPaymentsPage() {
 
       {payments && payments.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">งาน</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden lg:table-cell">วันที่</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-500">ยอด</th>
                 <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
               </tr>
@@ -44,7 +45,7 @@ export default async function ConstructionPaymentsPage() {
                     <td className="px-4 py-3 font-mono text-xs font-semibold text-violet-600">
                       {p.request_number}
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3 min-w-[160px]">
                       {ticket ? (
                         <Link
                           href={`/construction/${ticket.id}`}
@@ -54,7 +55,7 @@ export default async function ConstructionPaymentsPage() {
                         </Link>
                       ) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {formatDate(p.created_at)}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-800">
@@ -68,6 +69,7 @@ export default async function ConstructionPaymentsPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white py-20 text-center">

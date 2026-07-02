@@ -374,15 +374,16 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่ PR</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">วันที่</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden md:table-cell">สาขา</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">สาขา</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อ / ผู้ขอ</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500 hidden sm:table-cell">สถานะ</th>
-                <th className="px-4 py-3 text-right font-medium text-slate-500">จำนวนเงิน</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">สถานะ</th>
+                <th className="px-4 py-3 text-right font-medium text-slate-500 whitespace-nowrap">จำนวนเงิน</th>
                 <th className="w-20 px-3 py-3" />
               </tr>
             </thead>
@@ -415,12 +416,12 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                       </td>
 
                       {/* วันที่ */}
-                      <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-xs text-slate-500">{formatDate(pr.created_at)}</span>
                       </td>
 
                       {/* สาขา */}
-                      <td className="px-4 py-3 hidden md:table-cell">
+                      <td className="px-4 py-3">
                         {pr.branch_code ? (
                           <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${BRANCH_BADGE[pr.branch_code] ?? "bg-slate-500 text-white"}`}>
                             {pr.branch_code}
@@ -437,7 +438,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                       </td>
 
                       {/* สถานะ */}
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3">
                         <StatusBadge kind="pr" status={pr.status} />
                       </td>
 
@@ -523,6 +524,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
