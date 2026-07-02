@@ -112,7 +112,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
   const [{ data: currentProfile }, { data: auditProfileList }] =
     await Promise.all([
-      supabase.from("profiles").select("role, full_name, bank_name, bank_account_number").eq("id", user?.id ?? "").single(),
+      supabase.from("profiles").select("role, full_name, bank_name, bank_account_number, bank_account_holder_name").eq("id", user?.id ?? "").single(),
       uniqueIds.length > 0
         ? (supabase as any).from("profiles").select("id, full_name").in("id", uniqueIds)
         : Promise.resolve({ data: [] }),
@@ -439,7 +439,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           originalAmount={pr.total_amount}
           profileBankName={(currentProfile as any)?.bank_name ?? null}
           profileBankAccount={(currentProfile as any)?.bank_account_number ?? null}
-          profileHolderName={currentProfile?.full_name ?? null}
+          profileHolderName={(currentProfile as any)?.bank_account_holder_name ?? currentProfile?.full_name ?? null}
         />
       )}
 

@@ -15,7 +15,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, department, line_user_id, bank_name, bank_account_number")
+    .select("full_name, email, role, department, line_user_id, bank_name, bank_account_number, bank_account_holder_name")
     .eq("id", user.id)
     .single();
 
@@ -71,6 +71,7 @@ export default async function ProfilePage() {
         <div className="border-t border-slate-100 px-5 py-4">
           <BankAccountSection
             userId={user.id}
+            initialHolderName={(profile as any).bank_account_holder_name ?? null}
             initialBankName={(profile as any).bank_name ?? null}
             initialBankAccount={(profile as any).bank_account_number ?? null}
           />

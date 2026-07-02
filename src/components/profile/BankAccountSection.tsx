@@ -16,12 +16,14 @@ interface BankAccountSectionProps {
   userId: string;
   initialBankName: string | null;
   initialBankAccount: string | null;
+  initialHolderName: string | null;
 }
 
 export function BankAccountSection({
   userId,
   initialBankName,
   initialBankAccount,
+  initialHolderName,
 }: BankAccountSectionProps) {
   const supabase = createClient();
 
@@ -29,10 +31,12 @@ export function BankAccountSection({
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // form state
+  const [holderName, setHolderName] = useState(initialHolderName ?? "");
   const [bankName, setBankName] = useState(initialBankName ?? "");
   const [bankAccount, setBankAccount] = useState(initialBankAccount ?? "");
 
   // display state (committed after save)
+  const [savedHolderName, setSavedHolderName] = useState(initialHolderName ?? "");
   const [savedBankName, setSavedBankName] = useState(initialBankName ?? "");
   const [savedBankAccount, setSavedBankAccount] = useState(initialBankAccount ?? "");
 
@@ -51,18 +55,24 @@ export function BankAccountSection({
   }
 
   async function handleSave() {
+    if (!holderName.trim()) return;
     if (!complete) return;
     setStatus("saving");
 
     const { error } = await supabase
       .from("profiles")
-      .update({ bank_name: bankName || null, bank_account_number: bankAccount.trim() || null })
+      .update({
+        bank_account_holder_name: holderName.trim() || null,
+        bank_name: bankName || null,
+        bank_account_number: bankAccount.trim() || null,
+      })
       .eq("id", userId);
 
     if (error) {
       setStatus("error");
       setTimeout(() => setStatus("idle"), 3000);
     } else {
+      setSavedHolderName(holderName.trim());
       setSavedBankName(bankName);
       setSavedBankAccount(bankAccount.trim());
       setEditing(false);
@@ -72,6 +82,7 @@ export function BankAccountSection({
   }
 
   function handleCancel() {
+    setHolderName(savedHolderName);
     setBankName(savedBankName);
     setBankAccount(savedBankAccount);
     setEditing(false);
@@ -98,6 +109,16 @@ export function BankAccountSection({
 
       {editing ? (
         <div className="space-y-2">
+          {/* ชื่อเจ้าของบัญชี */}
+          <input
+            value={holderName}
+            onChange={(e) => setHolderName(e.target.value)}
+            placeholder="ชื่อ-นามสกุล ตามหน้าบัญชี *"
+            className={`w-full rounded-lg border px-3 py-1.5 text-sm focus:outline-none ${
+              !holderName.trim() ? "border-red-300 focus:border-red-400" : "border-slate-300 focus:border-blue-500"
+            }`}
+          />
+
           {/* ธนาคาร */}
           <select
             value={bankName}
@@ -159,13 +180,16 @@ export function BankAccountSection({
           )}
         </div>
       ) : savedBankName && savedBankAccount ? (
-        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 space-y-0.5">
+          {savedHolderName && (
+            <p className="text-sm font-semibold text-slate-800">{savedHolderName}</p>
+          )}
           <p className="text-xs text-slate-500">{bankLabel}</p>
-          <p className="font-mono text-sm font-medium text-slate-800 tracking-wider">
+          <p className="font-mono text-sm font-medium text-slate-700 tracking-wider">
             {savedBankAccount}
           </p>
           {status === "saved" && (
-            <p className="mt-1 text-[11px] text-green-600 font-medium">✓ บันทึกแล้ว</p>
+            <p className="pt-1 text-[11px] text-green-600 font-medium">✓ บันทึกแล้ว</p>
           )}
         </div>
       ) : (
