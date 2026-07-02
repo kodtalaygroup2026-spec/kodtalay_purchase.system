@@ -48,6 +48,15 @@ export default async function FinancePage() {
     (branchRows ?? []).map((b: any) => [b.id, { code: b.code, name: b.name }])
   );
 
+  // ── KTB settings per branch (สำหรับสร้างไฟล์ KTB) ──────────────────────────
+  const { data: settingsRows } = await (supabase as any)
+    .from("company_ktb_settings")
+    .select("*");
+  const settingsByBranch: Record<string, Record<string, string>> = {};
+  for (const row of settingsRows ?? []) {
+    if (row.branch_id) settingsByBranch[row.branch_id] = row;
+  }
+
   // ── PR ที่รอโอน (pending_finance) — ใช้สรุปในการ์ด ──────────────────────────
   const { data: pendingRows } = await (supabase as any)
     .from("purchase_requisitions")
@@ -65,9 +74,25 @@ export default async function FinancePage() {
     .order("finance_action_at", { ascending: false, nullsFirst: false })
     .limit(200);
 
+  // ── evidence ของ PR ที่จ่ายแล้ว (ข้อมูลผู้รับเงินสำหรับไฟล์ KTB) ────────────
+  const paidIds = (paidRows ?? []).map((p: any) => p.id);
+  const { data: evRows } =
+    paidIds.length > 0
+      ? await (supabase as any)
+          .from("payment_evidences")
+          .select("pr_id, account_holder_name, bank_account_number, ktb_branch_code, submitted_at")
+          .in("pr_id", paidIds)
+          .order("submitted_at", { ascending: false })
+      : { data: [] };
+  const evMap: Record<string, any> = {};
+  for (const ev of evRows ?? []) {
+    if (!evMap[ev.pr_id]) evMap[ev.pr_id] = ev;
+  }
+
   // ── รายการที่จ่ายแล้ว (สำหรับตาราง) ─────────────────────────────────────────
   const prs: FinancePR[] = (paidRows ?? []).map((pr: any) => {
     const branch = pr.branch_id ? branchById[pr.branch_id] : null;
+    const ev = evMap[pr.id] ?? null;
     return {
       id: pr.id,
       pr_number: pr.pr_number,
@@ -77,6 +102,9 @@ export default async function FinancePage() {
       branch_code: branch?.code ?? "—",
       branch_name: branch?.name ?? "ไม่ระบุบริษัท",
       paid_at: pr.finance_action_at ?? null,
+      account_holder_name: ev?.account_holder_name ?? "",
+      bank_account_number: ev?.bank_account_number ?? "",
+      ktb_branch_code: ev?.ktb_branch_code ?? "",
     };
   });
 
@@ -84,6 +112,7 @@ export default async function FinancePage() {
   const companies: FinanceCompany[] = (branchRows ?? []).map((b: any) => {
     const rows = (pendingRows ?? []).filter((pr: any) => pr.branch_id === b.id);
     return {
+      id: b.id,
       code: b.code,
       name: b.name,
       count: rows.length,
@@ -122,7 +151,7 @@ export default async function FinancePage() {
           <p className="text-slate-500">ยังไม่มีข้อมูลบริษัท</p>
         </div>
       ) : (
-        <FinanceOverviewBoard companies={companies} prs={prs} />
+        <FinanceOverviewBoard companies={companies} prs={prs} settingsByBranch={settingsByBranch} />
       )}
     </div>
   );
