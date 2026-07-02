@@ -191,10 +191,10 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
                       </td>
                       <td className="px-3 py-3 text-right">
                         <Link
-                          href="/finance/ktb"
+                          href="/finance/payments"
                           className="inline-block rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white whitespace-nowrap hover:bg-blue-700"
                         >
-                          โอนเงิน
+                          จัดการจ่าย
                         </Link>
                       </td>
                     </tr>

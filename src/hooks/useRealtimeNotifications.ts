@@ -22,7 +22,7 @@ const WATCHED_STATUSES: Record<string, string[]> = {
   manager: ["submitted", "pending_second_approval"],
   admin:   ["submitted", "pending_second_approval", "pending_finance"],
   finance: ["pending_finance"],
-  employee: ["approved", "rejected", "returned"],
+  employee: ["approved", "rejected", "returned", "cancelled"],
 };
 
 export function useRealtimeNotifications({ userId, role, onNotification }: Options) {
@@ -55,13 +55,22 @@ export function useRealtimeNotifications({ userId, role, onNotification }: Optio
             if (next.requester_id !== userId) return;
           }
 
-          if (!watchedStatuses.includes(next.status)) return;
+          // ตรวจจับ "ตีกลับการจ่าย" — การเงินส่งกลับจาก pending_finance → approved
+          // ให้ผู้สร้าง (employee) เห็นข้อความที่ถูกต้องแทน "อนุมัติแล้ว"
+          const isPaymentReturn =
+            role === "employee" &&
+            prev.status === "pending_finance" &&
+            next.status === "approved";
+
+          const effectiveStatus = isPaymentReturn ? "payment_returned" : next.status;
+
+          if (!isPaymentReturn && !watchedStatuses.includes(next.status)) return;
 
           onNotification({
             prId:      next.id,
             prNumber:  next.pr_number,
             title:     next.title,
-            newStatus: next.status,
+            newStatus: effectiveStatus,
           });
         }
       )

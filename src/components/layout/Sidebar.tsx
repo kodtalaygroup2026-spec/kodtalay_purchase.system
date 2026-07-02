@@ -89,6 +89,7 @@ function MyWorkDropdown({ pathname, role }: { pathname: string; role?: UserRole 
 
 const FINANCE_SUB = [
   { href: "/finance",            label: "ภาพรวม",              icon: <Banknote size={13} /> },
+  { href: "/finance/payments",   label: "รายการจ่ายเงิน",       icon: <Banknote size={13} /> },
   { href: "/finance/ktb",        label: "KTB Smart Transfer",  icon: <Landmark size={13} /> },
   { href: "/finance/petty-cash", label: "เงินสดย่อย",          icon: <PiggyBank size={13} /> },
   { href: "/finance/tax-invoices", label: "ใบกำกับภาษี",       icon: <FileText size={13} /> },

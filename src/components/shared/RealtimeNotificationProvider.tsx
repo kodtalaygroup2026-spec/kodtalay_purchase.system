@@ -16,6 +16,8 @@ const STATUS_LABEL: Record<string, { title: string; color: string }> = {
   approved:                  { title: "PR ของคุณได้รับการอนุมัติ",    color: "bg-green-600"  },
   rejected:                  { title: "PR ของคุณถูกปฏิเสธ",           color: "bg-red-600"    },
   returned:                  { title: "PR ถูกส่งคืนเพื่อแก้ไข",       color: "bg-amber-600"  },
+  payment_returned:          { title: "การจ่ายถูกตีกลับ — แก้ไขแล้วส่งใหม่", color: "bg-amber-600" },
+  cancelled:                 { title: "PR ของคุณถูกยกเลิก",           color: "bg-slate-600"  },
 };
 
 interface Toast {

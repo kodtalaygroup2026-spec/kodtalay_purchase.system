@@ -18,6 +18,9 @@ export type AuditAction =
   // การเงิน
   | "payment_evidence_submitted"
   | "ktb_batch_paid"
+  | "payment_marked_paid"
+  | "payment_returned"
+  | "payment_cancelled"
   // ผู้ใช้
   | "user_role_changed";
 

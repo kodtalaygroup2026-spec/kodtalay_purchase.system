@@ -78,13 +78,13 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
   if (!pr) notFound();
 
-  // ── fetch evidence + item edit logs ──────────────────────────────────────
-  const [{ data: evidenceRecord }, { data: itemEditLogs }] = await Promise.all([
+  // ── fetch evidence (ล่าสุด) + item edit logs ─────────────────────────────
+  const [{ data: evidenceRows }, { data: itemEditLogs }] = await Promise.all([
     (supabase as any)
       .from("payment_evidences")
-      .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
+      .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at, status, review_note")
       .eq("pr_id", id)
-      .maybeSingle(),
+      .order("submitted_at", { ascending: false }),
     (supabase as any)
       .from("pr_item_edit_logs")
       .select("id, edited_at, edited_by, changes")
@@ -92,14 +92,27 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       .order("edited_at"),
   ]);
 
-  const paymentEvidence: any = evidenceRecord ?? null;
+  // หยิบ evidence ล่าสุด (1 PR อาจมีหลาย row จากการส่งใหม่หลังตีกลับ)
+  const latestEvidence: any = (evidenceRows ?? [])[0] ?? null;
+
+  // evidence ที่ยัง active (รอตรวจ/จ่ายแล้ว) — ใช้แสดงรายละเอียด read-only
+  const activeEvidence: any =
+    latestEvidence && ["submitted", "paid"].includes(latestEvidence.status)
+      ? latestEvidence
+      : null;
+
+  // evidence ที่ถูกตีกลับล่าสุด — ใช้แสดงแบนเนอร์ + ให้แนบใหม่
+  const returnedEvidence: any =
+    latestEvidence && latestEvidence.status === "returned" ? latestEvidence : null;
+
+  const paymentEvidence: any = activeEvidence;
   let evidenceFiles: any[] = [];
 
-  if (paymentEvidence) {
+  if (activeEvidence) {
     const { data: efData } = await (supabase as any)
       .from("evidence_files")
       .select("id, file_name, file_url, evidence_type, file_size")
-      .eq("evidence_id", paymentEvidence.id)
+      .eq("evidence_id", activeEvidence.id)
       .order("evidence_type");
     evidenceFiles = efData ?? [];
   }
@@ -425,6 +438,24 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             หลักฐานการซื้อและรับของ
           </span>
           <div className="flex-1 border-t border-slate-200" />
+        </div>
+      )}
+
+      {/* ── แบนเนอร์: การจ่ายถูกตีกลับ ─────────────────────────────────── */}
+      {returnedEvidence && isOwner && ["approved", "converted"].includes(prStatus) && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <span className="text-sm">↩️</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-800">การจ่ายถูกตีกลับจากฝ่ายการเงิน</p>
+            {returnedEvidence.review_note && (
+              <p className="mt-0.5 text-sm text-amber-700">
+                เหตุผล: {returnedEvidence.review_note}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-amber-600">กรุณาแก้ไขข้อมูล/ไฟล์แล้วส่งใหม่อีกครั้ง</p>
+          </div>
         </div>
       )}
 
