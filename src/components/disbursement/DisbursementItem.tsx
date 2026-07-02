@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ChevronDown, ChevronUp, AlertTriangle,
   FileText, ImageIcon, Package, ExternalLink,
-  RotateCcw, CheckCircle, Loader2,
+  RotateCcw, CheckCircle, Loader2, ZoomIn, X,
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
@@ -78,6 +78,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
   const [confirmAction, setConfirmAction] = useState<"return" | "verify" | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const evidence = pr.evidence;
   const actualAmount = evidence?.actual_amount ?? pr.actual_amount ?? null;
@@ -270,14 +271,9 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
                   const meta = FILE_TYPE_LABELS[file.evidence_type] ?? FILE_TYPE_LABELS.other;
                   const FileIcon = meta.icon;
                   const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(file.file_name);
-                  return (
-                    <a
-                      key={file.id}
-                      href={file.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm transition hover:border-blue-300 hover:bg-blue-50"
-                    >
+                  const cls = "flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-sm transition hover:border-blue-300 hover:bg-blue-50";
+                  const inner = (
+                    <>
                       {isImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -294,7 +290,20 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
                         <p className="truncate text-xs font-medium text-slate-700">{file.file_name}</p>
                         <p className="text-[10px] text-slate-400">{meta.label}</p>
                       </div>
-                      <ExternalLink size={12} className="shrink-0 text-slate-300" />
+                      {isImage
+                        ? <ZoomIn size={13} className="shrink-0 text-slate-300" />
+                        : <ExternalLink size={12} className="shrink-0 text-slate-300" />}
+                    </>
+                  );
+
+                  // รูป → เปิด lightbox ในหน้านี้ / ไฟล์อื่น (PDF) → เปิดแท็บใหม่
+                  return isImage ? (
+                    <button key={file.id} type="button" onClick={() => setLightboxUrl(file.file_url)} className={cls}>
+                      {inner}
+                    </button>
+                  ) : (
+                    <a key={file.id} href={file.file_url} target="_blank" rel="noopener noreferrer" className={cls}>
+                      {inner}
                     </a>
                   );
                 })}
@@ -380,6 +389,28 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Lightbox แสดงรูปในหน้านี้ ─────────────────────────────────────── */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X size={20} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt=""
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
