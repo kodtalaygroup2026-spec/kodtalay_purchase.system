@@ -8,7 +8,7 @@ import {
   ImageIcon, X as XIcon, ExternalLink,
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
-import { DateTimePicker } from "@/components/shared/DateTimePicker";
+import { getNextPaymentDate, formatPaymentDate } from "@/lib/utils/paymentSchedule";
 import type { Branch } from "@/types/database";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -78,7 +78,6 @@ export function PREditForm({
   const [title, setTitle] = useState(pr.title);
   const [note, setNote] = useState(pr.note ?? "");
   const [isUrgent, setIsUrgent] = useState(pr.is_urgent);
-  const [neededBy, setNeededBy] = useState(pr.needed_by ?? new Date().toISOString());
   const [branchId, setBranchId] = useState(pr.branch_id);
 
   // ── Items ───────────────────────────────────────────────────────────────────
@@ -226,7 +225,6 @@ export function PREditForm({
           title: title.trim(),
           note: note.trim() || null,
           is_urgent: isUrgent,
-          needed_by: neededBy || null,
           branch_id: branchId,
           total_amount: totalAmount,
           ...statusUpdate,
@@ -294,9 +292,17 @@ export function PREditForm({
           </button>
         </div>
 
-        {/* วันที่ต้องการ */}
-        <div>
-          <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
+        {/* กำหนดจ่ายเงิน (ฟิก) */}
+        <div className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3">
+          <p className="mb-1 text-[10px] font-medium text-violet-500">กำหนดจ่ายเงิน (โดย บช.)</p>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700">
+              ทุกวันพุธ &amp; ศุกร์
+            </span>
+            <span className="text-[11px] text-violet-600">
+              ถัดไป: {formatPaymentDate(getNextPaymentDate())}
+            </span>
+          </div>
         </div>
 
         {/* หมายเหตุ */}

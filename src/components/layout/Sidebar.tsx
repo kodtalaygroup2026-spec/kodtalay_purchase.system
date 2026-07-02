@@ -260,8 +260,8 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0 }: SidebarPro
           editedCount={editedCount}
         />
 
-        {/* การเงิน — แสดงเฉพาะ finance และ admin */}
-        {(role === "finance" || role === "admin") && (
+        {/* การเงิน — แสดงเฉพาะ finance เท่านั้น (admin เข้า URL ได้แต่ไม่แสดงเมนู) */}
+        {role === "finance" && (
           <>
             <div className="my-2 border-t border-slate-800" />
             <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">

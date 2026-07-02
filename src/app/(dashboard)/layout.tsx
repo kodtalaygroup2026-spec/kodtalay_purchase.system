@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { RealtimeNotificationProvider } from "@/components/shared/RealtimeNotificationProvider";
 
 export default async function DashboardLayout({
   children,
@@ -58,6 +59,8 @@ export default async function DashboardLayout({
         </main>
         <MobileNav />
       </div>
+      {/* Real-time toast notifications — ไม่กระทบ layout เดิม */}
+      <RealtimeNotificationProvider userId={user.id} role={profile.role as import("@/types/database").UserRole} />
     </div>
   );
 }

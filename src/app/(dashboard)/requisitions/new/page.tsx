@@ -10,8 +10,8 @@ import {
   ChevronRight, ChevronLeft, ChevronDown,
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
-import { DateTimePicker } from "@/components/shared/DateTimePicker";
 import { logAudit } from "@/lib/supabase/audit";
+import { getNextPaymentDate, formatPaymentDate } from "@/lib/utils/paymentSchedule";
 import type { Branch } from "@/types/database";
 
 // -----------------------------------------------------------------------
@@ -63,7 +63,6 @@ export default function NewRequisitionPage() {
 
   // ── Form fields ─────────────────────────────────────────────────────
   const [isUrgent, setIsUrgent] = useState(false);
-  const [neededBy, setNeededBy] = useState(() => new Date().toISOString());
 
   // ── Items ───────────────────────────────────────────────────────────
   const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
@@ -195,7 +194,6 @@ export default function NewRequisitionPage() {
         requester_id: user.id,
         branch_id: branchId,
         department: userDepartment || null,
-        needed_by: neededBy || null,
         note: (formData.get("note") as string) || null,
         is_urgent: isUrgent,
         total_amount: totalAmount,
@@ -343,9 +341,17 @@ export default function NewRequisitionPage() {
                 )}
               </div>
 
-              {/* วันที่ต้องการ */}
+              {/* กำหนดจ่ายเงิน (ฟิกโดย บช.) */}
               <div className="flex flex-1 flex-col justify-center px-4 py-3">
-                <DateTimePicker label="วันที่ต้องการ" value={neededBy} onChange={setNeededBy} />
+                <p className="mb-1 text-[10px] font-medium text-slate-400">กำหนดจ่ายเงิน</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700">
+                    ทุกวันพุธ &amp; ศุกร์
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-slate-400">
+                  ถัดไป: {formatPaymentDate(getNextPaymentDate())}
+                </p>
               </div>
 
             </div>
@@ -617,9 +623,9 @@ export default function NewRequisitionPage() {
                     },
                     {
                       icon: CheckCircle2,
-                      color: "text-emerald-500",
-                      title: "วันที่ต้องการ",
-                      desc: "กำหนดวันที่ต้องการสินค้าหรือบริการ ช่วยให้ฝ่ายจัดซื้อจัดลำดับงานได้",
+                      color: "text-violet-500",
+                      title: "กำหนดจ่ายเงิน",
+                      desc: "บช. ตัดจ่ายทุกวันพุธและวันศุกร์ ระบบจะแสดงวันจ่ายถัดไปให้อัตโนมัติ",
                     },
                     {
                       icon: AlertCircle,
