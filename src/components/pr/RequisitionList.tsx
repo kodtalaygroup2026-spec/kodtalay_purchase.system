@@ -444,7 +444,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                       <td className="px-4 py-3">
                         {pr.payment_returned ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                            ↩️ ตีกลับ—แก้หลักฐาน
+                            ↩️ ตีกลับจากบัญชี
                           </span>
                         ) : (
                           <StatusBadge kind="pr" status={pr.status} />

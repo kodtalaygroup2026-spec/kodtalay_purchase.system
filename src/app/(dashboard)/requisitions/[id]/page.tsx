@@ -341,7 +341,13 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           {/* Row 1: status badge + title | branch badge */}
           <div className="mb-1.5 flex items-start justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <StatusBadge kind="pr" status={pr.status as PrStatus} />
+              {returnedEvidence ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                  ↩️ ตีกลับจากบัญชี
+                </span>
+              ) : (
+                <StatusBadge kind="pr" status={pr.status as PrStatus} />
+              )}
               {pr.is_urgent && (
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
                   ด่วน
