@@ -8,9 +8,10 @@ import { Building2 } from "lucide-react";
 interface DepartmentSelectorProps {
   userId: string;
   initialDepartment: string | null;
+  compact?: boolean; // เมื่อ true: ไม่มี card wrapper (ใช้ภายใน ProfilePage)
 }
 
-export function DepartmentSelector({ userId, initialDepartment }: DepartmentSelectorProps) {
+export function DepartmentSelector({ userId, initialDepartment, compact = false }: DepartmentSelectorProps) {
   const supabase = createClient();
   const [department, setDepartment] = useState(initialDepartment ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -33,11 +34,11 @@ export function DepartmentSelector({ userId, initialDepartment }: DepartmentSele
     }
   }
 
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <Building2 size={16} className="text-slate-400" />
-        <h3 className="font-semibold text-slate-700">แผนก</h3>
+  const inner = (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <Building2 size={14} className="text-slate-400" />
+        <span className="text-xs font-semibold text-slate-600">แผนก</span>
       </div>
       <select
         value={department}
@@ -49,11 +50,16 @@ export function DepartmentSelector({ userId, initialDepartment }: DepartmentSele
           <option key={dept} value={dept}>{dept}</option>
         ))}
       </select>
-      <div className="mt-2 h-4 text-xs">
+      <div className="mt-1.5 h-4 text-xs">
         {status === "saving" && <span className="text-slate-400">กำลังบันทึก...</span>}
         {status === "saved"  && <span className="text-green-600 font-medium">✓ บันทึกแล้ว</span>}
         {status === "error"  && <span className="text-red-500">เกิดข้อผิดพลาด กรุณาลองใหม่</span>}
       </div>
     </div>
+  );
+
+  if (compact) return inner;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">{inner}</div>
   );
 }

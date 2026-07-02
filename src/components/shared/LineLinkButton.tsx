@@ -8,9 +8,10 @@ const CODE_TTL_SECONDS = 10 * 60; // 10 นาที ตรงกับ DB expir
 interface LineLinkButtonProps {
   userId: string;
   initialLineUserId: string | null;
+  compact?: boolean; // เมื่อ true: ไม่มี card wrapper
 }
 
-export function LineLinkButton({ userId, initialLineUserId }: LineLinkButtonProps) {
+export function LineLinkButton({ userId, initialLineUserId, compact = false }: LineLinkButtonProps) {
   const supabase = createClient();
   const [lineUserId, setLineUserId] = useState(initialLineUserId);
   const [code, setCode] = useState<string | null>(null);
@@ -112,15 +113,15 @@ export function LineLinkButton({ userId, initialLineUserId }: LineLinkButtonProp
     setTimeout(() => setCopied(false), 2000);
   }
 
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100">
-          <MessageCircle size={18} className="text-green-600" />
+  const inner = (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-green-100">
+          <MessageCircle size={14} className="text-green-600" />
         </div>
         <div>
-          <h3 className="font-semibold text-slate-800">การแจ้งเตือนผ่าน LINE</h3>
-          <p className="text-xs text-slate-500">เชื่อมบัญชีเพื่อรับแจ้งเตือนสถานะใบขอซื้อ</p>
+          <p className="text-xs font-semibold text-slate-600">การแจ้งเตือนผ่าน LINE</p>
+          <p className="text-[11px] text-slate-400">เชื่อมบัญชีเพื่อรับแจ้งเตือนสถานะใบขอซื้อ</p>
         </div>
       </div>
 
@@ -226,7 +227,12 @@ export function LineLinkButton({ userId, initialLineUserId }: LineLinkButtonProp
         </div>
       )}
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
+  );
+
+  if (compact) return inner;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">{inner}</div>
   );
 }

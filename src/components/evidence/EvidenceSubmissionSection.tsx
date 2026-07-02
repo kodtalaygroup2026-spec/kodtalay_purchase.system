@@ -3,35 +3,25 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import {
   Upload, FileText, ImageIcon, X as XIcon,
   AlertTriangle, CheckCircle2, Package, Paperclip,
+  Wallet, Receipt, Lock,
 } from "lucide-react";
 import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
+import {
+  BANK_FORMATS,
+  getBankFormat,
+  getMaskPlaceholder,
+  formatAccountInput,
+  isAccountComplete,
+  extractDigits,
+} from "@/lib/utils/bankFormats";
 
-const THAI_BANKS = [
-  { code: "KBANK", label: "กสิกรไทย (KBANK)" },
-  { code: "SCB",   label: "ไทยพาณิชย์ (SCB)" },
-  { code: "BBL",   label: "กรุงเทพ (BBL)" },
-  { code: "KTB",   label: "กรุงไทย (KTB)" },
-  { code: "TTB",   label: "ทีทีบี (TTB)" },
-  { code: "BAY",   label: "กรุงศรีอยุธยา (BAY)" },
-  { code: "GSB",   label: "ออมสิน (GSB)" },
-  { code: "GHB",   label: "อาคารสงเคราะห์ (GHB)" },
-  { code: "BAAC",  label: "ธ.ก.ส. (BAAC)" },
-  { code: "KKP",   label: "เกียรตินาคิน (KKP)" },
-  { code: "CIMBT", label: "ซีไอเอ็มบี (CIMBT)" },
-  { code: "UOB",   label: "ยูโอบี (UOB)" },
-  { code: "TISCO", label: "ทิสโก้ (TISCO)" },
-  { code: "LHB",   label: "แลนด์แอนด์เฮ้าส์ (LHB)" },
-];
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+// ── ประเภทการชำระ ──────────────────────────────────────────────────────────────
+type PaymentMode = "self_pay" | "send_bill";
 
 // ── FileUploadZone ─────────────────────────────────────────────────────────────
 
@@ -45,6 +35,12 @@ interface FileUploadZoneProps {
   required?: boolean;
   icon: React.ElementType;
   accentColor: string;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function FileUploadZone({
@@ -126,6 +122,10 @@ interface EvidenceSubmissionSectionProps {
   prBankAccount: string | null;
   currentUserId: string;
   originalAmount: number;
+  // ข้อมูลบัญชีจากโปรไฟล์ (สำหรับ mode ชำระด้วยตัวเอง)
+  profileBankName: string | null;
+  profileBankAccount: string | null;
+  profileHolderName: string | null;
 }
 
 const LS_NAMES = "evidence_account_names";
@@ -133,17 +133,18 @@ const LS_BANK  = "evidence_last_bank";
 
 export function EvidenceSubmissionSection({
   poId, prId, prBankName, prBankAccount, currentUserId, originalAmount,
+  profileBankName, profileBankAccount, profileHolderName,
 }: EvidenceSubmissionSectionProps) {
   const router = useRouter();
   const supabase = createClient();
 
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("send_bill");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // ── localStorage: ชื่อที่เคยใช้ + ธนาคารล่าสุด ─────────────────────────
+  // ── ชื่อ + บัญชี (สำหรับ send_bill mode) ─────────────────────────────────
   const [savedNames, setSavedNames] = useState<string[]>([]);
   const [showNameList, setShowNameList] = useState(false);
-
   const [accountHolderName, setAccountHolderName] = useState("");
   const [bankName, setBankName] = useState(prBankName ?? "");
   const [bankAccount, setBankAccount] = useState(prBankAccount ?? "");
@@ -154,13 +155,33 @@ export function EvidenceSubmissionSection({
       setSavedNames(names);
       const lastBank = localStorage.getItem(LS_BANK);
       if (lastBank && !prBankName) setBankName(lastBank);
-    } catch { /* ignore parse errors */ }
+    } catch { /* ignore */ }
   }, [prBankName]);
-  const [notes, setNotes] = useState("");
 
+  const [notes, setNotes] = useState("");
   const [billFiles, setBillFiles] = useState<File[]>([]);
   const [slipFiles, setSlipFiles] = useState<File[]>([]);
   const [goodsReceiptFiles, setGoodsReceiptFiles] = useState<File[]>([]);
+
+  // ── bank format (send_bill mode) ───────────────────────────────────────────
+  const selectedFmt = getBankFormat(bankName);
+  const rawDigits = extractDigits(bankAccount);
+  const accountComplete = bankName
+    ? isAccountComplete(bankAccount, bankName)
+    : bankAccount.trim().length > 0;
+  const digitsLeft = selectedFmt ? selectedFmt.digits - rawDigits.length : 0;
+
+  function handleAccountInput(raw: string) {
+    setBankAccount(formatAccountInput(raw, bankName));
+  }
+
+  function handleBankNameChange(code: string) {
+    setBankName(code);
+    setBankAccount(""); // reset เมื่อเปลี่ยนธนาคาร
+  }
+
+  // ── ตรวจว่า self_pay mode พร้อมหรือไม่ ────────────────────────────────────
+  const hasSelfPayAccount = !!(profileBankName && profileBankAccount);
 
   function addFiles(setter: React.Dispatch<React.SetStateAction<File[]>>) {
     return (files: File[]) => setter(prev => [...prev, ...files]);
@@ -191,13 +212,32 @@ export function EvidenceSubmissionSection({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!accountHolderName.trim()) { setErrorMessage("กรุณาระบุชื่อเจ้าของบัญชี"); return; }
-    if (billFiles.length === 0) { setErrorMessage("กรุณาแนบบิล / ใบเสร็จ อย่างน้อย 1 ไฟล์"); return; }
-    if (slipFiles.length === 0) { setErrorMessage("กรุณาแนบสลิปการโอนเงิน อย่างน้อย 1 ไฟล์"); return; }
+
+    // validation ตาม mode
+    if (paymentMode === "send_bill") {
+      if (!accountHolderName.trim()) { setErrorMessage("กรุณาระบุชื่อเจ้าของบัญชี"); return; }
+      if (bankName && !accountComplete) { setErrorMessage(`กรุณากรอกเลขบัญชีให้ครบ (ยังขาดอีก ${digitsLeft} หลัก)`); return; }
+    }
+    if (paymentMode === "self_pay" && !hasSelfPayAccount) {
+      setErrorMessage("กรุณาเพิ่มบัญชีธนาคารในโปรไฟล์ก่อน");
+      return;
+    }
+    if (billFiles.length === 0)         { setErrorMessage("กรุณาแนบบิล / ใบเสร็จ อย่างน้อย 1 ไฟล์"); return; }
     if (goodsReceiptFiles.length === 0) { setErrorMessage("กรุณาแนบรูปถ่ายการรับของ อย่างน้อย 1 ไฟล์"); return; }
+    if (paymentMode === "self_pay" && slipFiles.length === 0) {
+      setErrorMessage("กรุณาแนบสลิปการโอนเงินที่ชำระไปแล้ว");
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMessage(null);
+
+    // เลือกข้อมูลบัญชีตาม mode
+    const insertHolderName = paymentMode === "self_pay"
+      ? (profileHolderName ?? "")
+      : accountHolderName.trim();
+    const insertBankName   = paymentMode === "self_pay" ? (profileBankName ?? null) : (bankName || null);
+    const insertBankAcct   = paymentMode === "self_pay" ? (profileBankAccount ?? null) : (bankAccount.trim() || null);
 
     try {
       const { data: evidence, error: evidenceError } = await (supabase as any)
@@ -205,10 +245,11 @@ export function EvidenceSubmissionSection({
         .insert({
           po_id: poId,
           pr_id: prId,
-          account_holder_name: accountHolderName.trim(),
-          bank_name: bankName || null,
-          bank_account_number: bankAccount.trim() || null,
+          account_holder_name: insertHolderName,
+          bank_name: insertBankName,
+          bank_account_number: insertBankAcct,
           notes: notes.trim() || null,
+          payment_type: paymentMode,
           submitted_by: currentUserId,
         })
         .select("id")
@@ -217,10 +258,9 @@ export function EvidenceSubmissionSection({
       if (evidenceError || !evidence) throw evidenceError ?? new Error("ไม่สามารถสร้างข้อมูลหลักฐานได้");
 
       await uploadFiles(evidence.id, billFiles, "bill");
-      await uploadFiles(evidence.id, slipFiles, "slip");
-      await uploadFiles(evidence.id, goodsReceiptFiles, "goods_receipt");
+      if (slipFiles.length > 0)         await uploadFiles(evidence.id, slipFiles, "slip");
+      if (goodsReceiptFiles.length > 0) await uploadFiles(evidence.id, goodsReceiptFiles, "goods_receipt");
 
-      // บันทึก actual_amount และเปลี่ยน status
       const { error: prUpdateError } = await (supabase as any)
         .from("purchase_requisitions")
         .update({ status: "pending_finance", actual_amount: originalAmount })
@@ -238,18 +278,20 @@ export function EvidenceSubmissionSection({
         action: "payment_evidence_submitted",
         entity: "payment_evidences",
         entityId: evidence.id,
-        metadata: { pr_id: prId, account_holder_name: accountHolderName.trim() },
+        metadata: { pr_id: prId, payment_type: paymentMode, account_holder_name: insertHolderName },
       });
 
-      // บันทึกชื่อและธนาคารลง localStorage
-      try {
-        const trimmedName = accountHolderName.trim();
-        const existing: string[] = JSON.parse(localStorage.getItem(LS_NAMES) ?? "[]");
-        if (trimmedName && !existing.includes(trimmedName)) {
-          localStorage.setItem(LS_NAMES, JSON.stringify([trimmedName, ...existing]));
-        }
-        if (bankName) localStorage.setItem(LS_BANK, bankName);
-      } catch { /* ignore */ }
+      // บันทึกชื่อและธนาคารลง localStorage (เฉพาะ send_bill)
+      if (paymentMode === "send_bill") {
+        try {
+          const trimmedName = accountHolderName.trim();
+          const existing: string[] = JSON.parse(localStorage.getItem(LS_NAMES) ?? "[]");
+          if (trimmedName && !existing.includes(trimmedName)) {
+            localStorage.setItem(LS_NAMES, JSON.stringify([trimmedName, ...existing]));
+          }
+          if (bankName) localStorage.setItem(LS_BANK, bankName);
+        } catch { /* ignore */ }
+      }
 
       router.refresh();
     } catch (err: unknown) {
@@ -258,9 +300,11 @@ export function EvidenceSubmissionSection({
     }
   }
 
+  const bankLabel = BANK_FORMATS.find(b => b.code === profileBankName)?.label ?? profileBankName;
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {/* Section header */}
+      {/* header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
         <Paperclip size={16} className="text-blue-600" />
         <span className="text-sm font-semibold text-slate-700">แนบหลักฐานการรับของ</span>
@@ -268,72 +312,177 @@ export function EvidenceSubmissionSection({
 
       <form onSubmit={handleSubmit} className="divide-y divide-slate-100">
 
-        {/* ข้อมูลผู้รับเงิน */}
+        {/* ── เลือกรูปแบบการชำระ ── */}
         <div className="px-5 py-4">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">ข้อมูลผู้รับเงิน</h3>
-          <div className="space-y-3">
-            <div className="relative">
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                ชื่อเจ้าของบัญชี <span className="text-red-500">*</span>
-              </label>
-              <input
-                value={accountHolderName}
-                onChange={e => { setAccountHolderName(e.target.value); setShowNameList(true); }}
-                onFocus={() => setShowNameList(true)}
-                onBlur={() => setTimeout(() => setShowNameList(false), 150)}
-                placeholder="ชื่อ-นามสกุล ตามหน้าบัญชี"
-                autoComplete="off"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              />
-              {/* dropdown ชื่อที่เคยใช้ */}
-              {showNameList && savedNames.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-md">
-                  {savedNames
-                    .filter(n => !accountHolderName || n.toLowerCase().includes(accountHolderName.toLowerCase()))
-                    .slice(0, 5)
-                    .map(name => (
-                      <li
-                        key={name}
-                        onMouseDown={() => { setAccountHolderName(name); setShowNameList(false); }}
-                        className="cursor-pointer px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                      >
-                        {name}
-                      </li>
-                    ))}
-                </ul>
+          <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">รูปแบบการชำระเงิน</p>
+          <div className="grid grid-cols-2 gap-2">
+
+            {/* ปุ่ม 1: ชำระด้วยตัวเอง */}
+            <button
+              type="button"
+              onClick={() => !(!hasSelfPayAccount) && setPaymentMode("self_pay")}
+              disabled={!hasSelfPayAccount}
+              className={`relative flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-colors ${
+                paymentMode === "self_pay"
+                  ? "border-blue-500 bg-blue-50"
+                  : hasSelfPayAccount
+                  ? "border-slate-200 hover:border-slate-300 bg-white"
+                  : "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+              }`}
+            >
+              {!hasSelfPayAccount && (
+                <Lock size={12} className="absolute top-2 right-2 text-slate-400" />
               )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
-                <select
-                  value={bankName}
-                  onChange={e => setBankName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">— เลือกธนาคาร —</option>
-                  {THAI_BANKS.map(b => (
-                    <option key={b.code} value={b.code}>{b.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
-                <input
-                  value={bankAccount}
-                  onChange={e => setBankAccount(e.target.value)}
-                  placeholder="เช่น 123-4-56789-0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-wider focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
+              <Wallet size={16} className={paymentMode === "self_pay" ? "text-blue-600" : "text-slate-400"} />
+              <span className={`text-xs font-semibold ${paymentMode === "self_pay" ? "text-blue-700" : "text-slate-700"}`}>
+                ชำระด้วยตัวเอง
+              </span>
+              <span className="text-[10px] text-slate-400 leading-snug">
+                {hasSelfPayAccount ? "ขอเบิกคืนผ่านบัญชีในโปรไฟล์" : "ต้องเพิ่มบัญชีในโปรไฟล์ก่อน"}
+              </span>
+            </button>
+
+            {/* ปุ่ม 2: ส่งบิลจ่าย */}
+            <button
+              type="button"
+              onClick={() => setPaymentMode("send_bill")}
+              className={`flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-colors ${
+                paymentMode === "send_bill"
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200 hover:border-slate-300 bg-white"
+              }`}
+            >
+              <Receipt size={16} className={paymentMode === "send_bill" ? "text-blue-600" : "text-slate-400"} />
+              <span className={`text-xs font-semibold ${paymentMode === "send_bill" ? "text-blue-700" : "text-slate-700"}`}>
+                ส่งบิลจ่าย
+              </span>
+              <span className="text-[10px] text-slate-400 leading-snug">
+                กรอกบัญชีผู้รับเงิน บช. โอนให้
+              </span>
+            </button>
           </div>
+
+          {/* แจ้งให้ไปเพิ่มบัญชี */}
+          {!hasSelfPayAccount && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-700">
+                ยังไม่มีบัญชีธนาคาร —{" "}
+                <Link href="/profile" className="font-medium underline hover:text-amber-900">
+                  เพิ่มในโปรไฟล์
+                </Link>
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* ไฟล์หลักฐาน */}
+        {/* ── ข้อมูลผู้รับเงิน ── */}
+        <div className="px-5 py-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-700">ข้อมูลผู้รับเงิน</h3>
+
+          {paymentMode === "self_pay" ? (
+            /* ── โชว์ข้อมูลจากโปรไฟล์ (read-only) ── */
+            hasSelfPayAccount ? (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+                <p className="text-xs text-blue-500 mb-1">บัญชีของคุณ (จากโปรไฟล์)</p>
+                <p className="font-semibold text-slate-800">{profileHolderName || "—"}</p>
+                <p className="text-sm text-slate-600 mt-0.5">
+                  {bankLabel} · <span className="font-mono tracking-wider">{profileBankAccount}</span>
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                กรุณาเพิ่มบัญชีธนาคารในโปรไฟล์ก่อนใช้ตัวเลือกนี้
+              </div>
+            )
+          ) : (
+            /* ── send_bill: ฟอร์มกรอกบัญชี ── */
+            <div className="space-y-3">
+              {/* ชื่อ */}
+              <div className="relative">
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  ชื่อเจ้าของบัญชี <span className="text-red-500">*</span>
+                </label>
+                <input
+                  value={accountHolderName}
+                  onChange={e => { setAccountHolderName(e.target.value); setShowNameList(true); }}
+                  onFocus={() => setShowNameList(true)}
+                  onBlur={() => setTimeout(() => setShowNameList(false), 150)}
+                  placeholder="ชื่อ-นามสกุล ตามหน้าบัญชี"
+                  autoComplete="off"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                {showNameList && savedNames.length > 0 && (
+                  <ul className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-md">
+                    {savedNames
+                      .filter(n => !accountHolderName || n.toLowerCase().includes(accountHolderName.toLowerCase()))
+                      .slice(0, 5)
+                      .map(name => (
+                        <li
+                          key={name}
+                          onMouseDown={() => { setAccountHolderName(name); setShowNameList(false); }}
+                          className="cursor-pointer px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          {name}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* ธนาคาร + เลขบัญชี */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
+                  <select
+                    value={bankName}
+                    onChange={e => handleBankNameChange(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">— เลือกธนาคาร —</option>
+                    {BANK_FORMATS.map(b => (
+                      <option key={b.code} value={b.code}>{b.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
+                  <input
+                    value={bankAccount}
+                    onChange={e => handleAccountInput(e.target.value)}
+                    inputMode="numeric"
+                    placeholder={selectedFmt ? getMaskPlaceholder(selectedFmt.mask) : "เช่น 000-0-00000-0"}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm font-mono tracking-wider focus:outline-none ${
+                      bankAccount && !accountComplete
+                        ? "border-amber-400 focus:border-amber-500"
+                        : "border-slate-300 focus:border-blue-500"
+                    }`}
+                  />
+                  {bankName && selectedFmt && (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {getMaskPlaceholder(selectedFmt.mask)}
+                      {bankAccount && !accountComplete && (
+                        <span className="ml-2 text-amber-600">ขาดอีก {digitsLeft} หลัก</span>
+                      )}
+                      {bankAccount && accountComplete && (
+                        <span className="ml-2 text-green-600 font-medium">✓</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── ไฟล์หลักฐาน ── */}
         <div className="px-5 py-4">
           <h3 className="mb-1 text-sm font-semibold text-slate-700">ไฟล์หลักฐาน</h3>
-          <p className="mb-3 text-xs text-slate-400">แนบบิลอย่างน้อย 1 ไฟล์ — สลิปและรูปรับของไม่บังคับ</p>
+          <p className="mb-3 text-xs text-slate-400">
+            {paymentMode === "self_pay"
+              ? "แนบบิล + สลิปที่ชำระไปแล้ว + รูปถ่ายรับของ"
+              : "แนบบิลอย่างน้อย 1 ไฟล์ + รูปถ่ายรับของ"}
+          </p>
           <div className="space-y-3">
             <FileUploadZone
               label="บิล / ใบเสร็จ"
@@ -346,12 +495,12 @@ export function EvidenceSubmissionSection({
               accentColor="text-orange-500"
             />
             <FileUploadZone
-              label="สลิปการโอนเงิน"
-              description="หลักฐานการชำระเงิน / สลิปโอนเงิน"
+              label={paymentMode === "self_pay" ? "สลิปการโอนเงิน *" : "สลิปการโอนเงิน"}
+              description={paymentMode === "self_pay" ? "หลักฐานว่าคุณชำระเงินไปแล้ว (บังคับ)" : "หลักฐานการชำระเงิน (ถ้ามี)"}
               files={slipFiles}
               onAdd={addFiles(setSlipFiles)}
               onRemove={removeFile(setSlipFiles)}
-              required
+              required={paymentMode === "self_pay"}
               icon={ImageIcon}
               accentColor="text-blue-500"
             />
@@ -368,7 +517,7 @@ export function EvidenceSubmissionSection({
           </div>
         </div>
 
-        {/* หมายเหตุ */}
+        {/* ── หมายเหตุ ── */}
         <div className="px-5 py-4">
           <label className="mb-2 block text-sm font-semibold text-slate-700">หมายเหตุ (ถ้ามี)</label>
           <textarea
@@ -380,7 +529,7 @@ export function EvidenceSubmissionSection({
           />
         </div>
 
-        {/* Summary + Submit */}
+        {/* ── Summary + Submit ── */}
         <div className="px-5 py-4">
           <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
             <span className={billFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
@@ -388,11 +537,13 @@ export function EvidenceSubmissionSection({
                 ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />บิล {billFiles.length} ไฟล์</>
                 : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีบิล *</>}
             </span>
-            <span className={slipFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
-              {slipFiles.length > 0
-                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />สลิป {slipFiles.length} ไฟล์</>
-                : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีสลิป *</>}
-            </span>
+            {paymentMode === "self_pay" && (
+              <span className={slipFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
+                {slipFiles.length > 0
+                  ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />สลิป {slipFiles.length} ไฟล์</>
+                  : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีสลิป *</>}
+              </span>
+            )}
             <span className={goodsReceiptFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
               {goodsReceiptFiles.length > 0
                 ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />รูปรับของ {goodsReceiptFiles.length} ไฟล์</>
@@ -412,10 +563,14 @@ export function EvidenceSubmissionSection({
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (paymentMode === "self_pay" && !hasSelfPayAccount)}
             className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
           >
-            {isSubmitting ? "กำลังส่ง..." : "ส่งแนบจ่าย →"}
+            {isSubmitting
+              ? "กำลังส่ง..."
+              : paymentMode === "self_pay"
+              ? "ส่งขอเบิกเงินคืน →"
+              : "ส่งแนบจ่าย →"}
           </button>
         </div>
 
