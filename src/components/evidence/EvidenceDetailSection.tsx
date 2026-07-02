@@ -91,9 +91,11 @@ export function EvidenceDetailSection({ evidence, files }: EvidenceDetailSection
 
               {/* ไฟล์ หรือ empty */}
               {isEmpty ? (
-                <p className="text-[11px] text-slate-300 pl-1">— ไม่มีไฟล์แนบ</p>
+                <div className="flex items-center justify-center py-3">
+                  <p className="text-[11px] text-slate-300">— ไม่มีไฟล์แนบ —</p>
+                </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-center gap-3">
                   {typeFiles.map((file) => {
                     if (isImageFile(file.file_name)) {
                       return (
@@ -101,17 +103,22 @@ export function EvidenceDetailSection({ evidence, files }: EvidenceDetailSection
                           key={file.id}
                           onClick={() => setLightboxUrl(file.file_url)}
                           title={file.file_name}
-                          className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm transition hover:border-blue-400 hover:shadow-md"
+                          className="group flex flex-col items-center gap-1.5"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={file.file_url}
-                            alt={file.file_name}
-                            className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/30">
-                            <ZoomIn size={18} className="text-white opacity-0 drop-shadow transition group-hover:opacity-100" />
+                          <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all duration-200 group-hover:shadow-lg group-hover:ring-2 group-hover:ring-blue-400 group-hover:ring-offset-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={file.file_url}
+                              alt={file.file_name}
+                              className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/25">
+                              <ZoomIn size={20} className="text-white opacity-0 drop-shadow transition group-hover:opacity-100" />
+                            </div>
                           </div>
+                          <span className="max-w-[8rem] truncate text-center text-[10px] text-slate-400">
+                            {file.file_name}
+                          </span>
                         </button>
                       );
                     }
@@ -123,12 +130,15 @@ export function EvidenceDetailSection({ evidence, files }: EvidenceDetailSection
                         target="_blank"
                         rel="noreferrer"
                         title={file.file_name}
-                        className="group flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-sm transition hover:border-red-300 hover:bg-red-50"
+                        className="group flex flex-col items-center gap-1.5"
                       >
-                        <FileText size={22} className="text-red-400 transition group-hover:text-red-500" />
-                        <span className="line-clamp-2 text-center text-[9px] leading-tight text-slate-500">
-                          {file.file_name}
-                        </span>
+                        <div className="flex h-32 w-32 shrink-0 flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 shadow-sm transition-all duration-200 group-hover:border-red-300 group-hover:bg-red-50 group-hover:shadow-lg">
+                          <FileText size={30} className="text-red-400 transition group-hover:text-red-500" />
+                          <span className="line-clamp-2 px-2 text-center text-[9px] leading-tight text-slate-500">
+                            {file.file_name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400">PDF</span>
                       </a>
                     );
                   })}
