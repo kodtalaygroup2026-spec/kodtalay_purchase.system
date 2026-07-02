@@ -9,6 +9,9 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  Landmark,
+  Banknote,
+  PiggyBank,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
@@ -72,6 +75,62 @@ function MyWorkDropdown({ pathname, role }: { pathname: string; role?: UserRole 
                 }`}
               >
                 {isNew && <Plus size={11} />}
+                {sub.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── FinanceDropdown ──────────────────────────────────────────────────────────
+
+const FINANCE_SUB = [
+  { href: "/finance",            label: "ภาพรวม",              icon: <Banknote size={13} /> },
+  { href: "/finance/ktb",        label: "KTB Smart Transfer",  icon: <Landmark size={13} /> },
+  { href: "/finance/petty-cash", label: "เงินสดย่อย",          icon: <PiggyBank size={13} /> },
+  { href: "/finance/tax-invoices", label: "ใบกำกับภาษี",       icon: <FileText size={13} /> },
+];
+
+function FinanceDropdown({ pathname }: { pathname: string }) {
+  const isOnFinance = pathname.startsWith("/finance");
+  const [open, setOpen] = useState(isOnFinance);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          isOnFinance
+            ? "bg-blue-600 text-white"
+            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+        }`}
+      >
+        <Landmark size={17} />
+        <span className="flex-1 text-left">การเงิน</span>
+        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      </button>
+
+      {open && (
+        <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-700 pl-3">
+          {FINANCE_SUB.map((sub) => {
+            const isExact = sub.href === "/finance";
+            const isActive = isExact
+              ? pathname === "/finance"
+              : pathname.startsWith(sub.href);
+            return (
+              <Link
+                key={sub.href}
+                href={sub.href}
+                className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors ${
+                  isActive
+                    ? "bg-slate-700 font-semibold text-white"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                {sub.icon}
                 {sub.label}
               </Link>
             );
@@ -200,6 +259,17 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0 }: SidebarPro
           approvalCount={approvalCount}
           editedCount={editedCount}
         />
+
+        {/* การเงิน — แสดงเฉพาะ finance และ admin */}
+        {(role === "finance" || role === "admin") && (
+          <>
+            <div className="my-2 border-t border-slate-800" />
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              การเงิน
+            </p>
+            <FinanceDropdown pathname={pathname} />
+          </>
+        )}
       </nav>
 
       {/* Admin */}

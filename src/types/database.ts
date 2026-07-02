@@ -144,6 +144,7 @@ export interface PurchaseRequisition {
   // บัญชีธนาคาร
   bank_name: string | null;
   bank_account_number: string | null;
+  ktb_batch_ref: string | null;
   // Action audit — ใคร ทำอะไร เมื่อไหร่
   submitted_at: string | null;
   submitted_by: string | null;
@@ -328,10 +329,28 @@ export interface PaymentEvidence {
   account_holder_name: string;
   bank_name: string | null;
   bank_account_number: string | null;
+  ktb_branch_code: string | null;
   notes: string | null;
   submitted_at: string;
   submitted_by: string | null;
   created_at: string;
+}
+
+export interface CompanyKTBSettings {
+  id: string;
+  payer_abbreviation: string;
+  company_name_th: string;
+  company_name_en: string;
+  address: string;
+  province: string;
+  district: string;
+  sub_district: string;
+  postal_code: string;
+  tax_id: string;
+  ktb_company_id: string;
+  payer_account: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface EvidenceFile {
