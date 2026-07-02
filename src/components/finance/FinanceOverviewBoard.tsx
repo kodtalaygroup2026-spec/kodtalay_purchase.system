@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { Building2, Inbox, X } from "lucide-react";
+import { Building2, Inbox, X, Download, Eye } from "lucide-react";
 
 // ── สีประจำแต่ละบริษัท (keyed by branch code) ─────────────────────────────────
 const COMPANY_THEME: Record<
@@ -57,9 +57,55 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
 
   const selectedCompany = companies.find((c) => c.code === selectedCode) ?? null;
 
+  const [showReport, setShowReport] = useState(false);
+
   function handleCardClick(code: string) {
     // คลิกซ้ำที่การ์ดเดิม = ยกเลิกตัวกรอง (กลับไปแสดงทั้งหมด)
     setSelectedCode((prev) => (prev === code ? null : code));
+  }
+
+  // ── สร้างรายงานข้อความของรายการที่จ่ายแล้ว (ตามบริษัทที่กรอง) ────────────────
+  function buildReportText(): string {
+    const scope = selectedCompany ? selectedCompany.name : "ทุกบริษัท";
+    const total = visiblePRs.reduce((sum, pr) => sum + Number(pr.amount), 0);
+    const lines: string[] = [];
+    lines.push("รายงานรายการที่จ่ายแล้ว");
+    lines.push(`บริษัท   : ${scope}`);
+    lines.push(`ออกรายงาน: ${new Date().toLocaleString("th-TH")}`);
+    lines.push(`จำนวน    : ${visiblePRs.length} รายการ`);
+    lines.push("=".repeat(60));
+    visiblePRs.forEach((pr, i) => {
+      const amount = Number(pr.amount).toLocaleString("th-TH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      lines.push(
+        `${String(i + 1).padStart(2, "0")}. ${pr.pr_number}  [${pr.branch_code}]  ` +
+        `${pr.paid_at ? formatDate(pr.paid_at) : "-"}  ${amount} บาท`
+      );
+      lines.push(`    ${pr.title} — ${pr.requester_name}`);
+    });
+    lines.push("=".repeat(60));
+    lines.push(
+      `รวม ${visiblePRs.length} รายการ  ยอดรวม ${total.toLocaleString("th-TH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} บาท`
+    );
+    return lines.join("\r\n");
+  }
+
+  function downloadReport() {
+    const content = buildReportText();
+    const scope = selectedCompany ? selectedCompany.code : "ALL";
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const blob = new Blob(["﻿" + content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payment_report_${scope}_${date}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -135,14 +181,32 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
               {visiblePRs.length} รายการ
             </span>
           </div>
-          {selectedCode && (
-            <button
-              onClick={() => setSelectedCode(null)}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
-            >
-              <X size={12} /> แสดงทั้งหมด
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {selectedCode && (
+              <button
+                onClick={() => setSelectedCode(null)}
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+              >
+                <X size={12} /> แสดงทั้งหมด
+              </button>
+            )}
+            {visiblePRs.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowReport(true)}
+                  className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                >
+                  <Eye size={12} /> ดู text
+                </button>
+                <button
+                  onClick={downloadReport}
+                  className="flex items-center gap-1 rounded-md bg-slate-700 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-slate-800"
+                >
+                  <Download size={12} /> ดาวน์โหลด .txt
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {visiblePRs.length === 0 ? (
@@ -201,6 +265,45 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
           </div>
         )}
       </div>
+
+      {/* ── Modal: ดู text รายงาน ─────────────────────────────────────────── */}
+      {showReport && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowReport(false)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <p className="font-semibold text-slate-800">รายงานรายการที่จ่ายแล้ว</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {selectedCompany ? selectedCompany.name : "ทุกบริษัท"} · {visiblePRs.length} รายการ
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={downloadReport}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  <Download size={14} /> ดาวน์โหลด
+                </button>
+                <button
+                  onClick={() => setShowReport(false)}
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <pre className="flex-1 overflow-auto rounded-b-2xl bg-slate-50 p-5 font-mono text-xs leading-5 text-slate-700">
+              {buildReportText()}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
