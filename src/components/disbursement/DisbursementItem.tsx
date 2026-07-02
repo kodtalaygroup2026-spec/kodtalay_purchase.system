@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronDown, ChevronUp, AlertTriangle,
@@ -187,9 +188,13 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="font-mono text-xs font-bold text-slate-500 tracking-wider">
+            <Link
+              href={`/requisitions/${pr.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-mono text-xs font-bold text-blue-600 tracking-wider hover:underline"
+            >
               {pr.pr_number}
-            </span>
+            </Link>
             {pr.is_urgent && (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600">ด่วน</span>
             )}
@@ -205,7 +210,13 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
               <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">ยกเลิกแล้ว</span>
             )}
           </div>
-          <p className="font-semibold text-slate-800 truncate">{pr.title}</p>
+          <Link
+            href={`/requisitions/${pr.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="block truncate font-semibold text-slate-800 hover:text-blue-600 hover:underline"
+          >
+            {pr.title}
+          </Link>
           <p className="text-xs text-slate-400 mt-0.5">
             ผู้ขอ: {pr.requester?.full_name ?? "—"} · ส่งหลักฐาน {formatDateTime(pr.submitted_at)}
           </p>
