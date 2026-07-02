@@ -43,23 +43,30 @@ export default async function FinancePage() {
     .select("id, code, name")
     .order("code");
 
-  // ── ดึง PR ที่ส่งมาการเงินแล้ว (pending_finance) ────────────────────────────
-  const { data: rawPRs } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select(
-      `id, pr_number, title, total_amount, actual_amount, branch_id,
-       profiles!requester_id(full_name)`
-    )
-    .eq("status", "pending_finance")
-    .order("created_at", { ascending: false });
-
   // map branch_id → { code, name }
   const branchById: Record<string, { code: string; name: string }> = Object.fromEntries(
     (branchRows ?? []).map((b: any) => [b.id, { code: b.code, name: b.name }])
   );
 
-  // ── รายการ PR ทั้งหมด (สำหรับตาราง) ─────────────────────────────────────────
-  const prs: FinancePR[] = (rawPRs ?? []).map((pr: any) => {
+  // ── PR ที่รอโอน (pending_finance) — ใช้สรุปในการ์ด ──────────────────────────
+  const { data: pendingRows } = await (supabase as any)
+    .from("purchase_requisitions")
+    .select("id, total_amount, actual_amount, branch_id")
+    .eq("status", "pending_finance");
+
+  // ── PR ที่จ่ายแล้ว (paid) — ใช้แสดงในตาราง ──────────────────────────────────
+  const { data: paidRows } = await (supabase as any)
+    .from("purchase_requisitions")
+    .select(
+      `id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at,
+       profiles!requester_id(full_name)`
+    )
+    .eq("status", "paid")
+    .order("finance_action_at", { ascending: false, nullsFirst: false })
+    .limit(200);
+
+  // ── รายการที่จ่ายแล้ว (สำหรับตาราง) ─────────────────────────────────────────
+  const prs: FinancePR[] = (paidRows ?? []).map((pr: any) => {
     const branch = pr.branch_id ? branchById[pr.branch_id] : null;
     return {
       id: pr.id,
@@ -69,17 +76,18 @@ export default async function FinancePage() {
       requester_name: pr.profiles?.full_name ?? "—",
       branch_code: branch?.code ?? "—",
       branch_name: branch?.name ?? "ไม่ระบุบริษัท",
+      paid_at: pr.finance_action_at ?? null,
     };
   });
 
-  // ── สรุปต่อบริษัท (สำหรับการ์ด) ──────────────────────────────────────────────
+  // ── สรุปยอด "รอโอน" ต่อบริษัท (สำหรับการ์ด) ─────────────────────────────────
   const companies: FinanceCompany[] = (branchRows ?? []).map((b: any) => {
-    const companyPRs = prs.filter((pr) => pr.branch_code === b.code);
+    const rows = (pendingRows ?? []).filter((pr: any) => pr.branch_id === b.id);
     return {
       code: b.code,
       name: b.name,
-      count: companyPRs.length,
-      total: companyPRs.reduce((sum, pr) => sum + Number(pr.amount), 0),
+      count: rows.length,
+      total: rows.reduce((sum: number, pr: any) => sum + Number(pr.actual_amount ?? pr.total_amount ?? 0), 0),
     };
   });
 

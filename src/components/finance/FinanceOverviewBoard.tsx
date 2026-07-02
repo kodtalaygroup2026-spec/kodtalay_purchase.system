@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { formatCurrency } from "@/lib/utils/format";
+import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { Building2, Inbox, X } from "lucide-react";
 
 // ── สีประจำแต่ละบริษัท (keyed by branch code) ─────────────────────────────────
@@ -32,6 +32,7 @@ export interface FinancePR {
   requester_name: string;
   branch_code: string;
   branch_name: string;
+  paid_at?: string | null;
 }
 
 export interface FinanceCompany {
@@ -128,7 +129,7 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-slate-700">
-              {selectedCompany ? `รายการของ ${selectedCompany.name}` : "รายการทั้งหมด"}
+              {selectedCompany ? `จ่ายแล้ว — ${selectedCompany.name}` : "รายการที่จ่ายแล้ว"}
             </h2>
             <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
               {visiblePRs.length} รายการ
@@ -147,7 +148,7 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
         {visiblePRs.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-14 text-slate-300">
             <Inbox size={28} />
-            <p className="text-sm">ไม่มีรายการรอโอน</p>
+            <p className="text-sm">ยังไม่มีรายการที่จ่ายแล้ว</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -158,8 +159,8 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อรายการ</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ผู้ขอ</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">บริษัท</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่จ่าย</th>
                   <th className="px-4 py-3 text-right font-medium text-slate-500 whitespace-nowrap">จำนวนเงิน</th>
-                  <th className="w-20 px-3 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -186,16 +187,11 @@ export function FinanceOverviewBoard({ companies, prs }: FinanceOverviewBoardPro
                           {pr.branch_code}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
-                        {formatCurrency(pr.amount)}
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
+                        {pr.paid_at ? formatDate(pr.paid_at) : "—"}
                       </td>
-                      <td className="px-3 py-3 text-right">
-                        <Link
-                          href="/finance/payments"
-                          className="inline-block rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white whitespace-nowrap hover:bg-blue-700"
-                        >
-                          จัดการจ่าย
-                        </Link>
+                      <td className="px-4 py-3 text-right font-semibold text-green-700 whitespace-nowrap">
+                        {formatCurrency(pr.amount)}
                       </td>
                     </tr>
                   );
