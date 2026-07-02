@@ -343,7 +343,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               {returnedEvidence ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                  ↩️ ตีกลับให้แก้ไข
+                  ตีกลับให้แก้ไข
                 </span>
               ) : (
                 <StatusBadge kind="pr" status={pr.status as PrStatus} />
