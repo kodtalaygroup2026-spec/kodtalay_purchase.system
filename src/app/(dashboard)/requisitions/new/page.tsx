@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { DateTimePicker } from "@/components/shared/DateTimePicker";
+import { logAudit } from "@/lib/supabase/audit";
 import type { Branch } from "@/types/database";
 
 // -----------------------------------------------------------------------
@@ -204,6 +205,14 @@ export default function NewRequisitionPage() {
       .single();
 
     if (prError || !pr) { setErrorMessage(prError?.message ?? "เกิดข้อผิดพลาด"); setIsSubmitting(false); return; }
+
+    logAudit({
+      actorId: user.id,
+      action: "pr_created",
+      entity: "purchase_requisitions",
+      entityId: pr.id,
+      metadata: { pr_number: prNumber, title: formData.get("title") as string },
+    });
 
     // บันทึกรายการสินค้า
     const prItems = items.map((it, i) => ({

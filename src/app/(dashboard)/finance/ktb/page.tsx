@@ -124,7 +124,11 @@ export default async function KTBTransferPage() {
         </div>
       </div>
 
-      <KTBTransferForm initialSettings={settings} pendingPRs={pendingPRs} />
+      <KTBTransferForm
+        initialSettings={settings}
+        pendingPRs={pendingPRs}
+        currentUserId={user.id}
+      />
     </div>
   );
 }

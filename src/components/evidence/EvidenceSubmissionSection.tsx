@@ -7,6 +7,7 @@ import {
   Upload, FileText, ImageIcon, X as XIcon,
   AlertTriangle, CheckCircle2, Package, Paperclip,
 } from "lucide-react";
+import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
 
 const THAI_BANKS = [
@@ -231,6 +232,14 @@ export function EvidenceSubmissionSection({
           .update({ actual_amount: originalAmount })
           .eq("id", prId);
       }
+
+      logAudit({
+        actorId: currentUserId,
+        action: "payment_evidence_submitted",
+        entity: "payment_evidences",
+        entityId: evidence.id,
+        metadata: { pr_id: prId, account_holder_name: accountHolderName.trim() },
+      });
 
       // บันทึกชื่อและธนาคารลง localStorage
       try {

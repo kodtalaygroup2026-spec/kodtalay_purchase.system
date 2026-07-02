@@ -13,6 +13,7 @@ import {
   Building2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { logAudit } from "@/lib/supabase/audit";
 import {
   generateKTBContent,
   validateKTBSettings,
@@ -49,6 +50,7 @@ interface EditedRow {
 interface KTBTransferFormProps {
   initialSettings: Record<string, string> | null;
   pendingPRs: PRWithEvidence[];
+  currentUserId: string;
 }
 
 // ─── Settings Section ────────────────────────────────────────────────────────
@@ -210,7 +212,7 @@ function PreviewModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function KTBTransferForm({ initialSettings, pendingPRs }: KTBTransferFormProps) {
+export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: KTBTransferFormProps) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -412,6 +414,17 @@ export function KTBTransferForm({ initialSettings, pendingPRs }: KTBTransferForm
         })
         .in("id", ids);
       if (error) throw error;
+      logAudit({
+        actorId: currentUserId,
+        action: "ktb_batch_paid",
+        entity: "purchase_requisitions",
+        metadata: {
+          batch_ref: paddedBatch,
+          pr_ids: ids,
+          pr_count: ids.length,
+          total_amount: selectedTotal,
+        },
+      });
       setSuccessMsg(
         `บันทึกชำระแล้ว ${ids.length} รายการ (Batch: ${paddedBatch})`
       );

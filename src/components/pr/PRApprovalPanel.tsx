@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { PrStatus, UserRole } from "@/types/database";
 import { CheckCircle, XCircle, Send, X, RotateCcw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
+import { logAudit } from "@/lib/supabase/audit";
 
 interface PRApprovalPanelProps {
   pr: {
@@ -137,6 +138,13 @@ export function PRApprovalPanel({
       submitted_at: now,
       submitted_by: currentUserId,
     });
+    logAudit({
+      actorId: currentUserId,
+      action: "pr_submitted",
+      entity: "purchase_requisitions",
+      entityId: pr.id,
+      metadata: { pr_number: pr.pr_number, title: pr.title },
+    });
     void notifyManagersOnSubmit();
     setIsLoading(false);
   }
@@ -147,6 +155,13 @@ export function PRApprovalPanel({
     await updateStatus("cancelled", {
       cancelled_at: now,
       cancelled_by: currentUserId,
+    });
+    logAudit({
+      actorId: currentUserId,
+      action: "pr_cancelled",
+      entity: "purchase_requisitions",
+      entityId: pr.id,
+      metadata: { pr_number: pr.pr_number },
     });
     setIsLoading(false);
   }
@@ -183,6 +198,20 @@ export function PRApprovalPanel({
     };
 
     await updateStatus(statusMap[pendingAction], auditMap[pendingAction] ?? {});
+
+    const actionMap: Record<string, "pr_approved" | "pr_rejected" | "pr_returned" | "pr_cancelled"> = {
+      approve: "pr_approved",
+      reject: "pr_rejected",
+      return: "pr_returned",
+      cancel_pr: "pr_cancelled",
+    };
+    logAudit({
+      actorId: currentUserId,
+      action: actionMap[pendingAction],
+      entity: "purchase_requisitions",
+      entityId: pr.id,
+      metadata: { pr_number: pr.pr_number, note: note || null },
+    });
 
     // แจ้ง LINE requester เมื่ออนุมัติ / ปฏิเสธ / ตีกลับ
     if (pendingAction === "approve" || pendingAction === "reject" || pendingAction === "return") {

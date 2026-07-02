@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ROLE_LABELS } from "@/lib/constants";
+import { logAudit } from "@/lib/supabase/audit";
 import { SortTh, useSortable } from "@/components/shared/SortTh";
 import type { UserRole } from "@/types/database";
 
@@ -32,6 +33,7 @@ export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
   const { sorted, sortKey, sortDir, handleSort } = useSortable(profiles, "full_name");
 
   async function handleRoleChange(userId: string, newRole: UserRole) {
+    const oldRole = profiles.find((p) => p.id === userId)?.role;
     setRoles((prev) => ({ ...prev, [userId]: newRole }));
     setLoadingIds((prev) => ({ ...prev, [userId]: true }));
     setSavedIds((prev) => ({ ...prev, [userId]: false }));
@@ -44,6 +46,13 @@ export function UserRoleTable({ profiles, currentUserId }: UserRoleTableProps) {
     setLoadingIds((prev) => ({ ...prev, [userId]: false }));
     if (!error) {
       setSavedIds((prev) => ({ ...prev, [userId]: true }));
+      logAudit({
+        actorId: currentUserId,
+        action: "user_role_changed",
+        entity: "profiles",
+        entityId: userId,
+        metadata: { old_role: oldRole, new_role: newRole },
+      });
       // ซ่อน indicator หลัง 2 วินาที
       setTimeout(() => setSavedIds((prev) => ({ ...prev, [userId]: false })), 2000);
     } else {

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { PoStatus, UserRole } from "@/types/database";
 import { CheckCircle, XCircle, Send, X } from "lucide-react";
+import { logAudit } from "@/lib/supabase/audit";
 
 interface POApprovalPanelProps {
   po: {
@@ -57,6 +58,12 @@ export function POApprovalPanel({ po, currentUserId, currentUserRole }: POApprov
       submitted_at: now,
       submitted_by: currentUserId,
     });
+    logAudit({
+      actorId: currentUserId,
+      action: "po_submitted",
+      entity: "purchase_orders",
+      entityId: po.id,
+    });
     setIsLoading(false);
   }
 
@@ -92,10 +99,23 @@ export function POApprovalPanel({ po, currentUserId, currentUserRole }: POApprov
         approved_at: now,
         approved_by: currentUserId,
       });
+      logAudit({
+        actorId: currentUserId,
+        action: "po_approved",
+        entity: "purchase_orders",
+        entityId: po.id,
+      });
     } else {
       await updatePoStatus("cancelled", {
         cancelled_at: now,
         cancelled_by: currentUserId,
+      });
+      logAudit({
+        actorId: currentUserId,
+        action: "po_cancelled",
+        entity: "purchase_orders",
+        entityId: po.id,
+        metadata: { note: note || null },
       });
     }
 
