@@ -67,21 +67,21 @@ export default async function ProfilePage() {
           <DepartmentSelector userId={user.id} initialDepartment={profile.department ?? null} compact />
         </div>
 
+        {/* ── บัญชีธนาคาร ── */}
+        <div className="border-t border-slate-100 px-5 py-4">
+          <BankAccountSection
+            userId={user.id}
+            initialHolderName={(profile as any).bank_account_holder_name ?? null}
+            initialBankName={(profile as any).bank_name ?? null}
+            initialBankAccount={(profile as any).bank_account_number ?? null}
+          />
+        </div>
+
         {/* ── LINE ── */}
         <div className="border-t border-slate-100 px-5 py-4">
           <LineLinkButton userId={user.id} initialLineUserId={profile.line_user_id} compact />
         </div>
 
-      </div>
-
-      {/* ── บัญชีธนาคาร (card แยก) ── */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm px-5 py-4">
-        <BankAccountSection
-          userId={user.id}
-          initialHolderName={(profile as any).bank_account_holder_name ?? null}
-          initialBankName={(profile as any).bank_name ?? null}
-          initialBankAccount={(profile as any).bank_account_number ?? null}
-        />
       </div>
 
     </div>
