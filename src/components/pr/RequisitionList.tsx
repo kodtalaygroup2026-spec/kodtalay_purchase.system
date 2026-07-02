@@ -153,8 +153,8 @@ const SUMMARY_STEPS = [
     SubIcon: ImagePlus,
     match: (pr: PRRow) => {
       const s = pr.status as string;
-      // PR ที่ถูกตีกลับการจ่ายให้ไปนับในขั้น "รอตั้งจ่าย" แทน
-      return (s === "approved" || s === "converted") && !pr.payment_returned;
+      // รวม PR ที่ถูกบัญชีตีกลับ (พนักงานต้องแนบหลักฐานใหม่) — PR กลับมาเป็น approved
+      return s === "approved" || s === "converted";
     },
   },
   {
@@ -169,8 +169,7 @@ const SUMMARY_STEPS = [
     SubIcon: Banknote,
     match: (pr: PRRow) => {
       const s = pr.status as string;
-      // รวม PR ที่ถูกฝ่ายบัญชีตีกลับ (รอผู้สร้างแก้หลักฐานแล้วส่งกลับเข้าจ่าย)
-      return s === "pending_finance" || pr.payment_returned;
+      return s === "pending_finance";
     },
   },
 ];
