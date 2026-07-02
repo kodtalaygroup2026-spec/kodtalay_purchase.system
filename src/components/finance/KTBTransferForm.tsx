@@ -32,6 +32,7 @@ export interface PRWithEvidence {
   actual_amount: number | null;
   ktb_batch_ref: string | null;
   requester_name: string;
+  branch_id: string | null;
   evidence_id: string | null;
   evidence_account_holder: string;
   evidence_account_number: string;
@@ -39,6 +40,20 @@ export interface PRWithEvidence {
   evidence_amount: number | null;
   evidence_ktb_branch: string;
 }
+
+export interface KTBBranch {
+  id: string;
+  code: string;
+  name: string;
+}
+
+// ── สีประจำแต่ละบริษัท (keyed by branch code) ─────────────────────────────────
+const BRANCH_THEME: Record<string, { active: string; badge: string }> = {
+  CK:  { active: "border-red-500 text-red-600 bg-red-50",         badge: "bg-red-600 text-white" },
+  BN:  { active: "border-blue-500 text-blue-600 bg-blue-50",      badge: "bg-blue-600 text-white" },
+  RCA: { active: "border-emerald-500 text-emerald-600 bg-emerald-50", badge: "bg-emerald-600 text-white" },
+};
+const FALLBACK_BRANCH_THEME = { active: "border-slate-500 text-slate-700 bg-slate-50", badge: "bg-slate-600 text-white" };
 
 interface EditedRow {
   recipientName: string;
@@ -48,9 +63,27 @@ interface EditedRow {
 }
 
 interface KTBTransferFormProps {
-  initialSettings: Record<string, string> | null;
+  branches: KTBBranch[];
+  settingsByBranch: Record<string, Record<string, string>>;
   pendingPRs: PRWithEvidence[];
   currentUserId: string;
+}
+
+// แปลง settings row (snake_case) → KTBCompanySettings
+function rowToSettings(row: Record<string, string> | undefined): KTBCompanySettings {
+  return {
+    payerAbbreviation: row?.payer_abbreviation ?? "",
+    companyNameTH: row?.company_name_th ?? "",
+    companyNameEN: row?.company_name_en ?? "",
+    address: row?.address ?? "",
+    province: row?.province ?? "",
+    district: row?.district ?? "",
+    subDistrict: row?.sub_district ?? "",
+    postalCode: row?.postal_code ?? "",
+    taxId: row?.tax_id ?? "",
+    ktbCompanyId: row?.ktb_company_id ?? "",
+    payerAccount: row?.payer_account ?? "",
+  };
 }
 
 // ─── Settings Section ────────────────────────────────────────────────────────
@@ -58,11 +91,13 @@ interface KTBTransferFormProps {
 function SettingsSection({
   settings,
   isSaved,
+  companyName,
   onSave,
   onChange,
 }: {
   settings: KTBCompanySettings;
   isSaved: boolean;
+  companyName?: string;
   onSave: () => Promise<void>;
   onChange: (key: keyof KTBCompanySettings, value: string) => void;
 }) {
@@ -105,7 +140,9 @@ function SettingsSection({
       >
         <Building2 size={18} className="text-slate-500 shrink-0" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-slate-800">ข้อมูลบริษัท (KTB Settings)</p>
+          <p className="text-sm font-semibold text-slate-800">
+            ข้อมูลบริษัท (KTB Settings){companyName ? ` — ${companyName}` : ""}
+          </p>
           {isSaved && !open && (
             <p className="text-xs text-slate-500 mt-0.5">
               {settings.companyNameTH} — {settings.payerAccount}
@@ -212,26 +249,39 @@ function PreviewModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: KTBTransferFormProps) {
+export function KTBTransferForm({ branches, settingsByBranch, pendingPRs, currentUserId }: KTBTransferFormProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  // ── Settings state ──
-  const [settings, setSettings] = useState<KTBCompanySettings>({
-    payerAbbreviation: initialSettings?.payer_abbreviation ?? "",
-    companyNameTH: initialSettings?.company_name_th ?? "",
-    companyNameEN: initialSettings?.company_name_en ?? "",
-    address: initialSettings?.address ?? "",
-    province: initialSettings?.province ?? "",
-    district: initialSettings?.district ?? "",
-    subDistrict: initialSettings?.sub_district ?? "",
-    postalCode: initialSettings?.postal_code ?? "",
-    taxId: initialSettings?.tax_id ?? "",
-    ktbCompanyId: initialSettings?.ktb_company_id ?? "",
-    payerAccount: initialSettings?.payer_account ?? "",
+  // ── บริษัทที่กำลังเลือก (ค่าเริ่มต้น: บริษัทแรกที่มีรายการรอชำระ) ──
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(() => {
+    const withPRs = branches.find((b) => pendingPRs.some((p) => p.branch_id === b.id));
+    return withPRs?.id ?? branches[0]?.id ?? "";
   });
-  const [settingsId, setSettingsId] = useState<string | null>(initialSettings?.id ?? null);
-  const [settingsSaved, setSettingsSaved] = useState(!!initialSettings);
+
+  // ── Settings state (แยกตามบริษัท) ──
+  const [settingsMap, setSettingsMap] = useState<Record<string, KTBCompanySettings>>(() => {
+    const m: Record<string, KTBCompanySettings> = {};
+    branches.forEach((b) => { m[b.id] = rowToSettings(settingsByBranch[b.id]); });
+    return m;
+  });
+  const [settingsIdMap, setSettingsIdMap] = useState<Record<string, string | null>>(() => {
+    const m: Record<string, string | null> = {};
+    branches.forEach((b) => { m[b.id] = settingsByBranch[b.id]?.id ?? null; });
+    return m;
+  });
+  const [settingsSavedMap, setSettingsSavedMap] = useState<Record<string, boolean>>(() => {
+    const m: Record<string, boolean> = {};
+    branches.forEach((b) => { m[b.id] = !!settingsByBranch[b.id]; });
+    return m;
+  });
+
+  const settings = settingsMap[selectedBranchId] ?? rowToSettings(undefined);
+  const settingsSaved = settingsSavedMap[selectedBranchId] ?? false;
+  const selectedBranch = branches.find((b) => b.id === selectedBranchId) ?? null;
+
+  // รายการ PR เฉพาะบริษัทที่เลือก
+  const filteredPRs = pendingPRs.filter((pr) => pr.branch_id === selectedBranchId);
 
   // ── Batch state ──
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -272,40 +322,57 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
   function updateSettings(key: keyof KTBCompanySettings, value: string) {
-    setSettings((s) => ({ ...s, [key]: value }));
-    setSettingsSaved(false);
+    setSettingsMap((m) => ({
+      ...m,
+      [selectedBranchId]: { ...m[selectedBranchId], [key]: value },
+    }));
+    setSettingsSavedMap((m) => ({ ...m, [selectedBranchId]: false }));
   }
 
   async function saveSettings() {
+    const s = settingsMap[selectedBranchId];
     const payload = {
-      payer_abbreviation: settings.payerAbbreviation,
-      company_name_th: settings.companyNameTH,
-      company_name_en: settings.companyNameEN,
-      address: settings.address,
-      province: settings.province,
-      district: settings.district,
-      sub_district: settings.subDistrict,
-      postal_code: settings.postalCode,
-      tax_id: settings.taxId,
-      ktb_company_id: settings.ktbCompanyId,
-      payer_account: settings.payerAccount,
+      branch_id: selectedBranchId,
+      payer_abbreviation: s.payerAbbreviation,
+      company_name_th: s.companyNameTH,
+      company_name_en: s.companyNameEN,
+      address: s.address,
+      province: s.province,
+      district: s.district,
+      sub_district: s.subDistrict,
+      postal_code: s.postalCode,
+      tax_id: s.taxId,
+      ktb_company_id: s.ktbCompanyId,
+      payer_account: s.payerAccount,
       updated_at: new Date().toISOString(),
     };
 
-    if (settingsId) {
+    const existingId = settingsIdMap[selectedBranchId];
+    if (existingId) {
       await supabase
         .from("company_ktb_settings" as any)
         .update(payload)
-        .eq("id", settingsId);
+        .eq("id", existingId);
     } else {
       const { data } = await supabase
         .from("company_ktb_settings" as any)
         .insert(payload)
         .select("id")
         .single();
-      if (data) setSettingsId((data as any).id);
+      if (data) {
+        setSettingsIdMap((m) => ({ ...m, [selectedBranchId]: (data as any).id }));
+      }
     }
-    setSettingsSaved(true);
+    setSettingsSavedMap((m) => ({ ...m, [selectedBranchId]: true }));
+  }
+
+  // สลับบริษัท — เคลียร์รายการที่เลือกไว้ (batch ต้องเป็นบริษัทเดียว)
+  function switchCompany(branchId: string) {
+    if (branchId === selectedBranchId) return;
+    setSelectedBranchId(branchId);
+    setSelected(new Set());
+    setErrors([]);
+    setSuccessMsg("");
   }
 
   function updateRow(prId: string, field: keyof EditedRow, value: string) {
@@ -325,10 +392,12 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
   }
 
   function toggleSelectAll() {
-    if (selected.size === pendingPRs.length) {
+    const selectableIds = filteredPRs.filter((p) => !p.ktb_batch_ref).map((p) => p.id);
+    const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+    if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(pendingPRs.map((p) => p.id)));
+      setSelected(new Set(selectableIds));
     }
   }
 
@@ -450,10 +519,44 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
 
   return (
     <div className="space-y-5">
-      {/* Settings */}
+      {/* Company selector tabs */}
+      {branches.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {branches.map((b) => {
+            const theme = BRANCH_THEME[b.code] ?? FALLBACK_BRANCH_THEME;
+            const isActive = b.id === selectedBranchId;
+            const count = pendingPRs.filter((p) => p.branch_id === b.id).length;
+            return (
+              <button
+                key={b.id}
+                onClick={() => switchCompany(b.id)}
+                className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? theme.active
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                }`}
+              >
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${theme.badge}`}>
+                  {b.code}
+                </span>
+                {b.name}
+                {count > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Settings — key ทำให้ remount เมื่อสลับบริษัท (reset open state) */}
       <SettingsSection
+        key={selectedBranchId}
         settings={settings}
         isSaved={settingsSaved}
+        companyName={selectedBranch?.name}
         onSave={saveSettings}
         onChange={updateSettings}
       />
@@ -503,7 +606,7 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <p className="text-sm font-semibold text-slate-800">
-            รายการรอชำระ ({pendingPRs.length} รายการ)
+            รายการรอชำระ{selectedBranch ? ` — ${selectedBranch.name}` : ""} ({filteredPRs.length} รายการ)
           </p>
           {selected.size > 0 && (
             <span className="text-sm text-blue-600 font-medium">
@@ -512,9 +615,9 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
           )}
         </div>
 
-        {pendingPRs.length === 0 ? (
+        {filteredPRs.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-sm">
-            ไม่มีรายการที่รอชำระ
+            ไม่มีรายการที่รอชำระของบริษัทนี้
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -524,7 +627,12 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
                   <th className="px-4 py-3 text-left w-10">
                     <input
                       type="checkbox"
-                      checked={selected.size === pendingPRs.length && pendingPRs.length > 0}
+                      checked={
+                        filteredPRs.filter((p) => !p.ktb_batch_ref).length > 0 &&
+                        filteredPRs
+                          .filter((p) => !p.ktb_batch_ref)
+                          .every((p) => selected.has(p.id))
+                      }
                       onChange={toggleSelectAll}
                       className="rounded"
                     />
@@ -539,7 +647,7 @@ export function KTBTransferForm({ initialSettings, pendingPRs, currentUserId }: 
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {pendingPRs.map((pr) => {
+                {filteredPRs.map((pr) => {
                   const row = editedRows[pr.id];
                   const isSelected = selected.has(pr.id);
                   const alreadyExported = !!pr.ktb_batch_ref;

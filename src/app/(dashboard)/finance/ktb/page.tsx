@@ -37,18 +37,28 @@ export default async function KTBTransferPage() {
     );
   }
 
-  // ── Fetch company KTB settings ─────────────────────────────────────────────
-  const { data: settings } = await (supabase as any)
+  // ── Fetch branches (บริษัท) ────────────────────────────────────────────────
+  const { data: branchRows } = await (supabase as any)
+    .from("branches")
+    .select("id, code, name")
+    .order("code");
+
+  // ── Fetch company KTB settings (แยกตามบริษัท) ──────────────────────────────
+  const { data: settingsRows } = await (supabase as any)
     .from("company_ktb_settings")
-    .select("*")
-    .limit(1)
-    .maybeSingle();
+    .select("*");
+
+  // map branch_id → settings row
+  const settingsByBranch: Record<string, Record<string, string>> = {};
+  for (const row of settingsRows ?? []) {
+    if (row.branch_id) settingsByBranch[row.branch_id] = row;
+  }
 
   // ── Fetch PRs with status = pending_finance ────────────────────────────────
   const { data: rawPRs } = await (supabase as any)
     .from("purchase_requisitions")
     .select(
-      "id, pr_number, title, total_amount, actual_amount, ktb_batch_ref, requester_id"
+      "id, pr_number, title, total_amount, actual_amount, ktb_batch_ref, requester_id, branch_id"
     )
     .eq("status", "pending_finance")
     .order("created_at", { ascending: false });
@@ -99,6 +109,7 @@ export default async function KTBTransferPage() {
       actual_amount: pr.actual_amount ?? null,
       ktb_batch_ref: pr.ktb_batch_ref ?? null,
       requester_name: profileMap[pr.requester_id] ?? "",
+      branch_id: pr.branch_id ?? null,
       evidence_id: ev?.id ?? null,
       evidence_account_holder: ev?.account_holder_name ?? "",
       evidence_account_number: ev?.bank_account_number ?? "",
@@ -107,6 +118,12 @@ export default async function KTBTransferPage() {
       evidence_ktb_branch: ev?.ktb_branch_code ?? "",
     };
   });
+
+  const branches = (branchRows ?? []).map((b: any) => ({
+    id: b.id,
+    code: b.code,
+    name: b.name,
+  }));
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -125,7 +142,8 @@ export default async function KTBTransferPage() {
       </div>
 
       <KTBTransferForm
-        initialSettings={settings}
+        branches={branches}
+        settingsByBranch={settingsByBranch}
         pendingPRs={pendingPRs}
         currentUserId={user.id}
       />
