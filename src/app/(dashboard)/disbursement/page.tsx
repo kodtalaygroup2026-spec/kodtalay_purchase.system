@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DisbursementItem, type DisbursementPR } from "@/components/disbursement/DisbursementItem";
+import { type DisbursementPR } from "@/components/disbursement/DisbursementItem";
+import { DisbursementBoard } from "@/components/disbursement/DisbursementBoard";
 import { ClipboardCheck, ClipboardList } from "lucide-react";
 
 export default async function DisbursementPage() {
@@ -43,7 +44,7 @@ export default async function DisbursementPage() {
   const prIds = [...new Set((evidences as any[]).map((e: any) => e.pr_id as string))];
   const { data: prs } = await (supabase as any)
     .from("purchase_requisitions")
-    .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, requester_id, profiles!requester_id(full_name, line_user_id)`)
+    .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, requester_id, branches!branch_id(code, name), profiles!requester_id(full_name, line_user_id)`)
     .in("id", prIds)
     .eq("status", "pending_finance");
 
@@ -79,6 +80,8 @@ export default async function DisbursementPage() {
         is_urgent: pr.is_urgent ?? false,
         created_at: pr.created_at,
         submitted_at: evidence.submitted_at,
+        branch_code: pr.branches?.code ?? null,
+        branch_name: pr.branches?.name ?? null,
         requester: pr.profiles ? { full_name: pr.profiles.full_name } : null,
         requester_line_id: pr.profiles?.line_user_id ?? null,
         evidence: {
@@ -103,12 +106,6 @@ export default async function DisbursementPage() {
 
   if (allItems.length === 0) return <EmptyPage />;
 
-  // urgent ขึ้นก่อน
-  const sorted = [
-    ...allItems.filter(p => p.is_urgent),
-    ...allItems.filter(p => !p.is_urgent),
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -118,19 +115,15 @@ export default async function DisbursementPage() {
             <h1 className="text-xl font-bold text-slate-800">งานตรวจสอบหลักฐาน</h1>
           </div>
           <p className="mt-0.5 text-sm text-slate-500">
-            ตรวจบิล/หลักฐานก่อนส่งเข้ารอตั้งจ่าย · รอตรวจ {sorted.length} รายการ
+            ตรวจบิล/หลักฐานก่อนส่งเข้ารอตั้งจ่าย · รอตรวจ {allItems.length} รายการ
           </p>
         </div>
         <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-blue-100 px-2.5 text-sm font-bold text-blue-700">
-          {sorted.length}
+          {allItems.length}
         </span>
       </div>
 
-      <div className="space-y-3">
-        {sorted.map(pr => (
-          <DisbursementItem key={pr.evidence!.id} pr={pr} currentUserId={user.id} />
-        ))}
-      </div>
+      <DisbursementBoard items={allItems} currentUserId={user.id} />
     </div>
   );
 }

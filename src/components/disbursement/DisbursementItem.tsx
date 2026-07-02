@@ -46,6 +46,8 @@ export interface DisbursementPR {
   is_urgent: boolean;
   created_at: string;
   submitted_at: string;
+  branch_code: string | null;
+  branch_name: string | null;
   requester: { full_name: string } | null;
   requester_line_id: string | null;
   evidence: {
@@ -195,6 +197,13 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
             >
               {pr.pr_number}
             </Link>
+            {pr.branch_code && (
+              <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                ({ BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" } as Record<string, string>)[pr.branch_code] ?? "bg-slate-500"
+              } text-white`}>
+                {pr.branch_code}
+              </span>
+            )}
             {pr.is_urgent && (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600">ด่วน</span>
             )}
