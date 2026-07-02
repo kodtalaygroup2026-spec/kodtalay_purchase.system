@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ChevronDown, ChevronUp, AlertTriangle,
   FileText, ImageIcon, Package, ExternalLink,
-  RotateCcw, XCircle, Banknote, CheckCircle, Ban,
+  RotateCcw, CheckCircle, Loader2,
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
+import { logAudit } from "@/lib/supabase/audit";
 
 const BANK_LABELS: Record<string, string> = {
   KBANK: "กสิกรไทย",
@@ -45,6 +46,7 @@ export interface DisbursementPR {
   created_at: string;
   submitted_at: string;
   requester: { full_name: string } | null;
+  requester_line_id: string | null;
   evidence: {
     id: string;
     account_holder_name: string;
@@ -65,14 +67,17 @@ export interface DisbursementPR {
 
 interface DisbursementItemProps {
   pr: DisbursementPR;
+  currentUserId: string;
 }
 
-export function DisbursementItem({ pr }: DisbursementItemProps) {
+export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
   const router = useRouter();
   const supabase = createClient();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<"return" | "cancel" | "approve" | null>(null);
-  const [confirmAction, setConfirmAction] = useState<"return" | "cancel" | "approve" | null>(null);
+  const [loadingAction, setLoadingAction] = useState<"return" | "verify" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"return" | "verify" | null>(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const evidence = pr.evidence;
   const actualAmount = evidence?.actual_amount ?? pr.actual_amount ?? null;
@@ -81,55 +86,94 @@ export function DisbursementItem({ pr }: DisbursementItemProps) {
     : null;
   const isOverBudget = budgetDiff !== null && budgetDiff > 10;
 
+  async function sendLine(lineUserId: string, message: string) {
+    try {
+      await fetch("/api/notifications/line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineUserId, message }),
+      });
+    } catch { /* ignore */ }
+  }
+
+  // ── ตรวจสอบแล้ว → evidence.status = verified (ส่งเข้ารอตั้งจ่าย) ──
+  async function handleVerify() {
+    if (!evidence) return;
+    setLoadingAction("verify");
+    setErrorMsg(null);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("payment_evidences")
+        .update({ status: "verified", reviewed_by: currentUserId, reviewed_at: new Date().toISOString() })
+        .eq("id", evidence.id)
+        .eq("status", "submitted")
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error("รายการถูกดำเนินการไปแล้ว กรุณารีเฟรช");
+
+      logAudit({
+        actorId: currentUserId,
+        action: "payment_verified",
+        entity: "payment_evidences",
+        entityId: evidence.id,
+        metadata: { pr_id: pr.id, pr_number: pr.pr_number },
+      });
+      router.refresh();
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "เกิดข้อผิดพลาด");
+      setLoadingAction(null);
+    }
+  }
+
+  // ── ตีกลับแก้ไข → PR = approved, evidence.status = returned ──
   async function handleReturn() {
+    if (!evidence) return;
+    if (!returnReason.trim()) { setErrorMsg("กรุณาระบุเหตุผล"); return; }
     setLoadingAction("return");
+    setErrorMsg(null);
     try {
-      // ลบ evidence record (cascade ลบ evidence_files ด้วย)
-      if (evidence) {
-        await (supabase as any).from("payment_evidences").delete().eq("id", evidence.id);
+      const { data, error } = await (supabase as any)
+        .from("purchase_requisitions")
+        .update({ status: "approved" })
+        .eq("id", pr.id)
+        .eq("status", "pending_finance")
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error("รายการถูกดำเนินการไปแล้ว กรุณารีเฟรช");
+
+      await (supabase as any)
+        .from("payment_evidences")
+        .update({
+          status: "returned",
+          review_note: returnReason.trim(),
+          reviewed_by: currentUserId,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", evidence.id);
+
+      if (pr.requester_line_id) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        void sendLine(
+          pr.requester_line_id,
+          `↩️ หลักฐานการจ่ายถูกตีกลับจากฝ่ายบัญชี\n\n` +
+          `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
+          `เหตุผล: ${returnReason.trim()}\n\n` +
+          `กรุณาแก้ไขแล้วส่งใหม่\n${origin}/requisitions/${pr.id}`
+        );
       }
-      // คืนสถานะ PR กลับเป็น approved ให้ผู้ขอแนบใหม่
-      await (supabase as any)
-        .from("purchase_requisitions")
-        .update({ status: "approved", actual_amount: null })
-        .eq("id", pr.id);
+
+      logAudit({
+        actorId: currentUserId,
+        action: "payment_returned",
+        entity: "purchase_requisitions",
+        entityId: pr.id,
+        metadata: { pr_number: pr.pr_number, note: returnReason.trim(), stage: "verify" },
+      });
       router.refresh();
-    } catch {
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "เกิดข้อผิดพลาด");
       setLoadingAction(null);
     }
-  }
-
-  async function handleCancel() {
-    setLoadingAction("cancel");
-    try {
-      await (supabase as any)
-        .from("purchase_requisitions")
-        .update({ status: "cancelled" })
-        .eq("id", pr.id);
-      router.refresh();
-    } catch {
-      setLoadingAction(null);
-    }
-  }
-
-  async function handleApprove() {
-    setLoadingAction("approve");
-    try {
-      await (supabase as any)
-        .from("purchase_requisitions")
-        .update({ status: "paid", finance_action_at: new Date().toISOString() })
-        .eq("id", pr.id);
-      router.refresh();
-    } catch {
-      setLoadingAction(null);
-    }
-  }
-
-  function executeConfirmed() {
-    if (confirmAction === "return") handleReturn();
-    else if (confirmAction === "cancel") handleCancel();
-    else if (confirmAction === "approve") handleApprove();
-    setConfirmAction(null);
   }
 
   return (
@@ -258,66 +302,80 @@ export function DisbursementItem({ pr }: DisbursementItemProps) {
             </div>
           )}
 
-          {/* ── Action Buttons ─────────────────────────────────────────── */}
+          {/* ── Action Buttons: ตรวจสอบแล้ว / ตีกลับแก้ไข ────────────────── */}
           <div className="border-t border-slate-100 px-5 py-4">
-            {pr.status === "paid" ? (
-              <div className="flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3">
-                <CheckCircle size={16} className="shrink-0 text-teal-600" />
-                <p className="text-sm font-semibold text-teal-700">อนุมัติจ่ายแล้ว — รายการนี้เสร็จสมบูรณ์</p>
+            {errorMsg && (
+              <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <AlertTriangle size={13} /> {errorMsg}
               </div>
-            ) : pr.status === "cancelled" ? (
-              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                <Ban size={16} className="shrink-0 text-slate-400" />
-                <p className="text-sm font-semibold text-slate-500">รายการนี้ถูกยกเลิกแล้ว</p>
-              </div>
-            ) : confirmAction ? (
-              <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
-                <p className="flex-1 text-sm text-amber-700">
-                  {confirmAction === "return" && "ยืนยันตีกลับ? หลักฐานจะถูกลบและผู้ขอต้องแนบใหม่"}
-                  {confirmAction === "cancel" && "ยืนยันยกเลิก? รายการนี้จะถูกยกเลิกถาวร"}
-                  {confirmAction === "approve" && "ยืนยันอนุมัติจ่าย? สถานะจะเปลี่ยนเป็น \"จ่ายแล้ว\""}
-                </p>
-                <div className="flex gap-2">
+            )}
+
+            {confirmAction === "return" ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="mb-2 text-sm font-medium text-amber-800">ตีกลับให้พนักงานแก้ไข — ระบุเหตุผล</p>
+                <textarea
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  rows={2}
+                  autoFocus
+                  placeholder="เช่น บิลไม่ชัด / ยอดไม่ตรง / เลขบัญชีผิด"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <div className="mt-2 flex justify-end gap-2">
                   <button
-                    onClick={() => setConfirmAction(null)}
+                    onClick={() => { setConfirmAction(null); setReturnReason(""); setErrorMsg(null); }}
+                    disabled={!!loadingAction}
                     className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-white"
                   >
                     ยกเลิก
                   </button>
                   <button
-                    onClick={executeConfirmed}
+                    onClick={handleReturn}
                     disabled={!!loadingAction}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60 ${
-                      confirmAction === "approve" ? "bg-teal-600 hover:bg-teal-700" : "bg-red-500 hover:bg-red-600"
-                    }`}
+                    className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
                   >
-                    {loadingAction ? "กำลังดำเนินการ..." : "ยืนยัน"}
+                    {loadingAction === "return" && <Loader2 size={12} className="animate-spin" />}
+                    ยืนยันตีกลับ
+                  </button>
+                </div>
+              </div>
+            ) : confirmAction === "verify" ? (
+              <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                <CheckCircle size={16} className="shrink-0 text-blue-600" />
+                <p className="flex-1 text-sm text-blue-700">ยืนยันว่าตรวจสอบหลักฐานแล้ว? รายการจะถูกส่งเข้า &quot;รอตั้งจ่าย&quot;</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setConfirmAction(null); setErrorMsg(null); }}
+                    disabled={!!loadingAction}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-white"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    onClick={handleVerify}
+                    disabled={!!loadingAction}
+                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {loadingAction === "verify" && <Loader2 size={12} className="animate-spin" />}
+                    ยืนยัน
                   </button>
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setConfirmAction("return")}
+                  onClick={() => { setConfirmAction("return"); setErrorMsg(null); }}
                   disabled={!!loadingAction}
-                  className="flex items-center gap-1.5 rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-100 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
                 >
-                  <RotateCcw size={13} /> ตีกลับ
+                  <RotateCcw size={13} /> ตีกลับแก้ไข
                 </button>
                 <button
-                  onClick={() => setConfirmAction("cancel")}
+                  onClick={() => { setConfirmAction("verify"); setErrorMsg(null); }}
                   disabled={!!loadingAction}
-                  className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                  className="ml-auto flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <XCircle size={13} /> ยกเลิก
-                </button>
-                <button
-                  onClick={() => setConfirmAction("approve")}
-                  disabled={!!loadingAction}
-                  className="ml-auto flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50"
-                >
-                  <Banknote size={13} /> อนุมัติจ่าย
+                  <CheckCircle size={13} /> ตรวจสอบแล้ว
                 </button>
               </div>
             )}

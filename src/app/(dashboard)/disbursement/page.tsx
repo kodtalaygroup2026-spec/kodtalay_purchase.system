@@ -2,9 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DisbursementList } from "@/components/disbursement/DisbursementList";
 import { DisbursementItem, type DisbursementPR } from "@/components/disbursement/DisbursementItem";
-import { Banknote, ClipboardList, Clock } from "lucide-react";
+import { ClipboardCheck, ClipboardList } from "lucide-react";
 
 export default async function DisbursementPage() {
   const supabase = await createClient();
@@ -24,27 +23,29 @@ export default async function DisbursementPage() {
     return (
       <div className="rounded-xl border border-slate-200 bg-white py-16 text-center">
         <p className="text-slate-500">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
-        <p className="mt-1 text-sm text-slate-400">เฉพาะฝ่ายการเงินและผู้ดูแลระบบเท่านั้น</p>
+        <p className="mt-1 text-sm text-slate-400">เฉพาะฝ่ายบัญชี/การเงินและผู้ดูแลระบบเท่านั้น</p>
       </div>
     );
   }
 
-  // Fetch all payment_evidences
+  // ── หลักฐานที่รอตรวจสอบ (status = submitted) ────────────────────────────────
   const { data: evidences } = await (supabase as any)
     .from("payment_evidences")
     .select("id, pr_id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
+    .eq("status", "submitted")
     .order("submitted_at", { ascending: false });
 
   if (!evidences || evidences.length === 0) {
     return <EmptyPage />;
   }
 
-  // Batch fetch PRs
+  // Batch fetch PRs (ต้องเป็น pending_finance)
   const prIds = [...new Set((evidences as any[]).map((e: any) => e.pr_id as string))];
   const { data: prs } = await (supabase as any)
     .from("purchase_requisitions")
-    .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, profiles!requester_id(full_name)`)
-    .in("id", prIds);
+    .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, requester_id, profiles!requester_id(full_name, line_user_id)`)
+    .in("id", prIds)
+    .eq("status", "pending_finance");
 
   const prMap = new Map<string, any>((prs ?? []).map((pr: any) => [pr.id, pr]));
 
@@ -63,11 +64,10 @@ export default async function DisbursementPage() {
     filesMap.set(file.evidence_id, list);
   }
 
-  // Build full list
   const allItems: DisbursementPR[] = (evidences as any[])
     .map((evidence: any) => {
       const pr = prMap.get(evidence.pr_id);
-      if (!pr) return null;
+      if (!pr) return null; // ข้าม PR ที่ไม่ได้ pending_finance แล้ว
       const files = filesMap.get(evidence.id) ?? [];
       return {
         id: pr.id,
@@ -79,7 +79,8 @@ export default async function DisbursementPage() {
         is_urgent: pr.is_urgent ?? false,
         created_at: pr.created_at,
         submitted_at: evidence.submitted_at,
-        requester: pr.profiles ?? null,
+        requester: pr.profiles ? { full_name: pr.profiles.full_name } : null,
+        requester_line_id: pr.profiles?.line_user_id ?? null,
         evidence: {
           id: evidence.id,
           account_holder_name: evidence.account_holder_name,
@@ -100,66 +101,36 @@ export default async function DisbursementPage() {
     })
     .filter(Boolean) as DisbursementPR[];
 
-  // แยก pending_finance (รอดำเนินการ) ออกจาก history (paid/cancelled)
-  const pendingItems = allItems.filter(p => p.status === "pending_finance" || p.status === "approved");
-  const historyItems = allItems.filter(p => p.status !== "pending_finance" && p.status !== "approved");
+  if (allItems.length === 0) return <EmptyPage />;
 
   // urgent ขึ้นก่อน
-  const sortedPending = [
-    ...pendingItems.filter(p => p.is_urgent),
-    ...pendingItems.filter(p => !p.is_urgent),
+  const sorted = [
+    ...allItems.filter(p => p.is_urgent),
+    ...allItems.filter(p => !p.is_urgent),
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Banknote size={20} className="text-teal-600" />
-            <h1 className="text-xl font-bold text-slate-800">งานแนบจ่าย</h1>
+            <ClipboardCheck size={20} className="text-blue-600" />
+            <h1 className="text-xl font-bold text-slate-800">งานตรวจสอบหลักฐาน</h1>
           </div>
           <p className="mt-0.5 text-sm text-slate-500">
-            {pendingItems.length > 0 && `รอดำเนินการ ${pendingItems.length} รายการ`}
-            {pendingItems.length > 0 && historyItems.length > 0 && " · "}
-            {historyItems.length > 0 && `ประวัติ ${historyItems.length} รายการ`}
+            ตรวจบิล/หลักฐานก่อนส่งเข้ารอตั้งจ่าย · รอตรวจ {sorted.length} รายการ
           </p>
         </div>
-        {pendingItems.length > 0 && (
-          <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-teal-100 px-2.5 text-sm font-bold text-teal-700">
-            {pendingItems.length}
-          </span>
-        )}
+        <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-blue-100 px-2.5 text-sm font-bold text-blue-700">
+          {sorted.length}
+        </span>
       </div>
 
-      {/* ── รอดำเนินการ (pending_finance) ─────────────────────────────── */}
-      {sortedPending.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Clock size={15} className="text-teal-600" />
-            <h2 className="text-sm font-semibold text-slate-700">รอดำเนินการ</h2>
-            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700">
-              {sortedPending.length}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {sortedPending.map(pr => (
-              <DisbursementItem key={pr.id} pr={pr} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── ประวัติ (paid / cancelled) ─────────────────────────────────── */}
-      <section className="space-y-3">
-        {historyItems.length > 0 && (
-          <div className="flex items-center gap-2">
-            <ClipboardList size={15} className="text-slate-500" />
-            <h2 className="text-sm font-semibold text-slate-700">ประวัติการจ่าย</h2>
-          </div>
-        )}
-        <DisbursementList items={historyItems} />
-      </section>
+      <div className="space-y-3">
+        {sorted.map(pr => (
+          <DisbursementItem key={pr.evidence!.id} pr={pr} currentUserId={user.id} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -168,13 +139,13 @@ function EmptyPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
-        <Banknote size={20} className="text-teal-600" />
-        <h1 className="text-xl font-bold text-slate-800">งานแนบจ่าย</h1>
+        <ClipboardCheck size={20} className="text-blue-600" />
+        <h1 className="text-xl font-bold text-slate-800">งานตรวจสอบหลักฐาน</h1>
       </div>
       <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
         <ClipboardList size={32} className="mx-auto mb-3 text-slate-300" />
-        <p className="font-medium text-slate-500">ยังไม่มีรายการที่ส่งหลักฐาน</p>
-        <p className="mt-1 text-sm text-slate-400">รายการจะปรากฏเมื่อผู้ขอแนบหลักฐานและส่งมาแล้ว</p>
+        <p className="font-medium text-slate-500">ไม่มีหลักฐานที่รอตรวจสอบ</p>
+        <p className="mt-1 text-sm text-slate-400">รายการจะปรากฏเมื่อพนักงานแนบหลักฐานส่งเข้ามา</p>
       </div>
     </div>
   );

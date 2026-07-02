@@ -74,14 +74,14 @@ export default async function FinancePaymentsPage() {
   const profileMap: Record<string, { full_name: string; line_user_id: string | null }> =
     Object.fromEntries((profileRows ?? []).map((p: any) => [p.id, p]));
 
-  // evidence (submitted) ล่าสุดของแต่ละ PR
+  // evidence ที่ผ่านการตรวจสอบแล้ว (verified) — พร้อมจ่าย
   const { data: evidenceRows } =
     prIds.length > 0
       ? await (supabase as any)
           .from("payment_evidences")
           .select("id, pr_id, account_holder_name, bank_name, bank_account_number, ktb_branch_code, status, submitted_at")
           .in("pr_id", prIds)
-          .eq("status", "submitted")
+          .eq("status", "verified")
           .order("submitted_at", { ascending: false })
       : { data: [] };
   const evidenceMap: Record<string, any> = {};
@@ -89,8 +89,10 @@ export default async function FinancePaymentsPage() {
     if (!evidenceMap[ev.pr_id]) evidenceMap[ev.pr_id] = ev;
   }
 
-  // ── ประกอบ PaymentRow ───────────────────────────────────────────────────────
-  const payments: PaymentRow[] = prList.map((pr) => {
+  // ── ประกอบ PaymentRow (เฉพาะ PR ที่ evidence ผ่านการตรวจสอบแล้ว) ─────────────
+  const payments: PaymentRow[] = prList
+    .filter((pr) => evidenceMap[pr.id]) // ต้องมี evidence verified เท่านั้น
+    .map((pr) => {
     const branch = pr.branch_id ? branchById[pr.branch_id] : null;
     const ev = evidenceMap[pr.id] ?? null;
     const requester = profileMap[pr.requester_id] ?? null;

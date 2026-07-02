@@ -57,11 +57,21 @@ export default async function FinancePage() {
     if (row.branch_id) settingsByBranch[row.branch_id] = row;
   }
 
-  // ── PR ที่รอโอน (pending_finance) — ใช้สรุปในการ์ด ──────────────────────────
+  // ── PR ที่รอโอน = pending_finance + หลักฐานผ่านการตรวจแล้ว (verified) ────────
   const { data: pendingRows } = await (supabase as any)
     .from("purchase_requisitions")
     .select("id, total_amount, actual_amount, branch_id")
     .eq("status", "pending_finance");
+  const pendingIds = (pendingRows ?? []).map((p: any) => p.id);
+  const { data: verifiedEv } =
+    pendingIds.length > 0
+      ? await (supabase as any)
+          .from("payment_evidences")
+          .select("pr_id")
+          .eq("status", "verified")
+          .in("pr_id", pendingIds)
+      : { data: [] };
+  const verifiedSet = new Set((verifiedEv ?? []).map((e: any) => e.pr_id));
 
   // ── PR ที่จ่ายแล้ว (paid) — ใช้แสดงในตาราง ──────────────────────────────────
   const { data: paidRows } = await (supabase as any)
@@ -108,9 +118,9 @@ export default async function FinancePage() {
     };
   });
 
-  // ── สรุปยอด "รอโอน" ต่อบริษัท (สำหรับการ์ด) ─────────────────────────────────
+  // ── สรุปยอด "รอโอน" ต่อบริษัท (เฉพาะที่ตรวจสอบแล้ว) ──────────────────────────
   const companies: FinanceCompany[] = (branchRows ?? []).map((b: any) => {
-    const rows = (pendingRows ?? []).filter((pr: any) => pr.branch_id === b.id);
+    const rows = (pendingRows ?? []).filter((pr: any) => pr.branch_id === b.id && verifiedSet.has(pr.id));
     return {
       id: b.id,
       code: b.code,

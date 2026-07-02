@@ -21,6 +21,7 @@ export type AuditAction =
   | "payment_marked_paid"
   | "payment_returned"
   | "payment_cancelled"
+  | "payment_verified"
   // ผู้ใช้
   | "user_role_changed";
 

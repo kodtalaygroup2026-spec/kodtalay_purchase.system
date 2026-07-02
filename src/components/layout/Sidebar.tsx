@@ -18,7 +18,7 @@ import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
   { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ",  financeOnly: false },
-  { href: "/disbursement",        step: null, label: "งานแนบจ่าย", financeOnly: true  },
+  { href: "/disbursement",        step: null, label: "งานตรวจสอบ", financeOnly: true  },
   { href: "/requisitions",        step: null, label: "งานเอกสาร",  financeOnly: false },
   { href: "/requisitions/new",    step: null, label: "สร้าง PR",    financeOnly: false },
 ];
@@ -26,7 +26,7 @@ const MY_WORK_SUB_BASE = [
 // ── MyWorkDropdown ──────────────────────────────────────────────────────────
 // แยกออกมาระดับ module เพื่อให้ state ไม่ถูก reset เมื่อ parent re-render
 
-function MyWorkDropdown({ pathname, role }: { pathname: string; role?: UserRole }) {
+function MyWorkDropdown({ pathname, role, verifyCount = 0 }: { pathname: string; role?: UserRole; verifyCount?: number }) {
   const searchParams = useSearchParams();
   const currentStep = searchParams?.get("step") ?? null;
   const isOnMyWork = pathname.startsWith("/requisitions") || pathname.startsWith("/disbursement");
@@ -62,6 +62,8 @@ function MyWorkDropdown({ pathname, role }: { pathname: string; role?: UserRole 
                   ? pathname === "/requisitions/new"
                   : pathname.startsWith(sub.href);
 
+            const showVerifyBadge = sub.href === "/disbursement" && verifyCount > 0;
+
             return (
               <Link
                 key={sub.href}
@@ -75,7 +77,12 @@ function MyWorkDropdown({ pathname, role }: { pathname: string; role?: UserRole 
                 }`}
               >
                 {isNew && <Plus size={11} />}
-                {sub.label}
+                <span className="flex-1">{sub.label}</span>
+                {showVerifyBadge && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {verifyCount > 99 ? "99+" : verifyCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -223,9 +230,10 @@ interface SidebarProps {
   role?: UserRole;
   approvalCount?: number;
   editedCount?: number;
+  verifyCount?: number;
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0 }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
@@ -251,7 +259,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0 }: SidebarPro
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} role={role} />
+          <MyWorkDropdown pathname={pathname} role={role} verifyCount={verifyCount} />
         </Suspense>
 
         {/* การอนุมัติ */}

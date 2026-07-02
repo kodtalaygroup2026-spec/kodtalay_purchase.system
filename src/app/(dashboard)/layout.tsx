@@ -49,9 +49,19 @@ export default async function DashboardLayout({
     editedCount = new Set(((editedPRIds ?? []) as any[]).map((r) => r.pr_id)).size;
   }
 
+  // นับงานที่รอฝ่ายบัญชีตรวจสอบ (evidence status = submitted) — เฉพาะ finance/admin
+  let verifyCount = 0;
+  if (profile.role === "finance" || profile.role === "admin") {
+    const { count } = await (supabase as any)
+      .from("payment_evidences")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "submitted");
+    verifyCount = count ?? 0;
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} />
+      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
