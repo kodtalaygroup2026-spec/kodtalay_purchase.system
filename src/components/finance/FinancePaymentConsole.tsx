@@ -392,9 +392,9 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-400">ชนิดบัญชี:</span>
         {([
-          { key: "all",       label: "ทั้งหมด",            count: payments.length },
-          { key: "self_pay",  label: "🧑 เบิกคืนตัวเอง",   count: selfPayCount },
-          { key: "send_bill", label: "🧾 ส่งบิลจ่าย",       count: sendBillCount },
+          { key: "all",       label: "ทั้งหมด",       count: payments.length },
+          { key: "self_pay",  label: "🧑 พนักงาน",     count: selfPayCount },
+          { key: "send_bill", label: "🧾 ส่งบิลจ่าย",   count: sendBillCount },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -518,7 +518,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                               ? "bg-violet-100 text-violet-700"
                               : "bg-teal-100 text-teal-700"
                           }`}>
-                            {p.payment_type === "self_pay" ? "เบิกคืน" : "ส่งบิล"}
+                            {p.payment_type === "self_pay" ? "พนักงาน" : "ส่งบิล"}
                           </span>
                         </div>
                         <p className="text-xs text-slate-400">{p.requester_name}</p>
