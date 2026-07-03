@@ -79,7 +79,7 @@ export default async function FinancePaymentsPage() {
     prIds.length > 0
       ? await (supabase as any)
           .from("payment_evidences")
-          .select("id, pr_id, account_holder_name, bank_name, bank_account_number, ktb_branch_code, status, submitted_at")
+          .select("id, pr_id, account_holder_name, bank_name, bank_account_number, ktb_branch_code, status, payment_type, submitted_at")
           .in("pr_id", prIds)
           .eq("status", "verified")
           .order("submitted_at", { ascending: false })
@@ -111,6 +111,7 @@ export default async function FinancePaymentsPage() {
       bank_name: ev?.bank_name ?? "",
       bank_account_number: ev?.bank_account_number ?? "",
       ktb_branch_code: ev?.ktb_branch_code ?? "",
+      payment_type: (ev?.payment_type ?? "send_bill") as "self_pay" | "send_bill",
     };
   });
 

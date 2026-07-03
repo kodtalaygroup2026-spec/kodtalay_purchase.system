@@ -31,6 +31,7 @@ export interface PaymentRow {
   bank_name: string;
   bank_account_number: string;
   ktb_branch_code: string;
+  payment_type: "self_pay" | "send_bill";
 }
 
 export interface PaymentCompany {
@@ -77,6 +78,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   const supabase = createClient();
 
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null); // branch code
+  const [typeFilter, setTypeFilter] = useState<"all" | "self_pay" | "send_bill">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchNo, setBatchNo] = useState("000001");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
@@ -87,11 +89,19 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // รายการที่มองเห็น (ตามบริษัทที่กรอง)
+  // รายการที่มองเห็น (กรองตามบริษัท + ชนิด บช.)
   const visible = useMemo(
-    () => (selectedCompany ? payments.filter((p) => p.branch_code === selectedCompany) : payments),
-    [payments, selectedCompany]
+    () =>
+      payments.filter(
+        (p) =>
+          (!selectedCompany || p.branch_code === selectedCompany) &&
+          (typeFilter === "all" || p.payment_type === typeFilter)
+      ),
+    [payments, selectedCompany, typeFilter]
   );
+
+  const selfPayCount = payments.filter((p) => p.payment_type === "self_pay").length;
+  const sendBillCount = payments.filter((p) => p.payment_type === "send_bill").length;
 
   const selectedRows = payments.filter((p) => selected.has(p.id));
   const selectedTotal = selectedRows.reduce((s, p) => s + Number(p.amount), 0);
@@ -378,6 +388,31 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         </span>
       </div>
 
+      {/* ── chip กรองชนิด บช. ──────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-slate-400">ชนิดบัญชี:</span>
+        {([
+          { key: "all",       label: "ทั้งหมด",            count: payments.length },
+          { key: "self_pay",  label: "🧑 เบิกคืนตัวเอง",   count: selfPayCount },
+          { key: "send_bill", label: "🧾 ส่งบิลจ่าย",       count: sendBillCount },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => { setTypeFilter(t.key); setSelected(new Set()); }}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
+              typeFilter === t.key
+                ? "border-blue-500 bg-blue-50 text-blue-700"
+                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+            }`}
+          >
+            {t.label}
+            <span className={`rounded-full px-1.5 text-[10px] font-bold ${
+              typeFilter === t.key ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-500"
+            }`}>{t.count}</span>
+          </button>
+        ))}
+      </div>
+
       {/* ── แถบ bulk ────────────────────────────────────────────────────────── */}
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
@@ -476,7 +511,16 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                         <p className="max-w-[160px] truncate text-xs text-slate-400">{p.title}</p>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-700">
-                        {p.account_holder_name || "—"}
+                        <div className="flex items-center gap-1.5">
+                          {p.account_holder_name || "—"}
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                            p.payment_type === "self_pay"
+                              ? "bg-violet-100 text-violet-700"
+                              : "bg-teal-100 text-teal-700"
+                          }`}>
+                            {p.payment_type === "self_pay" ? "เบิกคืน" : "ส่งบิล"}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-400">{p.requester_name}</p>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
