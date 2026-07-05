@@ -1,29 +1,16 @@
 ﻿"use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-
-interface Category {
-  id: string;
-  name: string;
-}
+import { CategorySelect } from "@/components/product/CategorySelect";
 
 export default function NewProductPage() {
   const router = useRouter();
   const supabase = createClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    supabase
-      .from("categories")
-      .select("id, name")
-      .order("name")
-      .then(({ data }) => setCategories(data ?? []));
-  }, [supabase]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,17 +94,7 @@ export default function NewProductPage() {
             <label className="mb-1 block text-sm font-medium text-slate-700">
               หมวดหมู่
             </label>
-            <select
-              name="category_id"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">— ไม่ระบุ —</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CategorySelect className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
