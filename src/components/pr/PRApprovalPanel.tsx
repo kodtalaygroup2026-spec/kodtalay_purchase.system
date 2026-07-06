@@ -6,6 +6,7 @@ import type { PrStatus, UserRole } from "@/types/database";
 import { CheckCircle, XCircle, Send, X, RotateCcw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
+import { externalBrowserLink } from "@/lib/line/externalLink";
 
 interface PRApprovalPanelProps {
   pr: {
@@ -45,7 +46,7 @@ export function PRApprovalPanel({
 
   // ── LINE notification helpers ────────────────────────────────────────────
   function prUrl(): string {
-    return `${window.location.origin}/requisitions/${pr.id}`;
+    return externalBrowserLink(`${window.location.origin}/requisitions/${pr.id}`);
   }
 
   async function notifyLine(lineUserId: string, message: string) {

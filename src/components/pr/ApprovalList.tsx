@@ -7,6 +7,7 @@ import Link from "next/link";
 import { CheckCircle, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown, RotateCcw, XCircle, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { externalBrowserLink } from "@/lib/line/externalLink";
 import type { PrStatus } from "@/types/database";
 
 export interface PRApprovalRow {
@@ -150,7 +151,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
             `✅ ใบขอซื้อของคุณได้รับการอนุมัติ\n\n` +
             `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
             `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
-            `👉 ดูรายละเอียด:\n${origin}/requisitions/${pr.id}`
+            `👉 ดูรายละเอียด:\n${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
           );
         }
       }
@@ -194,7 +195,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
             `${icon} ใบขอซื้อของคุณ${label}\n\n` +
             `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
             `เหตุผล: ${bulkNote.trim()}\n\n` +
-            `👉 ดูรายละเอียด:\n${origin}/requisitions/${pr.id}`
+            `👉 ดูรายละเอียด:\n${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
           );
         }
       }

@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
+import { externalBrowserLink } from "@/lib/line/externalLink";
 import {
   generateKTBContent, validateKTBSettings,
   type KTBCompanySettings, type KTBRecipient,
@@ -203,7 +204,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         `↩️ การจ่ายเงินถูกตีกลับ\n\n` +
         `เลขที่: ${row.pr_number}\nหัวข้อ: ${row.title}\n` +
         `เหตุผล: ${note}\n\n` +
-        `กรุณาแก้ไขหลักฐานแล้วส่งใหม่\n${origin}/requisitions/${row.id}`
+        `กรุณาแก้ไขหลักฐานแล้วส่งใหม่\n${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`
       );
     }
 
@@ -245,7 +246,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         row.requester_line_id,
         `✖️ ใบขอซื้อถูกยกเลิกโดยฝ่ายการเงิน\n\n` +
         `เลขที่: ${row.pr_number}\nหัวข้อ: ${row.title}\n` +
-        `เหตุผล: ${note}\n\n${origin}/requisitions/${row.id}`
+        `เหตุผล: ${note}\n\n${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`
       );
     }
 

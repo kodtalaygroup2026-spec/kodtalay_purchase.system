@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
+import { externalBrowserLink } from "@/lib/line/externalLink";
 
 const BANK_LABELS: Record<string, string> = {
   KBANK: "กสิกรไทย",
@@ -162,7 +163,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
           `↩️ หลักฐานการจ่ายถูกตีกลับจากฝ่ายบัญชี\n\n` +
           `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
           `เหตุผล: ${returnReason.trim()}\n\n` +
-          `กรุณาแก้ไขแล้วส่งใหม่\n${origin}/requisitions/${pr.id}`
+          `กรุณาแก้ไขแล้วส่งใหม่\n${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
         );
       }
 
