@@ -10,6 +10,7 @@ import {
   ChevronRight, ChevronLeft, ChevronDown,
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
+import { CategoryCombobox, type CategoryOpt } from "@/components/pr/CategoryCombobox";
 import { logAudit } from "@/lib/supabase/audit";
 import { getNextPaymentDate, formatPaymentDate } from "@/lib/utils/paymentSchedule";
 import type { Branch } from "@/types/database";
@@ -36,20 +37,6 @@ interface PRItem {
 }
 
 const EMPTY_ITEM: PRItem = { product_id: "", description: "", unit: "", quantity: 1, unit_price: 0 };
-
-interface CategoryOpt {
-  id: string;
-  code: string | null;
-  name: string;
-  mode: number;
-  is_active: boolean;
-  position_id: string | null;
-}
-
-const CATEGORY_MODE_LABELS: Record<number, string> = {
-  1: "MODE 1 · จัดซื้อทั่วไป",
-  2: "MODE 2 · ช่าง (เร็วๆ นี้)",
-};
 
 // -----------------------------------------------------------------------
 // Component
@@ -180,7 +167,6 @@ export default function NewRequisitionPage() {
     ? (positionMembers[selectedCategory.position_id] ?? [])
     : [];
   const approverNames = [...new Set([...deptHeads, ...positionApprovers])];
-  const categoryModes = [...new Set(categories.map((c) => c.mode))].sort((a, b) => a - b);
 
   // ── Items helpers ───────────────────────────────────────────────────
   function addItem() { setItems((p) => [...p, { ...EMPTY_ITEM }]); }
@@ -366,25 +352,11 @@ export default function NewRequisitionPage() {
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 หมวด <span className="text-red-500">*</span>
               </label>
-              <select
+              <CategoryCombobox
+                categories={categories}
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                required
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">— เลือกหมวด —</option>
-                {categoryModes.map((mode) => (
-                  <optgroup key={mode} label={CATEGORY_MODE_LABELS[mode] ?? `MODE ${mode}`}>
-                    {categories
-                      .filter((c) => c.mode === mode)
-                      .map((c) => (
-                        <option key={c.id} value={c.id} disabled={!c.is_active}>
-                          {c.code ? `[${c.code}] ` : ""}{c.name}{!c.is_active ? " (เร็วๆ นี้)" : ""}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
+                onChange={setCategoryId}
+              />
 
               {/* preview ผู้อนุมัติ */}
               {categoryId && (
