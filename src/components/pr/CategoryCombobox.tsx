@@ -14,8 +14,8 @@ export interface CategoryOpt {
 }
 
 const MODE_LABELS: Record<number, string> = {
-  1: "จัดซื้อ",
-  2: "การช่าง (เร็วๆ นี้)",
+  1: "งานจัดซื้อทั่วไป",
+  2: "งานช่าง (เร็วๆ นี้)",
 };
 
 interface CategoryComboboxProps {
