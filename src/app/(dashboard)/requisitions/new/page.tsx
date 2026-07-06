@@ -356,6 +356,7 @@ export default function NewRequisitionPage() {
                 categories={categories}
                 value={categoryId}
                 onChange={setCategoryId}
+                onCategoryCreated={(cat) => setCategories((prev) => [...prev, cat])}
               />
 
               {/* preview ผู้อนุมัติ */}

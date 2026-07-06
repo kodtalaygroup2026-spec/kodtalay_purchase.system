@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Plus, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export interface CategoryOpt {
   id: string;
@@ -21,6 +22,7 @@ interface CategoryComboboxProps {
   categories: CategoryOpt[];
   value: string;
   onChange: (id: string) => void;
+  onCategoryCreated?: (cat: CategoryOpt) => void;
   placeholder?: string;
 }
 
@@ -28,11 +30,14 @@ export function CategoryCombobox({
   categories,
   value,
   onChange,
+  onCategoryCreated,
   placeholder = "พิมพ์หรือเลือกหมวด...",
 }: CategoryComboboxProps) {
+  const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  const [creating, setCreating] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const highlightRef = useRef<HTMLButtonElement>(null);
@@ -61,10 +66,17 @@ export function CategoryCombobox({
   const modes = [...new Set(categories.map((c) => c.mode))].sort((a, b) => a - b);
   const anyMatch = categories.some((c) => matches(c));
 
+  // แสดงตัวเลือก "เพิ่มหมวด" เมื่อพิมพ์ชื่อที่ยังไม่มี (ตรงเป๊ะ)
+  const typed = query.trim();
+  const exactExists = categories.some((c) => c.name.toLowerCase() === typed.toLowerCase());
+  const showCreate = typed.length > 0 && !exactExists;
+
   // รายการที่เลื่อนด้วยคีย์บอร์ดได้ (active + ตรงกับที่พิมพ์) เรียงตามที่แสดง
   const navItems = modes.flatMap((mode) =>
     categories.filter((c) => c.mode === mode && matches(c) && c.is_active)
   );
+  const navCount = navItems.length + (showCreate ? 1 : 0);
+  const createIndex = showCreate ? navItems.length : -1;
 
   // รีเซ็ตตัวไฮไลต์เมื่อเปิด/พิมพ์
   useEffect(() => { setHighlight(0); }, [query, open]);
@@ -79,19 +91,37 @@ export function CategoryCombobox({
     setQuery("");
   }
 
+  // สร้างหมวดใหม่จากที่พิมพ์
+  async function doCreate() {
+    const name = query.trim();
+    if (!name || creating) return;
+    setCreating(true);
+    const { data, error } = await (supabase as any)
+      .from("categories")
+      .insert({ name, mode: 1, is_active: true })
+      .select("id, code, name, mode, is_active, position_id")
+      .single();
+    setCreating(false);
+    if (error || !data) return;
+    onCategoryCreated?.(data as CategoryOpt);
+    onChange(data.id);
+    setOpen(false);
+    setQuery("");
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!open) { setOpen(true); return; }
-      setHighlight((h) => Math.min(h + 1, navItems.length - 1));
+      setHighlight((h) => Math.min(h + 1, navCount - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === "Enter") {
-      if (open && navItems[highlight]) {
-        e.preventDefault();
-        pick(navItems[highlight]);
-      }
+      if (!open) return;
+      e.preventDefault();
+      if (highlight === createIndex) doCreate();
+      else if (navItems[highlight]) pick(navItems[highlight]);
     } else if (e.key === "Escape") {
       setOpen(false);
       setQuery("");
@@ -178,10 +208,32 @@ export function CategoryCombobox({
               </div>
             );
           })}
-          {!anyMatch && (
+          {!anyMatch && !showCreate && (
             <p className="px-3 py-3 text-center text-xs text-slate-400">
               ไม่พบหมวดที่ตรงกับ &quot;{query}&quot;
             </p>
+          )}
+
+          {/* เพิ่มหมวดใหม่จากที่พิมพ์ */}
+          {showCreate && (
+            <>
+              <div className="my-1 border-t border-slate-100" />
+              <button
+                type="button"
+                ref={highlight === createIndex ? highlightRef : null}
+                onClick={doCreate}
+                onMouseEnter={() => setHighlight(createIndex)}
+                disabled={creating}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${
+                  highlight === createIndex ? "bg-emerald-100 text-emerald-800" : "text-emerald-700 hover:bg-emerald-50"
+                }`}
+              >
+                {creating ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Plus size={14} className="shrink-0" />}
+                <span className="flex-1">
+                  เพิ่มหมวด <span className="font-semibold">&ldquo;{typed}&rdquo;</span>
+                </span>
+              </button>
+            </>
           )}
         </div>
       )}
