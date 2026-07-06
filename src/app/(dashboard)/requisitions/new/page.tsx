@@ -37,6 +37,20 @@ interface PRItem {
 
 const EMPTY_ITEM: PRItem = { product_id: "", description: "", unit: "", quantity: 1, unit_price: 0 };
 
+interface CategoryOpt {
+  id: string;
+  code: string | null;
+  name: string;
+  mode: number;
+  is_active: boolean;
+  position_id: string | null;
+}
+
+const CATEGORY_MODE_LABELS: Record<number, string> = {
+  1: "MODE 1 · จัดซื้อทั่วไป",
+  2: "MODE 2 · ช่าง (เร็วๆ นี้)",
+};
+
 // -----------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------
@@ -64,6 +78,12 @@ export default function NewRequisitionPage() {
   // ── Form fields ─────────────────────────────────────────────────────
   const [isUrgent, setIsUrgent] = useState(false);
 
+  // ── หมวด + ผู้อนุมัติ ───────────────────────────────────────────────
+  const [categories, setCategories] = useState<CategoryOpt[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [positionMembers, setPositionMembers] = useState<Record<string, string[]>>({});
+  const [deptHeads, setDeptHeads] = useState<string[]>([]);
+
   // ── Items ───────────────────────────────────────────────────────────
   const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
   const [items, setItems] = useState<PRItem[]>([{ ...EMPTY_ITEM }]);
@@ -89,6 +109,36 @@ export default function NewRequisitionPage() {
           profile?.full_name || user.user_metadata?.full_name || user.email || ""
         );
         setUserDepartment(profile?.department ?? null);
+
+        // หัวหน้าแผนก = manager/admin ในแผนกเดียวกัน
+        if (profile?.department) {
+          const { data: heads } = await (supabase as any)
+            .from("profiles")
+            .select("full_name")
+            .eq("department", profile.department)
+            .in("role", ["manager", "admin"]);
+          setDeptHeads((heads ?? []).map((h: any) => h.full_name).filter(Boolean));
+        }
+
+        // หมวด + สมาชิกตำแหน่ง (สำหรับ preview ผู้อนุมัติ)
+        const [{ data: catData }, { data: memberData }] = await Promise.all([
+          (supabase as any)
+            .from("categories")
+            .select("id, code, name, mode, is_active, position_id")
+            .order("mode")
+            .order("sort_order"),
+          (supabase as any)
+            .from("position_members")
+            .select("position_id, profiles!user_id(full_name)"),
+        ]);
+        setCategories(catData ?? []);
+        const memberMap: Record<string, string[]> = {};
+        for (const m of memberData ?? []) {
+          const nm = m.profiles?.full_name;
+          if (!nm) continue;
+          (memberMap[m.position_id] ??= []).push(nm);
+        }
+        setPositionMembers(memberMap);
 
         const { data: branchData } = await (supabase as any)
           .from("branches")
@@ -123,6 +173,14 @@ export default function NewRequisitionPage() {
   const selectedBranch = branches.find((b) => b.id === branchId);
   const borderColor = getBranchBorderColor(selectedBranch?.code);
   const initials = requesterName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+
+  // ── ผู้อนุมัติ = หัวหน้าแผนก + สมาชิกตำแหน่งของหมวดที่เลือก ──
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const positionApprovers = selectedCategory?.position_id
+    ? (positionMembers[selectedCategory.position_id] ?? [])
+    : [];
+  const approverNames = [...new Set([...deptHeads, ...positionApprovers])];
+  const categoryModes = [...new Set(categories.map((c) => c.mode))].sort((a, b) => a - b);
 
   // ── Items helpers ───────────────────────────────────────────────────
   function addItem() { setItems((p) => [...p, { ...EMPTY_ITEM }]); }
@@ -173,6 +231,7 @@ export default function NewRequisitionPage() {
     setErrorMessage(null);
 
     if (!branchId) { setErrorMessage("กรุณาเลือกบริษัท"); setIsSubmitting(false); return; }
+    if (!categoryId || !selectedCategory) { setErrorMessage("กรุณาเลือกหมวด"); setIsSubmitting(false); return; }
     if (items.some((it) => !it.description.trim())) {
       setErrorMessage("กรุณากรอกรายละเอียดสินค้าให้ครบทุกรายการ");
       setIsSubmitting(false);
@@ -186,11 +245,15 @@ export default function NewRequisitionPage() {
     const { data: prNumber, error: rpcError } = await (supabase as any).rpc("next_pr_number");
     if (rpcError) { setErrorMessage(rpcError.message); setIsSubmitting(false); return; }
 
+    // title ของ PR = ชื่อหมวด
+    const prTitle = selectedCategory.name;
+
     const { data: pr, error: prError } = await (supabase as any)
       .from("purchase_requisitions")
       .insert({
         pr_number: prNumber,
-        title: formData.get("title") as string,
+        title: prTitle,
+        category_id: categoryId,
         requester_id: user.id,
         branch_id: branchId,
         department: userDepartment || null,
@@ -209,7 +272,7 @@ export default function NewRequisitionPage() {
       action: "pr_created",
       entity: "purchase_requisitions",
       entityId: pr.id,
-      metadata: { pr_number: prNumber, title: formData.get("title") as string },
+      metadata: { pr_number: prNumber, title: prTitle, category_id: categoryId },
     });
 
     // บันทึกรายการสินค้า
@@ -298,13 +361,45 @@ export default function NewRequisitionPage() {
               </div>
             </div>
 
-            {/* ชื่อเรื่อง */}
+            {/* หมวด (แทนช่องชื่อ) + ผู้อนุมัติ */}
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">
-                ชื่อ/เรื่อง <span className="text-red-500">*</span>
+                หมวด <span className="text-red-500">*</span>
               </label>
-              <input name="title" required placeholder="เช่น ขอซื้อกระดาษ A4 ประจำไตรมาส Q3"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                required
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">— เลือกหมวด —</option>
+                {categoryModes.map((mode) => (
+                  <optgroup key={mode} label={CATEGORY_MODE_LABELS[mode] ?? `MODE ${mode}`}>
+                    {categories
+                      .filter((c) => c.mode === mode)
+                      .map((c) => (
+                        <option key={c.id} value={c.id} disabled={!c.is_active}>
+                          {c.code ? `[${c.code}] ` : ""}{c.name}{!c.is_active ? " (เร็วๆ นี้)" : ""}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
+              </select>
+
+              {/* preview ผู้อนุมัติ */}
+              {categoryId && (
+                <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-[11px] text-blue-700">
+                  <User size={12} className="mt-0.5 shrink-0" />
+                  <span>
+                    ผู้อนุมัติ:{" "}
+                    {approverNames.length > 0 ? (
+                      <span className="font-medium">{approverNames.join(", ")}</span>
+                    ) : (
+                      <span className="text-amber-600">— ยังไม่มีผู้อนุมัติในระบบ (เพิ่มหัวหน้าแผนก/สมาชิกตำแหน่ง) —</span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* งานด่วน | สาขา | วันที่ — inline row */}
@@ -612,8 +707,8 @@ export default function NewRequisitionPage() {
                     {
                       icon: CheckCircle2,
                       color: "text-emerald-500",
-                      title: "ชื่อ / เรื่อง",
-                      desc: "ระบุชื่อสินค้าหรือหัวเรื่องหลักให้ชัดเจน เช่น 'ขอซื้อกระดาษ A4 ประจำไตรมาส Q3'",
+                      title: "หมวด",
+                      desc: "เลือกหมวดของใบขอซื้อ ระบบจะกำหนดผู้อนุมัติให้อัตโนมัติ (หัวหน้าแผนก + ผู้ดูแลหมวดนั้น)",
                     },
                     {
                       icon: CheckCircle2,
