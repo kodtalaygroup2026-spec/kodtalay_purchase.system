@@ -12,8 +12,8 @@ interface CategoryOption {
 }
 
 const MODE_LABELS: Record<number, string> = {
-  1: "MODE 1 · จัดซื้อทั่วไป",
-  2: "MODE 2 · ช่าง (เร็วๆ นี้)",
+  1: "จัดซื้อ",
+  2: "การช่าง (เร็วๆ นี้)",
 };
 
 interface CategorySelectProps {
