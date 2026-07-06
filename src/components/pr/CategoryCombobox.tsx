@@ -32,8 +32,10 @@ export function CategoryCombobox({
 }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [highlight, setHighlight] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const highlightRef = useRef<HTMLButtonElement>(null);
 
   const selected = categories.find((c) => c.id === value) ?? null;
   const selectedLabel = selected
@@ -59,11 +61,42 @@ export function CategoryCombobox({
   const modes = [...new Set(categories.map((c) => c.mode))].sort((a, b) => a - b);
   const anyMatch = categories.some((c) => matches(c));
 
+  // รายการที่เลื่อนด้วยคีย์บอร์ดได้ (active + ตรงกับที่พิมพ์) เรียงตามที่แสดง
+  const navItems = modes.flatMap((mode) =>
+    categories.filter((c) => c.mode === mode && matches(c) && c.is_active)
+  );
+
+  // รีเซ็ตตัวไฮไลต์เมื่อเปิด/พิมพ์
+  useEffect(() => { setHighlight(0); }, [query, open]);
+
+  // เลื่อนให้ตัวไฮไลต์อยู่ในมุมมอง
+  useEffect(() => { highlightRef.current?.scrollIntoView({ block: "nearest" }); }, [highlight]);
+
   function pick(c: CategoryOpt) {
     if (!c.is_active) return;
     onChange(c.id);
     setOpen(false);
     setQuery("");
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open) { setOpen(true); return; }
+      setHighlight((h) => Math.min(h + 1, navItems.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      if (open && navItems[highlight]) {
+        e.preventDefault();
+        pick(navItems[highlight]);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setQuery("");
+      inputRef.current?.blur();
+    }
   }
 
   return (
@@ -80,6 +113,7 @@ export function CategoryCombobox({
           value={open ? query : selectedLabel}
           onChange={(e) => { setQuery(e.target.value); if (!open) setOpen(true); }}
           onFocus={() => { setOpen(true); setQuery(""); }}
+          onKeyDown={handleKeyDown}
           placeholder={selected ? selectedLabel : placeholder}
           className="flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
         />
@@ -102,15 +136,23 @@ export function CategoryCombobox({
                 </p>
                 {items.map((c) => {
                   const isSel = c.id === value;
+                  const isHi = c.is_active && navItems[highlight]?.id === c.id;
                   return (
                     <button
                       type="button"
                       key={c.id}
+                      ref={isHi ? highlightRef : null}
                       onClick={() => pick(c)}
+                      onMouseEnter={() => {
+                        const idx = navItems.findIndex((n) => n.id === c.id);
+                        if (idx >= 0) setHighlight(idx);
+                      }}
                       disabled={!c.is_active}
                       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${
                         !c.is_active
                           ? "cursor-not-allowed text-slate-300"
+                          : isHi
+                          ? "bg-blue-100 text-blue-800"
                           : isSel
                           ? "bg-blue-50 text-blue-700"
                           : "text-slate-700 hover:bg-slate-50"
