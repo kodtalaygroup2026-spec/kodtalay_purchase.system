@@ -12,6 +12,7 @@ import {
   Landmark,
   Banknote,
   PiggyBank,
+  Users,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
@@ -290,13 +291,24 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
           <Link
             href="/settings/users"
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-              pathname.startsWith("/settings")
+              pathname === "/settings/users"
                 ? "bg-blue-600 text-white"
                 : "text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
             <Settings size={17} />
             จัดการผู้ใช้
+          </Link>
+          <Link
+            href="/settings/positions"
+            className={`mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+              pathname.startsWith("/settings/positions")
+                ? "bg-blue-600 text-white"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <Users size={17} />
+            ตำแหน่งผู้ดูแล
           </Link>
         </div>
       )}
