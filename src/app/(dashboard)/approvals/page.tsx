@@ -21,6 +21,7 @@ export default async function ApprovalsPage() {
   const myRole = profile?.role;
   const myDept = profile?.department ?? null;
   const isManager = myRole === "manager" || myRole === "admin";
+  const isFinance = myRole === "finance";
 
   // ตำแหน่งที่ผู้ใช้เป็นสมาชิก (สำหรับ approver ตามหมวด)
   const { data: myMemberships } = await (supabase as any)
@@ -29,8 +30,8 @@ export default async function ApprovalsPage() {
     .eq("user_id", user.id);
   const myPositionIds = new Set<string>(((myMemberships ?? []) as any[]).map((m) => m.position_id));
 
-  // เข้าได้ถ้าเป็น manager/admin หรือเป็นสมาชิกตำแหน่งใดๆ
-  if (!isManager && myPositionIds.size === 0) {
+  // เข้าได้ถ้าเป็น manager/admin/finance(บช.) หรือเป็นสมาชิกตำแหน่งใดๆ
+  if (!isManager && !isFinance && myPositionIds.size === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white py-16 text-center">
         <p className="text-slate-500">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
@@ -48,9 +49,9 @@ export default async function ApprovalsPage() {
     .eq("status", "submitted")
     .order("created_at");
 
-  // กรอง: admin เห็นหมด, manager เห็นแผนกตัวเอง, สมาชิกตำแหน่งเห็นหมวดของตำแหน่ง
+  // กรอง: admin/บช.เห็นหมด, manager เห็นแผนกตัวเอง, สมาชิกตำแหน่งเห็นหมวดของตำแหน่ง
   const visible = ((pendingPRs ?? []) as any[]).filter((pr) => {
-    if (myRole === "admin") return true;
+    if (myRole === "admin" || isFinance) return true;
     const reqDept = pr.profiles?.department ?? null;
     const isDeptHead = isManager && myDept && reqDept === myDept;
     const catPos = pr.categories?.position_id ?? null;

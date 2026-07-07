@@ -70,6 +70,7 @@ export default function NewRequisitionPage() {
   const [categoryId, setCategoryId] = useState("");
   const [positionMembers, setPositionMembers] = useState<Record<string, string[]>>({});
   const [deptHeads, setDeptHeads] = useState<string[]>([]);
+  const [hasFinanceApprover, setHasFinanceApprover] = useState(false);
 
   // ── Items ───────────────────────────────────────────────────────────
   const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
@@ -106,6 +107,13 @@ export default function NewRequisitionPage() {
             .in("role", ["manager", "admin"]);
           setDeptHeads((heads ?? []).map((h: any) => h.full_name).filter(Boolean));
         }
+
+        // ฝ่ายบัญชี (บช.) อนุมัติได้ทุกใบ
+        const { count: financeCount } = await (supabase as any)
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "finance");
+        setHasFinanceApprover((financeCount ?? 0) > 0);
 
         // หมวด + สมาชิกตำแหน่ง (สำหรับ preview ผู้อนุมัติ)
         const [{ data: catData }, { data: memberData }] = await Promise.all([
@@ -161,12 +169,15 @@ export default function NewRequisitionPage() {
   const borderColor = getBranchBorderColor(selectedBranch?.code);
   const initials = requesterName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 
-  // ── ผู้อนุมัติ = หัวหน้าแผนก + สมาชิกตำแหน่งของหมวดที่เลือก ──
+  // ── ผู้อนุมัติ = หัวหน้าแผนก + สมาชิกตำแหน่งของหมวด + ฝ่ายบัญชี (บช.) ──
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const positionApprovers = selectedCategory?.position_id
     ? (positionMembers[selectedCategory.position_id] ?? [])
     : [];
-  const approverNames = [...new Set([...deptHeads, ...positionApprovers])];
+  const approverNames = [
+    ...new Set([...deptHeads, ...positionApprovers]),
+    ...(hasFinanceApprover ? ["ฝ่ายบัญชี (บช.)"] : []),
+  ];
 
   // ── Items helpers ───────────────────────────────────────────────────
   function addItem() { setItems((p) => [...p, { ...EMPTY_ITEM }]); }

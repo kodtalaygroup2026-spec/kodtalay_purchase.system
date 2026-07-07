@@ -36,7 +36,11 @@ export function PRApprovalPanel({
   const [pendingAction, setPendingAction] = useState<"approve" | "reject" | "return" | "cancel_pr" | null>(null);
 
   const isOwner = currentUserId === pr.requester_id;
-  const isApprover = currentUserRole === "manager" || currentUserRole === "admin";
+  // ผู้อนุมัติ = หัวหน้า (manager) / admin / ฝ่ายบัญชี (finance = บช.)
+  const isApprover =
+    currentUserRole === "manager" ||
+    currentUserRole === "admin" ||
+    currentUserRole === "finance";
 
   const canSubmit = isOwner && pr.status === "draft";
   const canApprove = isApprover && pr.status === "submitted";
