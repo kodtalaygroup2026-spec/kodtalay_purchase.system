@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { formatDateTime } from "@/lib/utils/format";
-import { FileText, ImageIcon, Package, X, CheckCircle2, ZoomIn } from "lucide-react";
+import { FileText, ImageIcon, Package, X, CheckCircle2, ZoomIn, Banknote } from "lucide-react";
 
 const EVIDENCE_TYPE_CONFIG = {
-  bill:          { label: "บิล / ใบเสร็จ",   icon: FileText,  color: "text-orange-500", bg: "bg-orange-50",  required: true  },
-  slip:          { label: "สลิปการโอนเงิน",   icon: ImageIcon, color: "text-blue-500",   bg: "bg-blue-50",    required: false },
-  goods_receipt: { label: "รูปถ่ายการรับของ", icon: Package,   color: "text-green-500",  bg: "bg-green-50",   required: true  },
+  bill:          { label: "บิล / ใบเสร็จ",         icon: FileText,  color: "text-orange-500", bg: "bg-orange-50",  required: true  },
+  slip:          { label: "สลิปการโอนเงิน",         icon: ImageIcon, color: "text-blue-500",   bg: "bg-blue-50",    required: false },
+  goods_receipt: { label: "รูปถ่ายการรับของ",       icon: Package,   color: "text-green-500",  bg: "bg-green-50",   required: true  },
+  payment_slip:  { label: "สลิปการจ่ายเงิน (โดยบัญชี)", icon: Banknote, color: "text-teal-600",   bg: "bg-teal-50",    required: false },
 } as const;
 
 function isImageFile(name: string) {
@@ -18,7 +19,7 @@ interface EvidenceFile {
   id: string;
   file_name: string;
   file_url: string;
-  evidence_type: "bill" | "slip" | "goods_receipt" | "other";
+  evidence_type: "bill" | "slip" | "goods_receipt" | "payment_slip" | "other";
   file_size: number | null;
 }
 

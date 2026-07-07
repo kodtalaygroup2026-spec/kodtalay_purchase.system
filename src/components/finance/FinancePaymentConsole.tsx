@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Download, CheckCircle2, RotateCcw, XCircle, X, AlertCircle,
-  CheckSquare, Square, Inbox, Loader2,
+  CheckSquare, Square, Inbox, Loader2, Paperclip, FileText,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/supabase/audit";
@@ -86,6 +86,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
 
   const [modal, setModal] = useState<{ type: ActionType; rows: PaymentRow[] } | null>(null);
   const [reason, setReason] = useState("");
+  const [slipFile, setSlipFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -140,8 +141,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     } catch { /* ignore */ }
   }
 
-  // ── บันทึกจ่ายแล้ว (เดี่ยว/ชุด) ──────────────────────────────────────────────
-  async function doMarkPaid(rows: PaymentRow[]) {
+  // ── บันทึกจ่ายแล้ว (เดี่ยว/ชุด) + แนบสลิปโอน ────────────────────────────────
+  async function doMarkPaid(rows: PaymentRow[], slip: File) {
     const ids = rows.map((r) => r.id);
     const { data, error } = await (supabase as any)
       .from("purchase_requisitions")
@@ -157,12 +158,36 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     }
 
     // อัปเดต evidence เป็น paid
-    const evIds = rows.filter((r) => updatedIds.includes(r.id) && r.evidence_id).map((r) => r.evidence_id);
+    const evIds = rows
+      .filter((r) => updatedIds.includes(r.id) && r.evidence_id)
+      .map((r) => r.evidence_id as string);
     if (evIds.length > 0) {
       await (supabase as any)
         .from("payment_evidences")
         .update({ status: "paid", reviewed_by: currentUserId, reviewed_at: new Date().toISOString() })
         .in("id", evIds);
+    }
+
+    // อัปโหลดสลิปโอน 1 ครั้ง แล้วแนบเข้าเอกสารทุกใบที่จ่าย (ให้พนักงานเห็น)
+    const safeName = slip.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `payment-slips/${Date.now()}_${safeName}`;
+    const { error: upErr } = await supabase.storage
+      .from("evidence-attachments")
+      .upload(path, slip, { upsert: false });
+    if (upErr) throw new Error(`อัปโหลดสลิปไม่สำเร็จ: ${upErr.message}`);
+    const { data: { publicUrl } } = supabase.storage.from("evidence-attachments").getPublicUrl(path);
+
+    if (evIds.length > 0) {
+      await (supabase as any).from("evidence_files").insert(
+        evIds.map((evidence_id) => ({
+          evidence_id,
+          file_name: slip.name,
+          file_url: publicUrl,
+          evidence_type: "payment_slip",
+          file_size: slip.size,
+          uploaded_by: currentUserId,
+        }))
+      );
     }
 
     logAudit({
@@ -266,12 +291,16 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       setErrors(["กรุณาระบุเหตุผล"]);
       return;
     }
+    if (modal.type === "pay" && !slipFile) {
+      setErrors(["กรุณาแนบสลิปโอนเงินก่อนกดจ่าย"]);
+      return;
+    }
     setProcessing(true);
     setErrors([]);
     try {
       if (modal.type === "pay") {
-        const n = await doMarkPaid(modal.rows);
-        setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ`);
+        const n = await doMarkPaid(modal.rows, slipFile!);
+        setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ (แนบสลิปเรียบร้อย)`);
       } else if (modal.type === "return") {
         await doReturn(modal.rows[0], reason.trim());
         setSuccessMsg(`ตีกลับ ${modal.rows[0].pr_number} แล้ว`);
@@ -281,6 +310,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       }
       setModal(null);
       setReason("");
+      setSlipFile(null);
       setSelected(new Set());
       router.refresh();
     } catch (err: any) {
@@ -443,7 +473,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
               <Download size={14} /> ดาวน์โหลดไฟล์ KTB
             </button>
             <button
-              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setErrors([]); }}
+              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setErrors([]); }}
               className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
             >
               <CheckCircle2 size={14} /> บันทึกว่าจ่ายแล้ว
@@ -539,7 +569,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setErrors([]); }}
+                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setErrors([]); }}
                             title="จ่าย"
                             className="flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
                           >
@@ -586,13 +616,47 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
             </div>
 
             {modal.type === "pay" ? (
-              <p className="text-sm text-slate-600">
-                ยืนยันบันทึกว่าจ่ายแล้ว รวม{" "}
-                <span className="font-semibold text-slate-800">
-                  {formatCurrency(modal.rows.reduce((s, r) => s + Number(r.amount), 0))}
-                </span>{" "}
-                — รายการจะถูกปิด (สถานะ: จ่ายแล้ว)
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  ยืนยันบันทึกว่าจ่ายแล้ว รวม{" "}
+                  <span className="font-semibold text-slate-800">
+                    {formatCurrency(modal.rows.reduce((s, r) => s + Number(r.amount), 0))}
+                  </span>{" "}
+                  ({modal.rows.length} รายการ)
+                </p>
+
+                {/* แนบสลิปโอน (บังคับ) */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    แนบสลิปโอนเงิน <span className="text-red-500">*</span>
+                  </label>
+                  {slipFile ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                      {slipFile.type.startsWith("image/") ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={URL.createObjectURL(slipFile)} alt="" className="h-10 w-10 rounded object-cover border border-green-200" />
+                      ) : (
+                        <FileText size={18} className="text-green-600" />
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{slipFile.name}</span>
+                      <button onClick={() => setSlipFile(null)} className="text-slate-400 hover:text-red-500">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-3 text-xs text-slate-500 transition hover:border-green-400 hover:bg-green-50 hover:text-green-600">
+                      <Paperclip size={13} /> คลิกเพื่อแนบสลิป (รูป/PDF)
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) setSlipFile(f); }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                  <p className="mt-1 text-[11px] text-slate-400">สลิปนี้จะแนบเข้าเอกสารให้พนักงานเห็น (ทุกใบที่จ่ายในชุดนี้)</p>
+                </div>
+              </div>
             ) : (
               <>
                 <p className="mb-2 text-sm text-slate-600">
