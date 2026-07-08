@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ChevronDown, ChevronUp, AlertTriangle,
   FileText, ImageIcon, Package, ExternalLink,
-  RotateCcw, CheckCircle, Loader2, ZoomIn, X,
+  RotateCcw, CheckCircle, Loader2, ZoomIn, X, Wallet, Building2,
 } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
@@ -80,6 +80,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"return" | "verify" | null>(null);
   const [confirmAction, setConfirmAction] = useState<"return" | "verify" | null>(null);
+  const [verifyChannel, setVerifyChannel] = useState<"company" | "petty_cash">("company");
   const [returnReason, setReturnReason] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -101,15 +102,20 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
     } catch { /* ignore */ }
   }
 
-  // ── ตรวจสอบแล้ว → evidence.status = verified (ส่งเข้ารอตั้งจ่าย) ──
-  async function handleVerify() {
+  // ── ตรวจสอบแล้ว → verified + เลือกช่องทางจ่าย (บริษัท/เงินสดย่อย) ──
+  async function handleVerify(channel: "company" | "petty_cash") {
     if (!evidence) return;
     setLoadingAction("verify");
     setErrorMsg(null);
     try {
       const { data, error } = await (supabase as any)
         .from("payment_evidences")
-        .update({ status: "verified", reviewed_by: currentUserId, reviewed_at: new Date().toISOString() })
+        .update({
+          status: "verified",
+          payment_channel: channel,
+          reviewed_by: currentUserId,
+          reviewed_at: new Date().toISOString(),
+        })
         .eq("id", evidence.id)
         .eq("status", "submitted")
         .select("id");
@@ -121,7 +127,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
         action: "payment_verified",
         entity: "payment_evidences",
         entityId: evidence.id,
-        metadata: { pr_id: pr.id, pr_number: pr.pr_number },
+        metadata: { pr_id: pr.id, pr_number: pr.pr_number, channel },
       });
       router.refresh();
     } catch (err: any) {
@@ -370,9 +376,15 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
                 </div>
               </div>
             ) : confirmAction === "verify" ? (
-              <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
                 <CheckCircle size={16} className="shrink-0 text-blue-600" />
-                <p className="flex-1 text-sm text-blue-700">ยืนยันว่าตรวจสอบหลักฐานแล้ว? รายการจะถูกส่งเข้า &quot;รอตั้งจ่าย&quot;</p>
+                <p className="flex-1 text-sm text-blue-700">
+                  ตรวจแล้ว → ส่งเข้า{" "}
+                  <span className="font-semibold">
+                    {verifyChannel === "company" ? "บริษัทสั่งจ่าย" : "เงินสดย่อย"}
+                  </span>
+                  ?
+                </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setConfirmAction(null); setErrorMsg(null); }}
@@ -382,7 +394,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
                     ยกเลิก
                   </button>
                   <button
-                    onClick={handleVerify}
+                    onClick={() => handleVerify(verifyChannel)}
                     disabled={!!loadingAction}
                     className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                   >
@@ -392,7 +404,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => { setConfirmAction("return"); setErrorMsg(null); }}
                   disabled={!!loadingAction}
@@ -400,13 +412,22 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
                 >
                   <RotateCcw size={13} /> ตีกลับแก้ไข
                 </button>
-                <button
-                  onClick={() => { setConfirmAction("verify"); setErrorMsg(null); }}
-                  disabled={!!loadingAction}
-                  className="ml-auto flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <CheckCircle size={13} /> ตรวจสอบแล้ว
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => { setVerifyChannel("petty_cash"); setConfirmAction("verify"); setErrorMsg(null); }}
+                    disabled={!!loadingAction}
+                    className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                  >
+                    <Wallet size={13} /> เงินสดย่อย
+                  </button>
+                  <button
+                    onClick={() => { setVerifyChannel("company"); setConfirmAction("verify"); setErrorMsg(null); }}
+                    disabled={!!loadingAction}
+                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <Building2 size={13} /> บริษัทสั่งจ่าย
+                  </button>
+                </div>
               </div>
             )}
           </div>

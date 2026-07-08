@@ -74,14 +74,15 @@ export default async function FinancePaymentsPage() {
   const profileMap: Record<string, { full_name: string; line_user_id: string | null }> =
     Object.fromEntries((profileRows ?? []).map((p: any) => [p.id, p]));
 
-  // evidence ที่ผ่านการตรวจสอบแล้ว (verified) — พร้อมจ่าย
+  // evidence ที่ตรวจแล้ว (verified) + ช่องทาง = บริษัทสั่งจ่าย (หรือ null = ค่าเดิม)
   const { data: evidenceRows } =
     prIds.length > 0
       ? await (supabase as any)
           .from("payment_evidences")
-          .select("id, pr_id, account_holder_name, bank_name, bank_account_number, ktb_branch_code, status, payment_type, submitted_at")
+          .select("id, pr_id, account_holder_name, bank_name, bank_account_number, ktb_branch_code, status, payment_type, payment_channel, submitted_at")
           .in("pr_id", prIds)
           .eq("status", "verified")
+          .or("payment_channel.eq.company,payment_channel.is.null")
           .order("submitted_at", { ascending: false })
       : { data: [] };
   const evidenceMap: Record<string, any> = {};

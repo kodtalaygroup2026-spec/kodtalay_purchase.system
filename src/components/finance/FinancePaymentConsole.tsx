@@ -48,6 +48,7 @@ interface Props {
   payments: PaymentRow[];
   settingsByBranch: Record<string, Record<string, string>>;
   currentUserId: string;
+  channel?: "company" | "petty_cash"; // company = มีไฟล์ KTB, petty_cash = จ่ายเงินสดย่อย
 }
 
 // ── สีบริษัท ──────────────────────────────────────────────────────────────────
@@ -74,13 +75,15 @@ function rowToSettings(row: Record<string, string> | undefined): KTBCompanySetti
 
 type ActionType = "pay" | "return" | "cancel";
 
-export function FinancePaymentConsole({ companies, payments, settingsByBranch, currentUserId }: Props) {
+export function FinancePaymentConsole({ companies, payments, settingsByBranch, currentUserId, channel = "company" }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const isPettyCash = channel === "petty_cash";
 
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null); // branch code
   const [typeFilter, setTypeFilter] = useState<"all" | "self_pay" | "send_bill">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [closeStatus, setCloseStatus] = useState<"complete" | "incomplete">("complete");
   const [batchNo, setBatchNo] = useState("000001");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -141,8 +144,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     } catch { /* ignore */ }
   }
 
-  // ── บันทึกจ่ายแล้ว (เดี่ยว/ชุด) + แนบสลิปโอน ────────────────────────────────
-  async function doMarkPaid(rows: PaymentRow[], slip: File) {
+  // ── บันทึกจ่ายแล้ว (เดี่ยว/ชุด) + แนบสลิปโอน + สถานะเอกสาร ──────────────────
+  async function doMarkPaid(rows: PaymentRow[], slip: File, docStatus: "complete" | "incomplete") {
     const ids = rows.map((r) => r.id);
     const { data, error } = await (supabase as any)
       .from("purchase_requisitions")
@@ -164,7 +167,12 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     if (evIds.length > 0) {
       await (supabase as any)
         .from("payment_evidences")
-        .update({ status: "paid", reviewed_by: currentUserId, reviewed_at: new Date().toISOString() })
+        .update({
+          status: "paid",
+          close_status: docStatus,
+          reviewed_by: currentUserId,
+          reviewed_at: new Date().toISOString(),
+        })
         .in("id", evIds);
     }
 
@@ -299,8 +307,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     setErrors([]);
     try {
       if (modal.type === "pay") {
-        const n = await doMarkPaid(modal.rows, slipFile!);
-        setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ (แนบสลิปเรียบร้อย)`);
+        const n = await doMarkPaid(modal.rows, slipFile!, closeStatus);
+        setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ (${closeStatus === "complete" ? "สมบูรณ์" : "ค้างเอกสาร"})`);
       } else if (modal.type === "return") {
         await doReturn(modal.rows[0], reason.trim());
         setSuccessMsg(`ตีกลับ ${modal.rows[0].pr_number} แล้ว`);
@@ -450,30 +458,34 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
           <span className="text-sm font-semibold text-blue-800">
             เลือก {selected.size} รายการ — {formatCurrency(selectedTotal)}
           </span>
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <label>Batch</label>
-            <input
-              value={batchNo}
-              onChange={(e) => setBatchNo(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-20 rounded border border-slate-300 px-2 py-1 font-mono"
-            />
-            <label>วันที่โอน</label>
-            <input
-              type="date"
-              value={effectiveDate}
-              onChange={(e) => setEffectiveDate(e.target.value)}
-              className="rounded border border-slate-300 px-2 py-1"
-            />
-          </div>
+          {!isPettyCash && (
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <label>Batch</label>
+              <input
+                value={batchNo}
+                onChange={(e) => setBatchNo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="w-20 rounded border border-slate-300 px-2 py-1 font-mono"
+              />
+              <label>วันที่โอน</label>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                className="rounded border border-slate-300 px-2 py-1"
+              />
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-2">
+            {!isPettyCash && (
+              <button
+                onClick={downloadKTB}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <Download size={14} /> ดาวน์โหลดไฟล์ KTB
+              </button>
+            )}
             <button
-              onClick={downloadKTB}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            >
-              <Download size={14} /> ดาวน์โหลดไฟล์ KTB
-            </button>
-            <button
-              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setErrors([]); }}
+              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setErrors([]); }}
               className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
             >
               <CheckCircle2 size={14} /> บันทึกว่าจ่ายแล้ว
@@ -569,7 +581,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setErrors([]); }}
+                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setErrors([]); }}
                             title="จ่าย"
                             className="flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
                           >
@@ -655,6 +667,33 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                     </label>
                   )}
                   <p className="mt-1 text-[11px] text-slate-400">สลิปนี้จะแนบเข้าเอกสารให้พนักงานเห็น (ทุกใบที่จ่ายในชุดนี้)</p>
+                </div>
+
+                {/* สถานะเอกสาร: สมบูรณ์ / ไม่สมบูรณ์ */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">สถานะเอกสาร</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCloseStatus("complete")}
+                      className={`flex flex-col items-start gap-0.5 rounded-lg border-2 px-3 py-2 text-left transition ${
+                        closeStatus === "complete" ? "border-green-500 bg-green-50" : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <span className={`text-xs font-semibold ${closeStatus === "complete" ? "text-green-700" : "text-slate-700"}`}>✅ สมบูรณ์</span>
+                      <span className="text-[10px] text-slate-400">เอกสารตัวจริงครบ</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCloseStatus("incomplete")}
+                      className={`flex flex-col items-start gap-0.5 rounded-lg border-2 px-3 py-2 text-left transition ${
+                        closeStatus === "incomplete" ? "border-amber-500 bg-amber-50" : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <span className={`text-xs font-semibold ${closeStatus === "incomplete" ? "text-amber-700" : "text-slate-700"}`}>⚠️ ไม่สมบูรณ์</span>
+                      <span className="text-[10px] text-slate-400">ค้างใบกำกับ/เอกสาร</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
