@@ -19,16 +19,17 @@ import { APP_NAME } from "@/lib/constants";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
-  { href: "/requisitions?step=1", step: "1",  label: "งานอนุมัติ",  financeOnly: false },
-  { href: "/disbursement",        step: null, label: "งานตรวจสอบ", financeOnly: true  },
-  { href: "/requisitions",        step: null, label: "งานเอกสาร",  financeOnly: false },
-  { href: "/requisitions/new",    step: null, label: "สร้าง PR",    financeOnly: false },
+  { href: "/requisitions?step=1",       step: "1",  label: "งานอนุมัติ",         financeOnly: false },
+  { href: "/disbursement",              step: null, label: "งานตรวจสอบ",        financeOnly: true  },
+  { href: "/requisitions",              step: null, label: "งานเอกสาร",         financeOnly: false },
+  { href: "/requisitions/incomplete",   step: null, label: "งานเอกสารไม่สมบูรณ์", financeOnly: false },
+  { href: "/requisitions/new",          step: null, label: "สร้าง PR",           financeOnly: false },
 ];
 
 // ── MyWorkDropdown ──────────────────────────────────────────────────────────
 // แยกออกมาระดับ module เพื่อให้ state ไม่ถูก reset เมื่อ parent re-render
 
-function MyWorkDropdown({ pathname, role, verifyCount = 0 }: { pathname: string; role?: UserRole; verifyCount?: number }) {
+function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0 }: { pathname: string; role?: UserRole; verifyCount?: number; incompleteCount?: number }) {
   const searchParams = useSearchParams();
   const currentStep = searchParams?.get("step") ?? null;
   const isOnMyWork = pathname.startsWith("/requisitions") || pathname.startsWith("/disbursement");
@@ -65,6 +66,8 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0 }: { pathname: string;
                   : pathname.startsWith(sub.href);
 
             const showVerifyBadge = sub.href === "/disbursement" && verifyCount > 0;
+            const showIncompleteBadge = sub.href === "/requisitions/incomplete" && incompleteCount > 0;
+            const badgeCount = showVerifyBadge ? verifyCount : showIncompleteBadge ? incompleteCount : 0;
 
             return (
               <Link
@@ -80,9 +83,9 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0 }: { pathname: string;
               >
                 {isNew && <Plus size={11} />}
                 <span className="flex-1">{sub.label}</span>
-                {showVerifyBadge && (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                    {verifyCount > 99 ? "99+" : verifyCount}
+                {(showVerifyBadge || showIncompleteBadge) && (
+                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${showIncompleteBadge ? "bg-amber-500" : "bg-red-500"}`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
                   </span>
                 )}
               </Link>
@@ -234,9 +237,10 @@ interface SidebarProps {
   approvalCount?: number;
   editedCount?: number;
   verifyCount?: number;
+  incompleteCount?: number;
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0 }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, incompleteCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
@@ -262,7 +266,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} role={role} verifyCount={verifyCount} />
+          <MyWorkDropdown pathname={pathname} role={role} verifyCount={verifyCount} incompleteCount={incompleteCount} />
         </Suspense>
 
         {/* การอนุมัติ */}

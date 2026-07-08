@@ -59,9 +59,17 @@ export default async function DashboardLayout({
     verifyCount = count ?? 0;
   }
 
+  // นับเอกสารของตัวเองที่ไม่สมบูรณ์ (ค้างเอกสาร) — ทุก role
+  const { count: incompleteCnt } = await (supabase as any)
+    .from("payment_evidences")
+    .select("id", { count: "exact", head: true })
+    .eq("submitted_by", user.id)
+    .eq("close_status", "incomplete");
+  const incompleteCount = incompleteCnt ?? 0;
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} />
+      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} incompleteCount={incompleteCount} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">

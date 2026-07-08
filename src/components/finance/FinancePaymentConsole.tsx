@@ -198,6 +198,19 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       );
     }
 
+    // จ่ายแบบไม่สมบูรณ์ → แจ้งเจ้าของให้มาส่งเอกสารตัวจริง
+    if (docStatus === "incomplete") {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      for (const r of rows.filter((x) => updatedIds.includes(x.id) && x.requester_line_id)) {
+        void sendLine(
+          r.requester_line_id!,
+          `📄 เอกสารยังไม่สมบูรณ์ (ค้างใบกำกับ/เอกสารตัวจริง)\n\n` +
+          `เลขที่: ${r.pr_number}\nหัวข้อ: ${r.title}\n\n` +
+          `จ่ายเงินแล้ว แต่กรุณาส่งเอกสารตัวจริงให้ครบ แล้วกดยืนยัน\n${externalBrowserLink(`${origin}/requisitions/incomplete`)}`
+        );
+      }
+    }
+
     logAudit({
       actorId: currentUserId,
       action: "payment_marked_paid",
