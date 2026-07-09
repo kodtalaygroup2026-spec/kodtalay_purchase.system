@@ -191,10 +191,15 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     at: string;
     label: string;
     by: string;
-    color: "slate" | "blue" | "green" | "red" | "orange";
+    color: "slate" | "blue" | "green" | "red" | "orange" | "amber" | "indigo";
     icon: React.ElementType;
+    /** ข้อความที่ผู้ใช้พิมพ์เอง — แสดงในเครื่องหมายคำพูด */
     reason?: string;
+    /** คำอธิบายที่ระบบสร้าง — แสดงเป็นข้อความธรรมดา */
+    note?: string;
     itemChanges?: ItemChange[];
+    /** ลำดับขั้นตอนในกระบวนการ — ใช้ตัดสินเมื่อเวลาบันทึกตรงกัน */
+    rank: number;
   };
 
   const timeline: ActivityEntry[] = [
@@ -204,6 +209,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       by: requester?.full_name ?? requester?.email ?? "—",
       color: "slate",
       icon: FileText,
+      rank: 0,
     },
   ];
   if (pr.submitted_at && pr.submitted_by) {
@@ -213,34 +219,38 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       by: nameOf[pr.submitted_by] ?? "—",
       color: "blue",
       icon: Send,
+      rank: 1,
     });
   }
   if (pr.approved_at && pr.approved_by) {
     timeline.push({
       at: pr.approved_at,
-      label: "อนุมัติ",
+      label: "อนุมัติใบขอซื้อ",
       by: nameOf[pr.approved_by] ?? "—",
       color: "green",
       icon: CheckCircle2,
+      rank: 2,
     });
   }
   if (pr.rejected_at && pr.rejected_by) {
     timeline.push({
       at: pr.rejected_at,
-      label: pr.status === "returned" ? "ตีกลับ" : "ไม่อนุมัติ",
+      label: pr.status === "returned" ? "ตีกลับให้แก้ไขใบขอซื้อ" : "ไม่อนุมัติใบขอซื้อ",
       by: nameOf[pr.rejected_by] ?? "—",
       color: pr.status === "returned" ? "orange" : "red",
       icon: XCircle,
       reason: pr.rejection_reason ?? undefined,
+      rank: 2,
     });
   }
   if (pr.cancelled_at && pr.cancelled_by) {
     timeline.push({
       at: pr.cancelled_at,
-      label: "ยกเลิก",
+      label: "ยกเลิกใบขอซื้อ",
       by: nameOf[pr.cancelled_by] ?? "—",
       color: "red",
       icon: X,
+      rank: 9,
     });
   }
   for (const log of (itemEditLogs ?? []) as any[]) {
@@ -248,9 +258,10 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       at: log.edited_at,
       label: "แก้ไขรายการสินค้า",
       by: nameOf[log.edited_by] ?? "—",
-      color: "blue",
+      color: "amber",
       icon: Pencil,
       itemChanges: (log.changes ?? []) as ItemChange[],
+      rank: 3,
     });
   }
 
@@ -258,26 +269,32 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   for (const log of (auditLogs ?? []) as any[]) {
     const meta = (log.metadata ?? {}) as Record<string, any>;
     const by = nameOf[log.actor_id] ?? "—";
-    const channelLabel = meta.channel === "petty_cash" ? "เงินสดย่อย" : "บริษัทสั่งจ่าย";
+    const channelLabel =
+      meta.channel === "petty_cash" ? "จ่ายจากเงินสดย่อย" : "บริษัทเป็นผู้สั่งจ่าย";
 
     switch (log.action) {
       case "payment_evidence_submitted":
         timeline.push({
           at: log.created_at,
-          label: "แนบหลักฐานการซื้อ",
+          label: "ส่งบิลให้ฝ่ายการเงินตรวจสอบ",
           by,
           color: "blue",
           icon: Paperclip,
-          reason: meta.payment_type === "self_pay" ? "ชำระเอง (ขอเบิกคืน)" : "ส่งบิลให้ บช. จ่าย",
+          note:
+            meta.payment_type === "self_pay"
+              ? "พนักงานสำรองจ่ายไปก่อน — ขอเบิกคืน"
+              : "ส่งบิลให้ฝ่ายบัญชีเป็นผู้จ่าย",
+          rank: 4,
         });
         break;
       case "payment_verified":
         timeline.push({
           at: log.created_at,
-          label: `บช. ตรวจสอบแล้ว → ${channelLabel}`,
+          label: `ฝ่ายการเงินตรวจสอบแล้ว — ${channelLabel}`,
           by,
-          color: "blue",
+          color: "indigo",
           icon: ClipboardCheck,
+          rank: 5,
         });
         break;
       case "payment_returned":
@@ -286,33 +303,37 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           label:
             meta.close_status === "incomplete"
               ? "ตีกลับให้แก้ไข — เอกสารไม่สมบูรณ์"
-              : "ตีกลับให้แก้ไข",
+              : "ตีกลับให้แก้ไขหลักฐาน",
           by,
           color: "orange",
           icon: RotateCcw,
           reason: meta.note ?? undefined,
+          rank: 6,
         });
         break;
       case "payment_marked_paid":
         timeline.push({
           at: log.created_at,
           label:
+            // close_status = incomplete เกิดได้เฉพาะข้อมูลเก่า ก่อนเปลี่ยนเป็นตีกลับ
             meta.close_status === "incomplete"
-              ? `จ่ายเงินแล้ว (${channelLabel}) — เอกสารไม่สมบูรณ์`
-              : `จ่ายเงินแล้ว (${channelLabel}) — เอกสารสมบูรณ์`,
+              ? `จ่ายเงินแล้ว — ${channelLabel} (เอกสารไม่สมบูรณ์)`
+              : `จ่ายเงินแล้ว — ${channelLabel}`,
           by,
           color: meta.close_status === "incomplete" ? "orange" : "green",
           icon: Banknote,
           reason: meta.note ?? undefined,
+          rank: 7,
         });
         break;
       case "documents_completed":
         timeline.push({
           at: log.created_at,
-          label: "ยืนยันเอกสารครบ — ปิดสมบูรณ์",
+          label: "ยืนยันเอกสารครบถ้วน — ปิดงานสมบูรณ์",
           by,
           color: "green",
           icon: FileCheck2,
+          rank: 8,
         });
         break;
       case "payment_cancelled":
@@ -323,6 +344,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           color: "red",
           icon: X,
           reason: meta.note ?? undefined,
+          rank: 9,
         });
         break;
       default:
@@ -330,12 +352,20 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     }
   }
 
-  timeline.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  // เรียงตามเวลา แล้วใช้ rank ตัดสินเมื่อเวลาบันทึกตรงกัน (เช่น สร้างแล้วส่งทันที)
+  timeline.sort((a, b) => {
+    const diff = new Date(a.at).getTime() - new Date(b.at).getTime();
+    return diff !== 0 ? diff : a.rank - b.rank;
+  });
 
+  // สีสื่อความหมาย: เทา=เริ่มต้น · น้ำเงิน=ผู้ขอส่งเรื่อง · เขียว=ผ่าน/สำเร็จ
+  // คราม=ฝ่ายการเงินตรวจสอบ · เหลือง=แก้ไข · ส้ม=ตีกลับ · แดง=ยกเลิก/ไม่อนุมัติ
   const colorMap = {
     slate:  { dot: "bg-slate-400",  text: "text-slate-500",  badge: "bg-slate-100 text-slate-600" },
     blue:   { dot: "bg-blue-500",   text: "text-blue-600",   badge: "bg-blue-50 text-blue-700" },
+    indigo: { dot: "bg-indigo-500", text: "text-indigo-600", badge: "bg-indigo-50 text-indigo-700" },
     green:  { dot: "bg-green-500",  text: "text-green-600",  badge: "bg-green-50 text-green-700" },
+    amber:  { dot: "bg-amber-400",  text: "text-amber-600",  badge: "bg-amber-50 text-amber-700" },
     red:    { dot: "bg-red-500",    text: "text-red-600",    badge: "bg-red-50 text-red-700" },
     orange: { dot: "bg-orange-400", text: "text-orange-600", badge: "bg-orange-50 text-orange-700" },
   };
@@ -641,6 +671,11 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
                   <span className="text-sm text-slate-700">โดย {entry.by}</span>
                   <span className="text-xs text-slate-400">{formatDateTime(entry.at)}</span>
                 </div>
+                {entry.note && (
+                  <p className={`mt-1 rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
+                    {entry.note}
+                  </p>
+                )}
                 {entry.reason && (
                   <p className={`mt-1 rounded-lg border px-3 py-1.5 text-xs ${c.badge}`}>
                     &ldquo;{entry.reason}&rdquo;
