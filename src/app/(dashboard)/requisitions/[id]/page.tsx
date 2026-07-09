@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PRApprovalPanel } from "@/components/pr/PRApprovalPanel";
+import { PRAttachmentsSection } from "@/components/pr/PRAttachmentsSection";
 import { PRItemsDropdown } from "@/components/pr/PRItemsDropdown";
 import { EvidenceSubmissionSection } from "@/components/evidence/EvidenceSubmissionSection";
 import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSection";
@@ -77,6 +78,13 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   ]);
 
   if (!pr) notFound();
+
+  // ── ใบเสนอราคาที่แนบตอนสร้าง PR ────────────────────────────────────────────
+  const { data: prAttachments } = await (supabase as any)
+    .from("pr_attachments")
+    .select("id, file_name, file_url, file_type, file_size")
+    .eq("pr_id", id)
+    .order("created_at");
 
   // ── fetch evidence (ล่าสุด) + item edit logs ─────────────────────────────
   const [{ data: evidenceRows }, { data: itemEditLogs }] = await Promise.all([
@@ -420,6 +428,9 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           currentUserId={user?.id ?? ""}
         />
       </div>
+
+      {/* ── ใบเสนอราคา (แนบตอนสร้าง PR) ──────────────────────────────────── */}
+      <PRAttachmentsSection attachments={(prAttachments ?? []) as any} />
 
       {/* ── PR Approval Panel ────────────────────────────────────────────── */}
       <PRApprovalPanel
