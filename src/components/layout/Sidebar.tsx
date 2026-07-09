@@ -16,6 +16,7 @@ import {
   FileCheck2,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
+import { KTB_ENABLED } from "@/lib/config/features";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
@@ -104,7 +105,10 @@ const FINANCE_SUB = [
   { href: "/finance/payments",   label: "รายการจ่ายเงิน",       icon: <Banknote size={13} /> },
   { href: "/finance/petty-cash", label: "เงินสดย่อย",          icon: <PiggyBank size={13} /> },
   { href: "/finance/documents",  label: "งานเอกสารสมบูรณ์",     icon: <FileCheck2 size={13} /> },
-  { href: "/finance/ktb",        label: "KTB Smart Transfer",  icon: <Landmark size={13} /> },
+  // KTB Smart Transfer — ปิดชั่วคราว (เปิดที่ lib/config/features.ts)
+  ...(KTB_ENABLED
+    ? [{ href: "/finance/ktb", label: "KTB Smart Transfer", icon: <Landmark size={13} /> }]
+    : []),
   { href: "/finance/tax-invoices", label: "ใบกำกับภาษี",       icon: <FileText size={13} /> },
 ];
 

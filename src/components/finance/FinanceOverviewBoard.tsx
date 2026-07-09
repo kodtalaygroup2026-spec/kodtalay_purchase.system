@@ -8,6 +8,7 @@ import {
   generateKTBContent, validateKTBSettings,
   type KTBCompanySettings, type KTBRecipient,
 } from "@/lib/utils/ktbFormat";
+import { KTB_ENABLED } from "@/lib/config/features";
 
 // ── สีประจำแต่ละบริษัท (keyed by branch code) ─────────────────────────────────
 const COMPANY_THEME: Record<
@@ -247,8 +248,8 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
           )}
         </div>
 
-        {/* แถบเลือก + สร้างไฟล์ KTB */}
-        {selected.size > 0 && (
+        {/* แถบเลือก + สร้างไฟล์ KTB (ปิดชั่วคราวผ่าน KTB_ENABLED) */}
+        {KTB_ENABLED && selected.size > 0 && (
           <div className="flex flex-wrap items-center gap-3 border-b border-blue-100 bg-blue-50 px-4 py-2.5">
             <span className="text-sm font-semibold text-blue-800">
               เลือก {selected.size} รายการ — {formatCurrency(selectedRows.reduce((s, p) => s + Number(p.amount), 0))}
@@ -295,11 +296,13 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
             <table className="min-w-full text-sm">
               <thead className="border-b border-slate-100 bg-white">
                 <tr>
-                  <th className="px-4 py-3 text-left w-10">
-                    <button onClick={toggleAll} className="flex items-center">
-                      {allSelected ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="text-slate-400" />}
-                    </button>
-                  </th>
+                  {KTB_ENABLED && (
+                    <th className="px-4 py-3 text-left w-10">
+                      <button onClick={toggleAll} className="flex items-center">
+                        {allSelected ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="text-slate-400" />}
+                      </button>
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left font-medium text-slate-500">เลขที่ PR</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อรายการ</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ผู้ขอ</th>
@@ -314,11 +317,13 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
                   const isChecked = selected.has(pr.id);
                   return (
                     <tr key={pr.id} className={isChecked ? "bg-blue-50/50" : "hover:bg-slate-50"}>
-                      <td className="px-4 py-3">
-                        <button onClick={() => toggleOne(pr.id)} className="flex items-center">
-                          {isChecked ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="text-slate-400" />}
-                        </button>
-                      </td>
+                      {KTB_ENABLED && (
+                        <td className="px-4 py-3">
+                          <button onClick={() => toggleOne(pr.id)} className="flex items-center">
+                            {isChecked ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="text-slate-400" />}
+                          </button>
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <Link
                           href={`/requisitions/${pr.id}`}
@@ -351,8 +356,8 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
         )}
       </div>
 
-      {/* ── Modal: ดู text ไฟล์ KTB ────────────────────────────────────────── */}
-      {showReport && report && (
+      {/* ── Modal: ดู text ไฟล์ KTB (ปิดชั่วคราวผ่าน KTB_ENABLED) ──────────── */}
+      {KTB_ENABLED && showReport && report && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setShowReport(false)}

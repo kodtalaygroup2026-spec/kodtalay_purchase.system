@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
 import { externalBrowserLink } from "@/lib/line/externalLink";
+import { KTB_ENABLED } from "@/lib/config/features";
 import {
   generateKTBContent, validateKTBSettings,
   type KTBCompanySettings, type KTBRecipient,
@@ -471,7 +472,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
           <span className="text-sm font-semibold text-blue-800">
             เลือก {selected.size} รายการ — {formatCurrency(selectedTotal)}
           </span>
-          {!isPettyCash && (
+          {KTB_ENABLED && !isPettyCash && (
             <div className="flex items-center gap-2 text-xs text-slate-600">
               <label>Batch</label>
               <input
@@ -489,7 +490,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
-            {!isPettyCash && (
+            {KTB_ENABLED && !isPettyCash && (
               <button
                 onClick={downloadKTB}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
