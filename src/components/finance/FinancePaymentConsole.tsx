@@ -91,6 +91,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   const [modal, setModal] = useState<{ type: ActionType; rows: PaymentRow[] } | null>(null);
   const [reason, setReason] = useState("");
   const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [incompleteReason, setIncompleteReason] = useState("");
   const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -146,7 +147,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   }
 
   // ── บันทึกจ่ายแล้ว (เดี่ยว/ชุด) + แนบสลิปโอน + สถานะเอกสาร ──────────────────
-  async function doMarkPaid(rows: PaymentRow[], slip: File, docStatus: "complete" | "incomplete") {
+  // จ่ายได้เฉพาะกรณีเอกสาร "สมบูรณ์" (ถ้าไม่สมบูรณ์ → ตีกลับแทน)
+  async function doMarkPaid(rows: PaymentRow[], slip: File) {
     const ids = rows.map((r) => r.id);
     const { data, error } = await (supabase as any)
       .from("purchase_requisitions")
@@ -170,7 +172,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         .from("payment_evidences")
         .update({
           status: "paid",
-          close_status: docStatus,
+          close_status: "complete",
           reviewed_by: currentUserId,
           reviewed_at: new Date().toISOString(),
         })
@@ -199,25 +201,22 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       );
     }
 
-    // จ่ายแบบไม่สมบูรณ์ → แจ้งเจ้าของให้มาส่งเอกสารตัวจริง
-    if (docStatus === "incomplete") {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      for (const r of rows.filter((x) => updatedIds.includes(x.id) && x.requester_line_id)) {
-        void sendLine(
-          r.requester_line_id!,
-          `📄 เอกสารยังไม่สมบูรณ์ (ค้างใบกำกับ/เอกสารตัวจริง)\n\n` +
-          `เลขที่: ${r.pr_number}\nหัวข้อ: ${r.title}\n\n` +
-          `จ่ายเงินแล้ว แต่กรุณาส่งเอกสารตัวจริงให้ครบ แล้วกดยืนยัน\n${externalBrowserLink(`${origin}/requisitions/incomplete`)}`
-        );
-      }
+    // บันทึก audit แยกรายใบ เพื่อให้ไทม์ไลน์ของแต่ละ PR แสดงครบ
+    for (const prId of updatedIds) {
+      const row = rows.find((r) => r.id === prId);
+      logAudit({
+        actorId: currentUserId,
+        action: "payment_marked_paid",
+        entity: "purchase_requisitions",
+        entityId: prId,
+        metadata: {
+          pr_id: prId,
+          pr_number: row?.pr_number,
+          close_status: "complete",
+          channel,
+        },
+      });
     }
-
-    logAudit({
-      actorId: currentUserId,
-      action: "payment_marked_paid",
-      entity: "purchase_requisitions",
-      metadata: { pr_ids: updatedIds, count: updatedIds.length },
-    });
     return updatedIds.length;
   }
 
@@ -313,16 +312,28 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       setErrors(["กรุณาระบุเหตุผล"]);
       return;
     }
-    if (modal.type === "pay" && !slipFile) {
+    // เอกสารสมบูรณ์ → ต้องแนบสลิปแล้วจ่าย
+    if (modal.type === "pay" && closeStatus === "complete" && !slipFile) {
       setErrors(["กรุณาแนบสลิปโอนเงินก่อนกดจ่าย"]);
+      return;
+    }
+    // เอกสารไม่สมบูรณ์ → ไม่ต้องแนบสลิป แต่ต้องระบุเหตุผลตีกลับ
+    if (modal.type === "pay" && closeStatus === "incomplete" && !incompleteReason.trim()) {
+      setErrors(["กรุณาระบุเหตุผลตีกลับ"]);
       return;
     }
     setProcessing(true);
     setErrors([]);
     try {
-      if (modal.type === "pay") {
-        const n = await doMarkPaid(modal.rows, slipFile!, closeStatus);
-        setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ (${closeStatus === "complete" ? "สมบูรณ์" : "ค้างเอกสาร"})`);
+      if (modal.type === "pay" && closeStatus === "complete") {
+        const n = await doMarkPaid(modal.rows, slipFile!);
+        setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ`);
+      } else if (modal.type === "pay") {
+        // เอกสารไม่สมบูรณ์ → ตีกลับให้เจ้าของแก้ไข แล้วส่งกลับมาจ่ายใหม่
+        for (const row of modal.rows) {
+          await doReturn(row, incompleteReason.trim());
+        }
+        setSuccessMsg(`ตีกลับ ${modal.rows.length} รายการ ให้แก้ไขแล้วส่งจ่ายใหม่`);
       } else if (modal.type === "return") {
         await doReturn(modal.rows[0], reason.trim());
         setSuccessMsg(`ตีกลับ ${modal.rows[0].pr_number} แล้ว`);
@@ -333,6 +344,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       setModal(null);
       setReason("");
       setSlipFile(null);
+      setIncompleteReason("");
       setSelected(new Set());
       router.refresh();
     } catch (err: any) {
@@ -499,7 +511,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
               </button>
             )}
             <button
-              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setErrors([]); }}
+              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setIncompleteReason(""); setErrors([]); }}
               className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
             >
               <CheckCircle2 size={14} /> บันทึกว่าจ่ายแล้ว
@@ -595,7 +607,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setErrors([]); }}
+                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setIncompleteReason(""); setErrors([]); }}
                             title="จ่าย"
                             className="flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
                           >
@@ -632,7 +644,10 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800">
-                {modal.type === "pay" && `ยืนยันการจ่าย ${modal.rows.length} รายการ`}
+                {modal.type === "pay" &&
+                  (closeStatus === "complete"
+                    ? `ยืนยันการจ่าย ${modal.rows.length} รายการ`
+                    : `ตีกลับ ${modal.rows.length} รายการ`)}
                 {modal.type === "return" && `ตีกลับ ${modal.rows[0].pr_number}`}
                 {modal.type === "cancel" && `ยกเลิก ${modal.rows[0].pr_number}`}
               </h3>
@@ -644,46 +659,14 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
             {modal.type === "pay" ? (
               <div className="space-y-3">
                 <p className="text-sm text-slate-600">
-                  ยืนยันบันทึกว่าจ่ายแล้ว รวม{" "}
+                  รวม{" "}
                   <span className="font-semibold text-slate-800">
                     {formatCurrency(modal.rows.reduce((s, r) => s + Number(r.amount), 0))}
                   </span>{" "}
                   ({modal.rows.length} รายการ)
                 </p>
 
-                {/* แนบสลิปโอน (บังคับ) */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    แนบสลิปโอนเงิน <span className="text-red-500">*</span>
-                  </label>
-                  {slipFile ? (
-                    <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-                      {slipFile.type.startsWith("image/") ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={URL.createObjectURL(slipFile)} alt="" className="h-10 w-10 rounded object-cover border border-green-200" />
-                      ) : (
-                        <FileText size={18} className="text-green-600" />
-                      )}
-                      <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{slipFile.name}</span>
-                      <button onClick={() => setSlipFile(null)} className="text-slate-400 hover:text-red-500">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-3 text-xs text-slate-500 transition hover:border-green-400 hover:bg-green-50 hover:text-green-600">
-                      <Paperclip size={13} /> คลิกเพื่อแนบสลิป (รูป/PDF)
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) setSlipFile(f); }}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                  <p className="mt-1 text-[11px] text-slate-400">สลิปนี้จะแนบเข้าเอกสารให้พนักงานเห็น (ทุกใบที่จ่ายในชุดนี้)</p>
-                </div>
-
-                {/* สถานะเอกสาร: สมบูรณ์ / ไม่สมบูรณ์ */}
+                {/* ขั้นที่ 1 — ตรวจสอบเอกสาร: สมบูรณ์ = จ่ายได้ / ไม่สมบูรณ์ = ตีกลับ */}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">สถานะเอกสาร</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -694,8 +677,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                         closeStatus === "complete" ? "border-green-500 bg-green-50" : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <span className={`text-xs font-semibold ${closeStatus === "complete" ? "text-green-700" : "text-slate-700"}`}>✅ สมบูรณ์</span>
-                      <span className="text-[10px] text-slate-400">เอกสารตัวจริงครบ</span>
+                      <span className={`text-xs font-semibold ${closeStatus === "complete" ? "text-green-700" : "text-slate-700"}`}>สมบูรณ์</span>
+                      <span className="text-[10px] text-slate-400">แนบสลิป แล้วจ่ายเงิน</span>
                     </button>
                     <button
                       type="button"
@@ -704,11 +687,63 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                         closeStatus === "incomplete" ? "border-amber-500 bg-amber-50" : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <span className={`text-xs font-semibold ${closeStatus === "incomplete" ? "text-amber-700" : "text-slate-700"}`}>⚠️ ไม่สมบูรณ์</span>
-                      <span className="text-[10px] text-slate-400">ค้างใบกำกับ/เอกสาร</span>
+                      <span className={`text-xs font-semibold ${closeStatus === "incomplete" ? "text-amber-700" : "text-slate-700"}`}>ไม่สมบูรณ์</span>
+                      <span className="text-[10px] text-slate-400">ตีกลับให้แก้ไข</span>
                     </button>
                   </div>
                 </div>
+
+                {closeStatus === "complete" ? (
+                  /* ขั้นที่ 2a — แนบสลิปโอน (บังคับ) */
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                      แนบสลิปโอนเงิน <span className="text-red-500">*</span>
+                    </label>
+                    {slipFile ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                        {slipFile.type.startsWith("image/") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={URL.createObjectURL(slipFile)} alt="" className="h-10 w-10 rounded object-cover border border-green-200" />
+                        ) : (
+                          <FileText size={18} className="text-green-600" />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{slipFile.name}</span>
+                        <button onClick={() => setSlipFile(null)} className="text-slate-400 hover:text-red-500">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-3 text-xs text-slate-500 transition hover:border-green-400 hover:bg-green-50 hover:text-green-600">
+                        <Paperclip size={13} /> คลิกเพื่อแนบสลิป (รูป/PDF)
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) setSlipFile(f); }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <p className="mt-1 text-[11px] text-slate-400">สลิปนี้จะแนบเข้าเอกสารให้พนักงานเห็น (ทุกใบที่จ่ายในชุดนี้)</p>
+                  </div>
+                ) : (
+                  /* ขั้นที่ 2b — เหตุผลตีกลับ (บังคับ) ยังไม่ต้องแนบสลิป */
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                    <label className="mb-1 block text-sm font-medium text-amber-800">
+                      เหตุผลตีกลับ <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={incompleteReason}
+                      onChange={(e) => setIncompleteReason(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      placeholder="เช่น ยังไม่ได้ใบกำกับภาษีตัวจริง / บิลไม่ชัด / รอใบเสร็จจากร้าน"
+                      className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                    <p className="mt-1.5 text-[11px] text-amber-700">
+                      ยังไม่จ่ายเงิน — ระบบจะส่งใบสั่งกลับให้พนักงานแก้ไขเอกสาร แล้วส่งมาจ่ายใหม่อีกรอบ
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -743,13 +778,16 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                 onClick={confirmModal}
                 disabled={processing}
                 className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 ${
-                  modal.type === "pay" ? "bg-green-600 hover:bg-green-700"
-                    : modal.type === "return" ? "bg-amber-600 hover:bg-amber-700"
-                    : "bg-red-600 hover:bg-red-700"
+                  modal.type === "pay" && closeStatus === "complete" ? "bg-green-600 hover:bg-green-700"
+                    : modal.type === "cancel" ? "bg-red-600 hover:bg-red-700"
+                    : "bg-amber-600 hover:bg-amber-700"
                 }`}
               >
                 {processing && <Loader2 size={14} className="animate-spin" />}
-                {modal.type === "pay" ? "ยืนยันจ่าย" : modal.type === "return" ? "ยืนยันตีกลับ" : "ยืนยันยกเลิก"}
+                {modal.type === "pay"
+                  ? closeStatus === "complete" ? "ยืนยันจ่าย" : "ตีกลับให้แก้ไข"
+                  : modal.type === "return" ? "ยืนยันตีกลับ"
+                  : "ยืนยันยกเลิก"}
               </button>
             </div>
           </div>

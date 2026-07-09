@@ -65,9 +65,9 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
 
       logAudit({
         actorId: currentUserId,
-        action: "payment_evidence_submitted",
-        entity: "payment_evidences",
-        entityId: doc.evidence_id,
+        action: "documents_completed",
+        entity: "purchase_requisitions",
+        entityId: doc.id,
         metadata: { pr_id: doc.id, pr_number: doc.pr_number, close_status: "complete" },
       });
 

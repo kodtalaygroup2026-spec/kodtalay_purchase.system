@@ -12,7 +12,7 @@ import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSecti
 import Link from "next/link";
 import {
   ArrowLeft, Clock, CheckCircle2, XCircle, Send, X, FileText,
-  Edit, Plus, Pencil,
+  Edit, Plus, Pencil, Paperclip, ClipboardCheck, Banknote, RotateCcw, FileCheck2,
 } from "lucide-react";
 import type { PrStatus, UserRole } from "@/types/database";
 
@@ -86,6 +86,13 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     .eq("pr_id", id)
     .order("created_at");
 
+  // ── audit log ของ PR นี้ (ใช้เติมไทม์ไลน์ขั้นตอนฝั่งการเงิน) ─────────────────
+  const { data: auditLogs } = await (supabase as any)
+    .from("audit_logs")
+    .select("id, actor_id, action, metadata, created_at")
+    .or(`entity_id.eq.${id},metadata->>pr_id.eq.${id}`)
+    .order("created_at");
+
   // ── fetch evidence (ล่าสุด) + item edit logs ─────────────────────────────
   const [{ data: evidenceRows }, { data: itemEditLogs }] = await Promise.all([
     (supabase as any)
@@ -127,7 +134,8 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
   // ── Audit trail profile IDs (รวม editor ของ item edits ด้วย) ────────────
   const editLogEditorIds = ((itemEditLogs ?? []) as any[]).map((l: any) => l.edited_by).filter(Boolean);
-  const auditIds = [pr.submitted_by, pr.approved_by, pr.rejected_by, pr.cancelled_by, ...editLogEditorIds]
+  const auditActorIds = ((auditLogs ?? []) as any[]).map((l: any) => l.actor_id).filter(Boolean);
+  const auditIds = [pr.submitted_by, pr.approved_by, pr.rejected_by, pr.cancelled_by, ...editLogEditorIds, ...auditActorIds]
     .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
   const uniqueIds = [...new Set(auditIds)];
 
@@ -245,6 +253,80 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       itemChanges: (log.changes ?? []) as ItemChange[],
     });
   }
+
+  // ── ขั้นตอนฝั่งการเงินจาก audit log (ข้าม pr_* เพราะมีจากคอลัมน์ PR อยู่แล้ว) ──
+  for (const log of (auditLogs ?? []) as any[]) {
+    const meta = (log.metadata ?? {}) as Record<string, any>;
+    const by = nameOf[log.actor_id] ?? "—";
+    const channelLabel = meta.channel === "petty_cash" ? "เงินสดย่อย" : "บริษัทสั่งจ่าย";
+
+    switch (log.action) {
+      case "payment_evidence_submitted":
+        timeline.push({
+          at: log.created_at,
+          label: "แนบหลักฐานการซื้อ",
+          by,
+          color: "blue",
+          icon: Paperclip,
+          reason: meta.payment_type === "self_pay" ? "ชำระเอง (ขอเบิกคืน)" : "ส่งบิลให้ บช. จ่าย",
+        });
+        break;
+      case "payment_verified":
+        timeline.push({
+          at: log.created_at,
+          label: `บช. ตรวจสอบแล้ว → ${channelLabel}`,
+          by,
+          color: "blue",
+          icon: ClipboardCheck,
+        });
+        break;
+      case "payment_returned":
+        timeline.push({
+          at: log.created_at,
+          label: "ตีกลับให้แก้ไข",
+          by,
+          color: "orange",
+          icon: RotateCcw,
+          reason: meta.note ?? undefined,
+        });
+        break;
+      case "payment_marked_paid":
+        timeline.push({
+          at: log.created_at,
+          label:
+            meta.close_status === "incomplete"
+              ? `จ่ายเงินแล้ว (${channelLabel}) — เอกสารไม่สมบูรณ์`
+              : `จ่ายเงินแล้ว (${channelLabel}) — เอกสารสมบูรณ์`,
+          by,
+          color: meta.close_status === "incomplete" ? "orange" : "green",
+          icon: Banknote,
+          reason: meta.note ?? undefined,
+        });
+        break;
+      case "documents_completed":
+        timeline.push({
+          at: log.created_at,
+          label: "ยืนยันเอกสารครบ — ปิดสมบูรณ์",
+          by,
+          color: "green",
+          icon: FileCheck2,
+        });
+        break;
+      case "payment_cancelled":
+        timeline.push({
+          at: log.created_at,
+          label: "ยกเลิกโดยฝ่ายการเงิน",
+          by,
+          color: "red",
+          icon: X,
+          reason: meta.note ?? undefined,
+        });
+        break;
+      default:
+        break; // pr_created / pr_submitted / pr_approved ... มีอยู่แล้วด้านบน
+    }
+  }
+
   timeline.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
   const colorMap = {
