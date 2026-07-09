@@ -221,7 +221,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   }
 
   // ── ตีกลับ ───────────────────────────────────────────────────────────────
-  async function doReturn(row: PaymentRow, note: string) {
+  // fromIncompleteDocs = ตีกลับเพราะเอกสารไม่สมบูรณ์ (ติดธงให้ไปแสดงในหน้างานเอกสารไม่สมบูรณ์)
+  async function doReturn(row: PaymentRow, note: string, fromIncompleteDocs = false) {
     const { data, error } = await (supabase as any)
       .from("purchase_requisitions")
       .update({ status: "approved" })
@@ -237,6 +238,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         .update({
           status: "returned",
           review_note: note,
+          ...(fromIncompleteDocs ? { close_status: "incomplete" } : {}),
           reviewed_by: currentUserId,
           reviewed_at: new Date().toISOString(),
         })
@@ -245,12 +247,15 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
 
     if (row.requester_line_id) {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const targetUrl = fromIncompleteDocs
+        ? `${origin}/requisitions/incomplete`
+        : `${origin}/requisitions/${row.id}`;
       void sendLine(
         row.requester_line_id,
-        `↩️ การจ่ายเงินถูกตีกลับ\n\n` +
+        (fromIncompleteDocs ? `เอกสารไม่สมบูรณ์ — ถูกตีกลับ\n\n` : `การจ่ายเงินถูกตีกลับ\n\n`) +
         `เลขที่: ${row.pr_number}\nหัวข้อ: ${row.title}\n` +
         `เหตุผล: ${note}\n\n` +
-        `กรุณาแก้ไขหลักฐานแล้วส่งใหม่\n${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`
+        `กรุณาแก้ไขเอกสารแล้วส่งมาจ่ายใหม่\n${externalBrowserLink(targetUrl)}`
       );
     }
 
@@ -259,7 +264,12 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       action: "payment_returned",
       entity: "purchase_requisitions",
       entityId: row.id,
-      metadata: { pr_number: row.pr_number, note },
+      metadata: {
+        pr_id: row.id,
+        pr_number: row.pr_number,
+        note,
+        ...(fromIncompleteDocs ? { close_status: "incomplete" } : {}),
+      },
     });
   }
 
@@ -331,7 +341,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       } else if (modal.type === "pay") {
         // เอกสารไม่สมบูรณ์ → ตีกลับให้เจ้าของแก้ไข แล้วส่งกลับมาจ่ายใหม่
         for (const row of modal.rows) {
-          await doReturn(row, incompleteReason.trim());
+          await doReturn(row, incompleteReason.trim(), true);
         }
         setSuccessMsg(`ตีกลับ ${modal.rows.length} รายการ ให้แก้ไขแล้วส่งจ่ายใหม่`);
       } else if (modal.type === "return") {

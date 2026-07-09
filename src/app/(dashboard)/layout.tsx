@@ -59,13 +59,37 @@ export default async function DashboardLayout({
     verifyCount = count ?? 0;
   }
 
-  // นับเอกสารของตัวเองที่ไม่สมบูรณ์ (ค้างเอกสาร) — ทุก role
-  const { count: incompleteCnt } = await (supabase as any)
+  // นับเอกสารของตัวเองที่ไม่สมบูรณ์ — ทั้งที่ถูกตีกลับ และที่จ่ายแล้วแต่ค้างเอกสารตัวจริง
+  // (ต้องเช็คสถานะ PR ด้วย เพราะใบที่ส่งหลักฐานใหม่ไปแล้วไม่ควรนับซ้ำ)
+  const { data: incRows } = await (supabase as any)
     .from("payment_evidences")
-    .select("id", { count: "exact", head: true })
+    .select("pr_id, status, submitted_at")
     .eq("submitted_by", user.id)
-    .eq("close_status", "incomplete");
-  const incompleteCount = incompleteCnt ?? 0;
+    .eq("close_status", "incomplete")
+    .order("submitted_at", { ascending: false })
+    .limit(200);
+
+  let incompleteCount = 0;
+  if (incRows && incRows.length > 0) {
+    const incPrIds = [...new Set(incRows.map((r: any) => r.pr_id))];
+    const { data: incPrs } = await (supabase as any)
+      .from("purchase_requisitions")
+      .select("id, status")
+      .in("id", incPrIds);
+    const prStatusById: Record<string, string> = Object.fromEntries(
+      (incPrs ?? []).map((p: any) => [p.id, p.status])
+    );
+    const seen = new Set<string>();
+    for (const ev of incRows as any[]) {
+      if (seen.has(ev.pr_id)) continue;
+      seen.add(ev.pr_id);
+      const prStatus = prStatusById[ev.pr_id];
+      if (!prStatus) continue;
+      const isPendingFix = ev.status === "returned" && ["approved", "converted"].includes(prStatus);
+      const isAwaitingDocs = ev.status === "paid";
+      if (isPendingFix || isAwaitingDocs) incompleteCount++;
+    }
+  }
 
   // นับ PR ของตัวเองที่ "เจ้าของต้องจัดการ" — ร่าง/ตีกลับ/ไม่อนุมัติ + รอแนบบิล
   const { count: todoCnt } = await (supabase as any)

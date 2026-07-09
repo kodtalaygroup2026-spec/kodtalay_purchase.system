@@ -11,10 +11,12 @@ export default async function IncompleteDocsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // เอกสารของตัวเองที่ค้าง (close_status = incomplete)
+  // เอกสารของตัวเองที่ถูกทำเครื่องหมายว่าไม่สมบูรณ์
+  // - status = paid     → จ่ายแล้วแต่ค้างเอกสารตัวจริง
+  // - status = returned → การเงินตีกลับเพราะเอกสารไม่สมบูรณ์ ยังไม่จ่าย
   const { data: evRows } = await (supabase as any)
     .from("payment_evidences")
-    .select("id, pr_id, review_note, close_status, submitted_at")
+    .select("id, pr_id, status, review_note, close_status, submitted_at")
     .eq("submitted_by", user.id)
     .eq("close_status", "incomplete")
     .order("submitted_at", { ascending: false });
@@ -25,15 +27,26 @@ export default async function IncompleteDocsPage() {
     prIds.length > 0
       ? await (supabase as any)
           .from("purchase_requisitions")
-          .select("id, pr_number, title, total_amount, actual_amount, finance_action_at")
+          .select("id, pr_number, title, status, total_amount, actual_amount, finance_action_at")
           .in("id", prIds)
       : { data: [] };
   const prMap: Record<string, any> = Object.fromEntries((prs ?? []).map((p: any) => [p.id, p]));
 
+  const seenPrIds = new Set<string>();
   const docs: IncompleteDoc[] = (evRows ?? [])
-    .map((ev: any) => {
+    .map((ev: any): IncompleteDoc | null => {
       const pr = prMap[ev.pr_id];
       if (!pr) return null;
+
+      // ยึดเฉพาะ evidence ล่าสุดของแต่ละใบ (เรียงใหม่→เก่ามาแล้ว)
+      if (seenPrIds.has(pr.id)) return null;
+      seenPrIds.add(pr.id);
+
+      // ตีกลับที่ผู้ขอส่งหลักฐานใหม่ไปแล้ว ไม่ต้องแสดงค้างอีก
+      const isPendingFix = ev.status === "returned" && ["approved", "converted"].includes(pr.status);
+      const isAwaitingDocs = ev.status === "paid";
+      if (!isPendingFix && !isAwaitingDocs) return null;
+
       return {
         id: pr.id,
         pr_number: pr.pr_number,
@@ -42,6 +55,7 @@ export default async function IncompleteDocsPage() {
         evidence_id: ev.id,
         paid_at: pr.finance_action_at ?? null,
         review_note: ev.review_note ?? null,
+        kind: isPendingFix ? "returned" : "awaiting_docs",
       };
     })
     .filter(Boolean) as IncompleteDoc[];
@@ -55,7 +69,7 @@ export default async function IncompleteDocsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">งานเอกสารไม่สมบูรณ์</h1>
           <p className="text-sm text-slate-500">
-            เอกสารที่จ่ายแล้วแต่ยังค้างใบกำกับ/เอกสารตัวจริง — แนบเอกสารแล้วกดยืนยันเพื่อปิดให้สมบูรณ์
+            เอกสารที่ถูกตีกลับให้แก้ไข และเอกสารที่จ่ายแล้วแต่ยังค้างใบกำกับตัวจริง
           </p>
         </div>
       </div>

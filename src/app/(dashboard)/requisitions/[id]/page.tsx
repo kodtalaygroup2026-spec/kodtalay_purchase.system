@@ -283,7 +283,10 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       case "payment_returned":
         timeline.push({
           at: log.created_at,
-          label: "ตีกลับให้แก้ไข",
+          label:
+            meta.close_status === "incomplete"
+              ? "ตีกลับให้แก้ไข — เอกสารไม่สมบูรณ์"
+              : "ตีกลับให้แก้ไข",
           by,
           color: "orange",
           icon: RotateCcw,

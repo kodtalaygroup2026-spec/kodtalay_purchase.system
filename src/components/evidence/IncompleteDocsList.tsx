@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { AlertTriangle, Paperclip, FileText, CheckCircle2, Loader2, X } from "lucide-react";
+import { AlertTriangle, Paperclip, FileText, CheckCircle2, Loader2, X, RotateCcw, PencilLine } from "lucide-react";
 import { logAudit } from "@/lib/supabase/audit";
 
 export interface IncompleteDoc {
@@ -15,6 +15,8 @@ export interface IncompleteDoc {
   evidence_id: string;
   paid_at: string | null;
   review_note: string | null;
+  /** returned = การเงินตีกลับ ยังไม่จ่าย · awaiting_docs = จ่ายแล้วแต่ค้างเอกสารตัวจริง */
+  kind: "returned" | "awaiting_docs";
 }
 
 interface Props {
@@ -94,6 +96,7 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
       {rows.map((doc) => {
         const file = files[doc.evidence_id] ?? null;
         const busy = busyId === doc.evidence_id;
+        const isReturned = doc.kind === "returned";
         return (
           <div key={doc.evidence_id} className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -102,54 +105,77 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                   <Link href={`/requisitions/${doc.id}`} className="font-mono text-xs font-bold text-blue-600 hover:underline">
                     {doc.pr_number}
                   </Link>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                    <AlertTriangle size={10} /> ค้างเอกสาร
-                  </span>
+                  {isReturned ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+                      <RotateCcw size={10} /> ถูกตีกลับ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                      <AlertTriangle size={10} /> ค้างเอกสาร
+                    </span>
+                  )}
                 </div>
                 <p className="mt-0.5 font-semibold text-slate-800">{doc.title}</p>
                 <p className="text-xs text-slate-400">
-                  จ่ายเมื่อ {doc.paid_at ? formatDate(doc.paid_at) : "—"} · {formatCurrency(doc.amount)}
+                  {isReturned
+                    ? formatCurrency(doc.amount)
+                    : `จ่ายเมื่อ ${doc.paid_at ? formatDate(doc.paid_at) : "—"} · ${formatCurrency(doc.amount)}`}
                 </p>
                 {doc.review_note && (
-                  <p className="mt-1 text-xs text-amber-600">หมายเหตุ: {doc.review_note}</p>
+                  <p className="mt-1 text-xs text-amber-600">
+                    {isReturned ? "เหตุผลตีกลับ" : "หมายเหตุ"}: {doc.review_note}
+                  </p>
                 )}
               </div>
             </div>
 
-            {/* แนบเอกสาร + ยืนยันครบ */}
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-              {file ? (
-                <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs text-slate-700">
-                  <FileText size={13} className="text-green-600" />
-                  <span className="max-w-[160px] truncate">{file.name}</span>
-                  <button onClick={() => setFiles((p) => ({ ...p, [doc.evidence_id]: null }))} className="text-slate-400 hover:text-red-500">
-                    <X size={12} />
-                  </button>
-                </span>
-              ) : (
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600">
-                  <Paperclip size={13} /> แนบใบกำกับ/เอกสาร (ถ้ามี)
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,application/pdf"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setFiles((p) => ({ ...p, [doc.evidence_id]: f })); }}
-                    className="hidden"
-                  />
-                </label>
-              )}
+            {isReturned ? (
+              /* ตีกลับ — ยังไม่จ่าย ต้องกลับไปแก้หลักฐานแล้วส่งมาจ่ายใหม่ */
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                <p className="text-xs text-slate-500">แก้ไขเอกสารในใบสั่งซื้อ แล้วส่งกลับมาให้การเงินจ่ายใหม่อีกครั้ง</p>
+                <Link
+                  href={`/requisitions/${doc.id}`}
+                  className="ml-auto flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-orange-700"
+                >
+                  <PencilLine size={13} /> แก้ไขเอกสาร
+                </Link>
+              </div>
+            ) : (
+              /* จ่ายแล้ว แต่ค้างเอกสารตัวจริง — แนบเพิ่มแล้วปิดให้สมบูรณ์ */
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                {file ? (
+                  <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs text-slate-700">
+                    <FileText size={13} className="text-green-600" />
+                    <span className="max-w-[160px] truncate">{file.name}</span>
+                    <button onClick={() => setFiles((p) => ({ ...p, [doc.evidence_id]: null }))} className="text-slate-400 hover:text-red-500">
+                      <X size={12} />
+                    </button>
+                  </span>
+                ) : (
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600">
+                    <Paperclip size={13} /> แนบใบกำกับ/เอกสาร (ถ้ามี)
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setFiles((p) => ({ ...p, [doc.evidence_id]: f })); }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
 
-              <button
-                onClick={() => confirmComplete(doc)}
-                disabled={busy}
-                className="ml-auto flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-60"
-              >
-                {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                ยืนยันเอกสารครบ
-              </button>
-              {errorId === doc.evidence_id && (
-                <span className="text-xs text-red-500">เกิดข้อผิดพลาด ลองใหม่</span>
-              )}
-            </div>
+                <button
+                  onClick={() => confirmComplete(doc)}
+                  disabled={busy}
+                  className="ml-auto flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-60"
+                >
+                  {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                  ยืนยันเอกสารครบ
+                </button>
+                {errorId === doc.evidence_id && (
+                  <span className="text-xs text-red-500">เกิดข้อผิดพลาด ลองใหม่</span>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
