@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Fragment } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search, X, FileText, Settings2, Clock, ImagePlus, Banknote } from "lucide-react";
@@ -405,10 +406,17 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                         isExpanded ? "bg-blue-50/60 border-blue-100" : "hover:bg-slate-50"
                       }`}
                     >
-                      {/* เลขที่ PR */}
+                      {/* เลขที่ PR — กดเข้าหน้ารายละเอียดได้เลย */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-bold text-blue-700">{pr.pr_number}</span>
+                          <Link
+                            href={`/requisitions/${pr.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            title="เปิดรายละเอียด PR"
+                            className="font-mono text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                          >
+                            {pr.pr_number}
+                          </Link>
                           {pr.is_urgent && (
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
                               ⚡ ด่วน
