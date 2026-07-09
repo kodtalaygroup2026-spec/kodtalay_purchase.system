@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Banknote } from "lucide-react";
+import { Building2 } from "lucide-react";
 import {
   FinancePaymentConsole,
   type PaymentRow,
@@ -74,7 +74,8 @@ export default async function FinancePaymentsPage() {
   const profileMap: Record<string, { full_name: string; line_user_id: string | null }> =
     Object.fromEntries((profileRows ?? []).map((p: any) => [p.id, p]));
 
-  // evidence ที่ตรวจแล้ว (verified) + ช่องทาง = บริษัทสั่งจ่าย (หรือ null = ค่าเดิม)
+  // evidence ที่ตรวจแล้ว (verified) + ช่องทาง = บริษัทสั่งจ่าย
+  // เผื่อ payment_channel = null ไว้สำหรับรายการเก่าก่อนมีการเลือกช่องทาง (กันรายการตกหล่น)
   const { data: evidenceRows } =
     prIds.length > 0
       ? await (supabase as any)
@@ -130,12 +131,14 @@ export default async function FinancePaymentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-          <Banknote size={20} className="text-slate-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
+          <Building2 size={20} className="text-blue-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">รายการจ่ายเงิน</h1>
-          <p className="text-sm text-slate-500">จ่ายแบบชุด (bulk) / แยกรายการ · ตีกลับ · ยกเลิก</p>
+          <h1 className="text-lg font-bold text-slate-900">รายการบริษัทสั่งจ่าย</h1>
+          <p className="text-sm text-slate-500">
+            รายการที่ฝ่ายการเงินเลือกช่องทาง &ldquo;บริษัทสั่งจ่าย&rdquo; · จ่ายแบบชุด / แยกรายการ · ตีกลับ · ยกเลิก
+          </p>
         </div>
       </div>
 
@@ -144,6 +147,7 @@ export default async function FinancePaymentsPage() {
         payments={payments}
         settingsByBranch={settingsByBranch}
         currentUserId={user.id}
+        channel="company"
       />
     </div>
   );

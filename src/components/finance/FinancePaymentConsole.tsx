@@ -553,7 +553,9 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         {visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-14 text-slate-300">
             <Inbox size={28} />
-            <p className="text-sm">ไม่มีรายการรอจ่าย</p>
+            <p className="text-sm">
+              {isPettyCash ? "ไม่มีรายการเงินสดย่อยรอจ่าย" : "ไม่มีรายการบริษัทสั่งจ่ายรอจ่าย"}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">

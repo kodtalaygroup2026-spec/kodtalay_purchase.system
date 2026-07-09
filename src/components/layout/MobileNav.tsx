@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   FileText, CheckSquare, Plus, Banknote, Menu, X,
   AlertTriangle, ClipboardCheck, PiggyBank, FileCheck2,
-  Users, Settings, Package, Store, User as UserIcon,
+  Users, Settings, Package, Store, User as UserIcon, Building2,
 } from "lucide-react";
 import type { UserRole } from "@/types/database";
 
@@ -72,8 +72,8 @@ export function MobileNav({
   const finance: DrawerLink[] = isFinance
     ? [
         { href: "/finance", label: "ภาพรวม", icon: Banknote },
-        { href: "/finance/payments", label: "รายการจ่ายเงิน", icon: Banknote },
-        { href: "/finance/petty-cash", label: "เงินสดย่อย", icon: PiggyBank },
+        { href: "/finance/payments", label: "รายการบริษัทสั่งจ่าย", icon: Building2 },
+        { href: "/finance/petty-cash", label: "รายการเงินสดย่อย", icon: PiggyBank },
         { href: "/finance/documents", label: "งานเอกสารสมบูรณ์", icon: FileCheck2 },
         { href: "/finance/tax-invoices", label: "ใบกำกับภาษี", icon: FileText },
       ]
