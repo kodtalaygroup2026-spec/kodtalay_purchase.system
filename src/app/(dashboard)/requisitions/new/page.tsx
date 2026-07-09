@@ -449,7 +449,7 @@ export default function NewRequisitionPage() {
 
           {/* ── รายการสินค้า ── */}
           <div className="border-t border-slate-100">
-            <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center justify-between px-4 py-4 sm:px-6">
               <h2 className="font-semibold text-slate-700">รายการสินค้า</h2>
               <button type="button" onClick={addItem}
                 className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
@@ -459,7 +459,9 @@ export default function NewRequisitionPage() {
 
             <div className="divide-y divide-slate-100">
               {items.map((item, index) => (
-                <div key={index} className="px-5 py-4 space-y-2">
+                <div key={index} className="space-y-2.5 px-4 py-4 sm:px-5">
+
+                  {/* แถว 1: ลำดับ + รายละเอียดสินค้า + ลบ */}
                   <div className="flex items-center gap-2">
                     <span className="w-5 shrink-0 text-xs font-medium text-slate-400">{index + 1}.</span>
                     <input
@@ -467,7 +469,7 @@ export default function NewRequisitionPage() {
                       onChange={(e) => updateItem(index, "description", e.target.value)}
                       placeholder="รายละเอียดสินค้า *"
                       required
-                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                     />
                     {items.length > 1 && (
                       <button type="button" onClick={() => removeItem(index)}
@@ -477,54 +479,60 @@ export default function NewRequisitionPage() {
                     )}
                   </div>
 
-                  <div className="ml-7 flex flex-wrap items-center gap-2 text-sm">
+                  <div className="space-y-2.5 sm:ml-7">
+                    {/* แถว 2: เลือกสินค้าจากแคตตาล็อก */}
                     <ProductCombobox
                       products={products}
                       value={item.product_id}
                       onChange={(id) => applyProduct(index, id)}
+                      className="w-full sm:w-64"
                     />
 
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-400">จำนวน</span>
-                      <input type="text" inputMode="decimal"
-                        value={rawInputs[`${index}_q`] ?? String(item.quantity || "")}
-                        onChange={(e) => {
-                          setRawInputs(p => ({ ...p, [`${index}_q`]: e.target.value }));
-                          updateItem(index, "quantity", parseFloat(e.target.value) || 0);
-                        }}
-                        className="w-20 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
+                    {/* แถว 3: จำนวน / หน่วย / ราคา — grid 3 ช่องบนมือถือ, แนวนอนบนจอใหญ่ */}
+                    <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+                      <div className="sm:w-24">
+                        <label className="mb-1 block text-[10px] font-medium text-slate-400">จำนวน</label>
+                        <input type="text" inputMode="decimal"
+                          value={rawInputs[`${index}_q`] ?? String(item.quantity || "")}
+                          onChange={(e) => {
+                            setRawInputs(p => ({ ...p, [`${index}_q`]: e.target.value }));
+                            updateItem(index, "quantity", parseFloat(e.target.value) || 0);
+                          }}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
+                      </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-400">หน่วย</span>
-                      <input value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)}
-                        placeholder="ชิ้น"
-                        className="w-16 rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
+                      <div className="sm:w-20">
+                        <label className="mb-1 block text-[10px] font-medium text-slate-400">หน่วย</label>
+                        <input value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)}
+                          placeholder="ชิ้น"
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                      </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-400">ราคา/หน่วย</span>
-                      <input type="text" inputMode="decimal"
-                        value={rawInputs[`${index}_p`] ?? String(item.unit_price)}
-                        onChange={(e) => {
-                          setRawInputs(p => ({ ...p, [`${index}_p`]: e.target.value }));
-                          updateItem(index, "unit_price", parseFloat(e.target.value) || 0);
-                        }}
-                        className="w-28 rounded border border-slate-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
-                    </div>
+                      <div className="sm:w-32">
+                        <label className="mb-1 block text-[10px] font-medium text-slate-400">ราคา/หน่วย</label>
+                        <input type="text" inputMode="decimal"
+                          value={rawInputs[`${index}_p`] ?? String(item.unit_price)}
+                          onChange={(e) => {
+                            setRawInputs(p => ({ ...p, [`${index}_p`]: e.target.value }));
+                            updateItem(index, "unit_price", parseFloat(e.target.value) || 0);
+                          }}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none" />
+                      </div>
 
-                    <div className="ml-auto flex items-center gap-1.5">
-                      <span className="text-xs text-slate-400">รวม</span>
-                      <span className="min-w-[80px] text-right font-semibold text-slate-800">
-                        ฿{(item.quantity * item.unit_price).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
-                      </span>
+                      {/* รวม — เต็มบรรทัดบนมือถือ, ชิดขวาบนจอใหญ่ */}
+                      <div className="col-span-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 sm:col-auto sm:ml-auto sm:bg-transparent sm:px-0 sm:py-0">
+                        <span className="text-xs text-slate-400">รวม</span>
+                        <span className="text-sm font-bold text-slate-800 sm:ml-2 sm:min-w-[80px] sm:text-right">
+                          ฿{(item.quantity * item.unit_price).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-3">
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3 sm:justify-end sm:px-6">
               <span className="text-sm font-semibold text-slate-700">รวมทั้งสิ้น</span>
               <span className="text-lg font-bold text-blue-700">
                 ฿{totalAmount.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
