@@ -83,7 +83,13 @@ export default async function DashboardLayout({
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
           {children}
         </main>
-        <MobileNav />
+        <MobileNav
+          role={profile.role as import("@/types/database").UserRole}
+          approvalCount={approvalCount}
+          verifyCount={verifyCount}
+          incompleteCount={incompleteCount}
+          todoCount={todoCount}
+        />
       </div>
       {/* Real-time toast notifications — ไม่กระทบ layout เดิม */}
       <RealtimeNotificationProvider userId={user.id} role={profile.role as import("@/types/database").UserRole} />

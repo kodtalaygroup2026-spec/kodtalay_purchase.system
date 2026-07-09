@@ -1,36 +1,229 @@
 "use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, CheckSquare } from "lucide-react";
+import {
+  FileText, CheckSquare, Plus, Banknote, Menu, X,
+  AlertTriangle, ClipboardCheck, PiggyBank, FileCheck2,
+  Users, Settings, Package, Store, User as UserIcon,
+} from "lucide-react";
+import type { UserRole } from "@/types/database";
 
-export function MobileNav() {
+interface MobileNavProps {
+  role?: UserRole;
+  approvalCount?: number;
+  verifyCount?: number;
+  incompleteCount?: number;
+  todoCount?: number;
+}
+
+interface DrawerLink {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  badge?: number;
+  badgeColor?: string;
+}
+
+export function MobileNav({
+  role,
+  approvalCount = 0,
+  verifyCount = 0,
+  incompleteCount = 0,
+  todoCount = 0,
+}: MobileNavProps) {
   const pathname = usePathname() ?? "/";
+  const [open, setOpen] = useState(false);
 
   if (pathname === "/") return null;
 
-  const items = [
-    { href: "/requisitions", icon: FileText,    label: "งานของฉัน" },
-    { href: "/approvals",    icon: CheckSquare, label: "การอนุมัติ" },
+  const isFinance = role === "finance" || role === "admin";
+  const isAdmin = role === "admin";
+
+  // ── ปุ่มบนแถบล่าง (ซ้าย 2 / FAB / ขวา 2) ────────────────────────────────
+  const leftItems = [
+    { href: "/requisitions", label: "งานของฉัน", icon: FileText,    badge: todoCount,     color: "bg-blue-500" },
+    { href: "/approvals",    label: "อนุมัติ",    icon: CheckSquare, badge: approvalCount, color: "bg-red-500"  },
   ];
+  const rightItem = isFinance
+    ? { href: "/finance", label: "การเงิน", icon: Banknote, badge: verifyCount, color: "bg-red-500" }
+    : { href: "/requisitions/incomplete", label: "เอกสารค้าง", icon: AlertTriangle, badge: incompleteCount, color: "bg-amber-500" };
 
   function isActive(href: string) {
+    if (href === "/requisitions") return pathname === "/requisitions";
     return pathname.startsWith(href);
   }
 
+  // ── เมนูเต็มใน drawer ────────────────────────────────────────────────────
+  const myWork: DrawerLink[] = [
+    { href: "/requisitions?step=1", label: "งานอนุมัติ", icon: CheckSquare },
+    ...(isFinance ? [{ href: "/disbursement", label: "งานตรวจสอบ", icon: ClipboardCheck, badge: verifyCount, badgeColor: "bg-red-500" }] : []),
+    { href: "/requisitions", label: "งานเอกสาร", icon: FileText, badge: todoCount, badgeColor: "bg-blue-500" },
+    { href: "/requisitions/incomplete", label: "งานเอกสารไม่สมบูรณ์", icon: AlertTriangle, badge: incompleteCount, badgeColor: "bg-amber-500" },
+    { href: "/requisitions/new", label: "สร้าง PR", icon: Plus },
+  ];
+
+  const approvals: DrawerLink[] = [
+    { href: "/approvals", label: "รออนุมัติ", icon: CheckSquare, badge: approvalCount, badgeColor: "bg-red-500" },
+    { href: "/approvals/edited-items", label: "รายการแก้ไข", icon: FileText },
+  ];
+
+  const finance: DrawerLink[] = isFinance
+    ? [
+        { href: "/finance", label: "ภาพรวม", icon: Banknote },
+        { href: "/finance/payments", label: "รายการจ่ายเงิน", icon: Banknote },
+        { href: "/finance/petty-cash", label: "เงินสดย่อย", icon: PiggyBank },
+        { href: "/finance/documents", label: "งานเอกสารสมบูรณ์", icon: FileCheck2 },
+        { href: "/finance/tax-invoices", label: "ใบกำกับภาษี", icon: FileText },
+      ]
+    : [];
+
+  const admin: DrawerLink[] = isAdmin
+    ? [
+        { href: "/settings/users", label: "จัดการผู้ใช้", icon: Settings },
+        { href: "/settings/positions", label: "ตำแหน่งผู้ดูแล", icon: Users },
+        { href: "/products", label: "จัดการสินค้า", icon: Package },
+        { href: "/suppliers", label: "จัดการผู้ขาย", icon: Store },
+      ]
+    : [];
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-20 flex lg:hidden border-t border-slate-200 bg-white">
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={`flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors ${
-            isActive(item.href) ? "text-blue-600" : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          <item.icon size={20} />
-          {item.label}
-        </Link>
-      ))}
-    </nav>
+    <>
+      {/* ── แถบล่าง ─────────────────────────────────────────────────────── */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="flex items-stretch justify-around pb-[env(safe-area-inset-bottom)]">
+          {leftItems.map((item) => (
+            <BarItem key={item.href} {...item} active={isActive(item.href)} />
+          ))}
+
+          {/* ปุ่มลอย สร้าง PR */}
+          <Link
+            href="/requisitions/new"
+            className="relative -mt-5 flex w-16 shrink-0 flex-col items-center"
+            aria-label="สร้าง PR"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-4 ring-white transition active:scale-95">
+              <Plus size={24} />
+            </span>
+            <span className="mt-0.5 text-[10px] font-medium text-blue-600">สร้าง PR</span>
+          </Link>
+
+          <BarItem {...rightItem} active={isActive(rightItem.href)} />
+
+          {/* ปุ่มเมนู */}
+          <button
+            onClick={() => setOpen(true)}
+            className="flex flex-1 flex-col items-center gap-0.5 py-2 text-slate-500 transition active:text-slate-800"
+          >
+            <Menu size={20} />
+            <span className="text-[10px]">เมนู</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Bottom sheet: เมนูเต็ม ───────────────────────────────────────── */}
+      {open && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setOpen(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* handle + header */}
+            <div className="sticky top-0 z-10 rounded-t-2xl bg-white px-5 pb-2 pt-3">
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-800">เมนูทั้งหมด</h2>
+                <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-slate-400 active:bg-slate-100">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-5 px-5 pb-6">
+              <DrawerSection title="งานของฉัน" links={myWork} pathname={pathname} onNavigate={() => setOpen(false)} />
+              <DrawerSection title="การอนุมัติ" links={approvals} pathname={pathname} onNavigate={() => setOpen(false)} />
+              {finance.length > 0 && (
+                <DrawerSection title="การเงิน" links={finance} pathname={pathname} onNavigate={() => setOpen(false)} />
+              )}
+              {admin.length > 0 && (
+                <DrawerSection title="จัดการระบบ" links={admin} pathname={pathname} onNavigate={() => setOpen(false)} />
+              )}
+              <DrawerSection
+                title="บัญชีผู้ใช้"
+                links={[{ href: "/profile", label: "โปรไฟล์ของฉัน", icon: UserIcon }]}
+                pathname={pathname}
+                onNavigate={() => setOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── ปุ่มบนแถบล่าง ───────────────────────────────────────────────────────────
+function BarItem({
+  href, label, icon: Icon, badge = 0, color = "bg-red-500", active,
+}: {
+  href: string; label: string; icon: React.ElementType; badge?: number; color?: string; active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 transition ${
+        active ? "text-blue-600" : "text-slate-500 active:text-slate-800"
+      }`}
+    >
+      <span className="relative">
+        <Icon size={20} />
+        {badge > 0 && (
+          <span className={`absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white ${color}`}>
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </span>
+      <span className="text-[10px]">{label}</span>
+    </Link>
+  );
+}
+
+// ── หมวดในเมนูเต็ม ──────────────────────────────────────────────────────────
+function DrawerSection({
+  title, links, pathname, onNavigate,
+}: {
+  title: string; links: DrawerLink[]; pathname: string; onNavigate: () => void;
+}) {
+  if (links.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">{title}</p>
+      <div className="space-y-0.5">
+        {links.map((l) => {
+          const active = l.href.includes("?") ? false : pathname === l.href;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={onNavigate}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
+                active ? "bg-blue-50 font-semibold text-blue-700" : "text-slate-700 active:bg-slate-100"
+              }`}
+            >
+              <l.icon size={17} className={active ? "text-blue-600" : "text-slate-400"} />
+              <span className="flex-1">{l.label}</span>
+              {(l.badge ?? 0) > 0 && (
+                <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white ${l.badgeColor ?? "bg-red-500"}`}>
+                  {(l.badge ?? 0) > 99 ? "99+" : l.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
