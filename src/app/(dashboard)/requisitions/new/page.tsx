@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { CategoryCombobox, type CategoryOpt } from "@/components/pr/CategoryCombobox";
+import { ProductCombobox } from "@/components/pr/ProductCombobox";
 import { logAudit } from "@/lib/supabase/audit";
 import { getNextPaymentDate, formatPaymentDate } from "@/lib/utils/paymentSchedule";
 import type { Branch } from "@/types/database";
@@ -476,13 +477,11 @@ export default function NewRequisitionPage() {
                   </div>
 
                   <div className="ml-7 flex flex-wrap items-center gap-2 text-sm">
-                    <select value={item.product_id} onChange={(e) => applyProduct(index, e.target.value)}
-                      className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-400 focus:outline-none">
-                      <option value="">ระบุสินค้าเพิ่ม</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>[{p.sku}] {p.name}</option>
-                      ))}
-                    </select>
+                    <ProductCombobox
+                      products={products}
+                      value={item.product_id}
+                      onChange={(id) => applyProduct(index, id)}
+                    />
 
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-slate-400">จำนวน</span>
