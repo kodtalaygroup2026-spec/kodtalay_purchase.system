@@ -67,9 +67,17 @@ export default async function DashboardLayout({
     .eq("close_status", "incomplete");
   const incompleteCount = incompleteCnt ?? 0;
 
+  // นับ PR ของตัวเองที่ "เจ้าของต้องจัดการ" — ร่าง/ตีกลับ/ไม่อนุมัติ + รอแนบบิล
+  const { count: todoCnt } = await (supabase as any)
+    .from("purchase_requisitions")
+    .select("id", { count: "exact", head: true })
+    .eq("requester_id", user.id)
+    .in("status", ["draft", "returned", "rejected", "approved", "converted"]);
+  const todoCount = todoCnt ?? 0;
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} incompleteCount={incompleteCount} />
+      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} incompleteCount={incompleteCount} todoCount={todoCount} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">

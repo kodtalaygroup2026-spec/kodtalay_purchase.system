@@ -32,7 +32,7 @@ const MY_WORK_SUB_BASE = [
 // ── MyWorkDropdown ──────────────────────────────────────────────────────────
 // แยกออกมาระดับ module เพื่อให้ state ไม่ถูก reset เมื่อ parent re-render
 
-function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0 }: { pathname: string; role?: UserRole; verifyCount?: number; incompleteCount?: number }) {
+function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0, todoCount = 0 }: { pathname: string; role?: UserRole; verifyCount?: number; incompleteCount?: number; todoCount?: number }) {
   const searchParams = useSearchParams();
   const currentStep = searchParams?.get("step") ?? null;
   const isOnMyWork = pathname.startsWith("/requisitions") || pathname.startsWith("/disbursement");
@@ -68,9 +68,15 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0 }
                   ? pathname === "/requisitions/new"
                   : pathname.startsWith(sub.href);
 
-            const showVerifyBadge = sub.href === "/disbursement" && verifyCount > 0;
-            const showIncompleteBadge = sub.href === "/requisitions/incomplete" && incompleteCount > 0;
-            const badgeCount = showVerifyBadge ? verifyCount : showIncompleteBadge ? incompleteCount : 0;
+            // badge แจ้งเตือนต่อเมนูย่อย
+            const badge =
+              sub.href === "/disbursement" && verifyCount > 0
+                ? { count: verifyCount, color: "bg-red-500" }
+                : sub.href === "/requisitions/incomplete" && incompleteCount > 0
+                ? { count: incompleteCount, color: "bg-amber-500" }
+                : sub.href === "/requisitions" && todoCount > 0
+                ? { count: todoCount, color: "bg-blue-500" }
+                : null;
 
             return (
               <Link
@@ -86,9 +92,9 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0 }
               >
                 {isNew && <Plus size={11} />}
                 <span className="flex-1">{sub.label}</span>
-                {(showVerifyBadge || showIncompleteBadge) && (
-                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${showIncompleteBadge ? "bg-amber-500" : "bg-red-500"}`}>
-                    {badgeCount > 99 ? "99+" : badgeCount}
+                {badge && (
+                  <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${badge.color}`}>
+                    {badge.count > 99 ? "99+" : badge.count}
                   </span>
                 )}
               </Link>
@@ -244,9 +250,10 @@ interface SidebarProps {
   editedCount?: number;
   verifyCount?: number;
   incompleteCount?: number;
+  todoCount?: number;
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, incompleteCount = 0 }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, incompleteCount = 0, todoCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
@@ -272,7 +279,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} role={role} verifyCount={verifyCount} incompleteCount={incompleteCount} />
+          <MyWorkDropdown pathname={pathname} role={role} verifyCount={verifyCount} incompleteCount={incompleteCount} todoCount={todoCount} />
         </Suspense>
 
         {/* การอนุมัติ */}
