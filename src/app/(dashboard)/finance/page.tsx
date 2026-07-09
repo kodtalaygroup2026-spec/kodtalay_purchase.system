@@ -3,12 +3,29 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils/format";
-import { Banknote } from "lucide-react";
+import { ListFilter } from "lucide-react";
 import {
   FinanceOverviewBoard,
   type FinancePR,
   type FinanceCompany,
+  type FinanceRowStatus,
 } from "@/components/finance/FinanceOverviewBoard";
+
+/** แปลงสถานะ PR + สถานะหลักฐาน เป็นสถานะที่ฝ่ายการเงินเข้าใจ */
+function deriveRowStatus(prStatus: string, evidenceStatus: string | null): FinanceRowStatus {
+  if (prStatus === "cancelled") return "cancelled";
+  if (prStatus === "paid") return "paid";
+  if (evidenceStatus === "paid") return "paid";
+  if (evidenceStatus === "returned") return "returned";
+  if (evidenceStatus === "verified") return "pending_pay";
+  return "pending_verify";
+}
+
+/** วันที่ล่าสุดที่มีความเคลื่อนไหวของรายการ */
+function deriveRowDate(pr: any, ev: any): string | null {
+  if (pr.status === "paid") return pr.finance_action_at ?? ev?.reviewed_at ?? ev?.submitted_at ?? null;
+  return ev?.reviewed_at ?? ev?.submitted_at ?? pr.created_at ?? null;
+}
 
 export default async function FinancePage() {
   const supabase = await createClient();
@@ -43,7 +60,6 @@ export default async function FinancePage() {
     .select("id, code, name")
     .order("code");
 
-  // map branch_id → { code, name }
   const branchById: Record<string, { code: string; name: string }> = Object.fromEntries(
     (branchRows ?? []).map((b: any) => [b.id, { code: b.code, name: b.name }])
   );
@@ -57,52 +73,37 @@ export default async function FinancePage() {
     if (row.branch_id) settingsByBranch[row.branch_id] = row;
   }
 
-  // ── PR ที่รอโอน = pending_finance + หลักฐานผ่านการตรวจแล้ว (verified) ────────
-  const { data: pendingRows } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select("id, total_amount, actual_amount, branch_id")
-    .eq("status", "pending_finance");
-  const pendingIds = (pendingRows ?? []).map((p: any) => p.id);
-  const { data: verifiedEv } =
-    pendingIds.length > 0
-      ? await (supabase as any)
-          .from("payment_evidences")
-          .select("pr_id")
-          .eq("status", "verified")
-          .in("pr_id", pendingIds)
-      : { data: [] };
-  const verifiedSet = new Set((verifiedEv ?? []).map((e: any) => e.pr_id));
-
-  // ── PR ที่จ่ายแล้ว (paid) — ใช้แสดงในตาราง ──────────────────────────────────
-  const { data: paidRows } = await (supabase as any)
-    .from("purchase_requisitions")
+  // ── หลักฐานทุกใบที่ส่งมายังการเงิน (เอาเฉพาะฉบับล่าสุดของแต่ละ PR) ──────────
+  const { data: evidenceRows } = await (supabase as any)
+    .from("payment_evidences")
     .select(
-      `id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at,
-       profiles!requester_id(full_name)`
+      `pr_id, status, payment_channel, submitted_at, reviewed_at,
+       account_holder_name, bank_account_number, ktb_branch_code`
     )
-    .eq("status", "paid")
-    .order("finance_action_at", { ascending: false, nullsFirst: false })
-    .limit(200);
+    .order("submitted_at", { ascending: false })
+    .limit(1000);
 
-  // ── evidence ของ PR ที่จ่ายแล้ว (ข้อมูลผู้รับเงินสำหรับไฟล์ KTB) ────────────
-  const paidIds = (paidRows ?? []).map((p: any) => p.id);
-  const { data: evRows } =
-    paidIds.length > 0
-      ? await (supabase as any)
-          .from("payment_evidences")
-          .select("pr_id, account_holder_name, bank_account_number, ktb_branch_code, submitted_at")
-          .in("pr_id", paidIds)
-          .order("submitted_at", { ascending: false })
-      : { data: [] };
-  const evMap: Record<string, any> = {};
-  for (const ev of evRows ?? []) {
-    if (!evMap[ev.pr_id]) evMap[ev.pr_id] = ev;
+  const latestEvidenceByPR: Record<string, any> = {};
+  for (const ev of evidenceRows ?? []) {
+    if (!latestEvidenceByPR[ev.pr_id]) latestEvidenceByPR[ev.pr_id] = ev;
   }
+  const prIds = Object.keys(latestEvidenceByPR);
 
-  // ── รายการที่จ่ายแล้ว (สำหรับตาราง) ─────────────────────────────────────────
-  const prs: FinancePR[] = (paidRows ?? []).map((pr: any) => {
+  // ── ใบสั่งซื้อของหลักฐานเหล่านั้น (ทุกสถานะ) ────────────────────────────────
+  const { data: prRows } =
+    prIds.length > 0
+      ? await (supabase as any)
+          .from("purchase_requisitions")
+          .select(
+            `id, pr_number, title, status, total_amount, actual_amount, branch_id,
+             finance_action_at, created_at, profiles!requester_id(full_name)`
+          )
+          .in("id", prIds)
+      : { data: [] };
+
+  const prs: FinancePR[] = (prRows ?? []).map((pr: any) => {
     const branch = pr.branch_id ? branchById[pr.branch_id] : null;
-    const ev = evMap[pr.id] ?? null;
+    const ev = latestEvidenceByPR[pr.id] ?? null;
     return {
       id: pr.id,
       pr_number: pr.pr_number,
@@ -111,6 +112,9 @@ export default async function FinancePage() {
       requester_name: pr.profiles?.full_name ?? "—",
       branch_code: branch?.code ?? "—",
       branch_name: branch?.name ?? "ไม่ระบุบริษัท",
+      status: deriveRowStatus(pr.status, ev?.status ?? null),
+      channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
+      date: deriveRowDate(pr, ev),
       paid_at: pr.finance_action_at ?? null,
       account_holder_name: ev?.account_holder_name ?? "",
       bank_account_number: ev?.bank_account_number ?? "",
@@ -118,20 +122,23 @@ export default async function FinancePage() {
     };
   });
 
-  // ── สรุปยอด "รอโอน" ต่อบริษัท (เฉพาะที่ตรวจสอบแล้ว) ──────────────────────────
+  // ── สรุปต่อบริษัท ───────────────────────────────────────────────────────────
   const companies: FinanceCompany[] = (branchRows ?? []).map((b: any) => {
-    const rows = (pendingRows ?? []).filter((pr: any) => pr.branch_id === b.id && verifiedSet.has(pr.id));
+    const rows = prs.filter((pr) => pr.branch_code === b.code);
+    const pending = rows.filter((pr) => pr.status === "pending_pay");
     return {
       id: b.id,
       code: b.code,
       name: b.name,
       count: rows.length,
-      total: rows.reduce((sum: number, pr: any) => sum + Number(pr.actual_amount ?? pr.total_amount ?? 0), 0),
+      total: rows.reduce((sum, pr) => sum + Number(pr.amount), 0),
+      pendingCount: pending.length,
+      pendingTotal: pending.reduce((sum, pr) => sum + Number(pr.amount), 0),
+      paidCount: rows.filter((pr) => pr.status === "paid").length,
     };
   });
 
-  const grandTotal = companies.reduce((sum, c) => sum + c.total, 0);
-  const grandCount = companies.reduce((sum, c) => sum + c.count, 0);
+  const grandTotal = prs.reduce((sum, pr) => sum + Number(pr.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -139,19 +146,19 @@ export default async function FinancePage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-            <Banknote size={20} className="text-slate-600" />
+            <ListFilter size={20} className="text-slate-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">การเงิน</h1>
+            <h1 className="text-lg font-bold text-slate-900">รายการทั้งหมด</h1>
             <p className="text-sm text-slate-500">
-              รายการที่ส่งมายังการเงิน แยกตามบริษัท
+              ทุกใบที่ส่งมายังฝ่ายการเงิน — ทุกสถานะและทุกช่องทาง
             </p>
           </div>
         </div>
-        {grandCount > 0 && (
+        {prs.length > 0 && (
           <div className="hidden text-right sm:block">
             <p className="text-lg font-bold text-slate-800">{formatCurrency(grandTotal)}</p>
-            <p className="text-xs text-slate-400">{grandCount} รายการรอโอนทั้งหมด</p>
+            <p className="text-xs text-slate-400">{prs.length} รายการทั้งหมด</p>
           </div>
         )}
       </div>

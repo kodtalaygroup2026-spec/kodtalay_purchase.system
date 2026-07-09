@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { Building2, Inbox, X, Download, Eye, CheckSquare, Square, AlertCircle } from "lucide-react";
+import { Building2, Inbox, X, Download, Eye, CheckSquare, Square, AlertCircle, Search } from "lucide-react";
 import {
   generateKTBContent, validateKTBSettings,
   type KTBCompanySettings, type KTBRecipient,
@@ -45,6 +45,34 @@ function rowToSettings(row: Record<string, string> | undefined): KTBCompanySetti
   };
 }
 
+/** สถานะของใบสั่งซื้อในมุมของฝ่ายการเงิน */
+export type FinanceRowStatus =
+  | "pending_verify"  // ส่งหลักฐานแล้ว รอ บช. ตรวจสอบ
+  | "pending_pay"     // ตรวจสอบแล้ว รอจ่าย
+  | "paid"            // จ่ายแล้ว
+  | "returned"        // ตีกลับให้แก้ไข
+  | "cancelled";      // ยกเลิก
+
+const STATUS_META: Record<FinanceRowStatus, { label: string; badge: string; dot: string }> = {
+  pending_verify: { label: "รอตรวจสอบ", badge: "bg-amber-50 text-amber-700 border-amber-200",   dot: "bg-amber-400" },
+  pending_pay:    { label: "รอจ่าย",    badge: "bg-blue-50 text-blue-700 border-blue-200",      dot: "bg-blue-500" },
+  paid:           { label: "จ่ายแล้ว",  badge: "bg-green-50 text-green-700 border-green-200",   dot: "bg-green-500" },
+  returned:       { label: "ตีกลับ",    badge: "bg-orange-50 text-orange-700 border-orange-200", dot: "bg-orange-400" },
+  cancelled:      { label: "ยกเลิก",    badge: "bg-red-50 text-red-700 border-red-200",         dot: "bg-red-500" },
+};
+
+const STATUS_ORDER: FinanceRowStatus[] = ["pending_verify", "pending_pay", "paid", "returned", "cancelled"];
+
+type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "pr_number";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "date_desc",   label: "วันที่ล่าสุดก่อน" },
+  { value: "date_asc",    label: "วันที่เก่าสุดก่อน" },
+  { value: "amount_desc", label: "ยอดเงินมาก → น้อย" },
+  { value: "amount_asc",  label: "ยอดเงินน้อย → มาก" },
+  { value: "pr_number",   label: "เลขที่ PR" },
+];
+
 export interface FinancePR {
   id: string;
   pr_number: string;
@@ -53,6 +81,11 @@ export interface FinancePR {
   requester_name: string;
   branch_code: string;
   branch_name: string;
+  status: FinanceRowStatus;
+  /** ช่องทางจ่ายที่ บช. เลือกตอนตรวจสอบ */
+  channel: "company" | "petty_cash" | null;
+  /** วันที่ล่าสุดของรายการ (จ่าย/ตรวจสอบ/ส่งหลักฐาน) */
+  date: string | null;
   paid_at?: string | null;
   account_holder_name?: string;
   bank_account_number?: string;
@@ -63,8 +96,14 @@ export interface FinanceCompany {
   id: string;
   code: string;
   name: string;
+  /** จำนวนรายการทั้งหมดที่ส่งมายังการเงิน */
   count: number;
+  /** ยอดรวมทั้งหมด */
   total: number;
+  /** รอจ่าย (ตรวจสอบแล้ว) */
+  pendingCount: number;
+  pendingTotal: number;
+  paidCount: number;
 }
 
 interface FinanceOverviewBoardProps {
@@ -76,14 +115,56 @@ interface FinanceOverviewBoardProps {
 export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: FinanceOverviewBoardProps) {
   // null = แสดงทั้งหมด (ค่าเริ่มต้น)
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<FinanceRowStatus | "all">("all");
+  const [channelFilter, setChannelFilter] = useState<"all" | "company" | "petty_cash">("all");
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchNo, setBatchNo] = useState("000001");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
   const [showReport, setShowReport] = useState(false);
 
-  const visiblePRs = selectedCode
-    ? prs.filter((pr) => pr.branch_code === selectedCode)
-    : prs;
+  // กรองด้วยบริษัทก่อน เพื่อให้ตัวเลขบนชิปสถานะสะท้อนบริษัทที่กำลังดู
+  const companyPRs = useMemo(
+    () => (selectedCode ? prs.filter((pr) => pr.branch_code === selectedCode) : prs),
+    [prs, selectedCode]
+  );
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: companyPRs.length };
+    for (const s of STATUS_ORDER) counts[s] = 0;
+    for (const pr of companyPRs) counts[pr.status]++;
+    return counts;
+  }, [companyPRs]);
+
+  const visiblePRs = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    const rows = companyPRs.filter((pr) => {
+      if (statusFilter !== "all" && pr.status !== statusFilter) return false;
+      if (channelFilter !== "all" && pr.channel !== channelFilter) return false;
+      if (!keyword) return true;
+      return (
+        pr.pr_number.toLowerCase().includes(keyword) ||
+        pr.title.toLowerCase().includes(keyword) ||
+        pr.requester_name.toLowerCase().includes(keyword) ||
+        (pr.account_holder_name ?? "").toLowerCase().includes(keyword)
+      );
+    });
+
+    const timeOf = (pr: FinancePR) => (pr.date ? new Date(pr.date).getTime() : 0);
+    const sorted = [...rows];
+    switch (sortKey) {
+      case "date_asc":    sorted.sort((a, b) => timeOf(a) - timeOf(b)); break;
+      case "amount_desc": sorted.sort((a, b) => Number(b.amount) - Number(a.amount)); break;
+      case "amount_asc":  sorted.sort((a, b) => Number(a.amount) - Number(b.amount)); break;
+      case "pr_number":   sorted.sort((a, b) => a.pr_number.localeCompare(b.pr_number)); break;
+      default:            sorted.sort((a, b) => timeOf(b) - timeOf(a));
+    }
+    return sorted;
+  }, [companyPRs, statusFilter, channelFilter, query, sortKey]);
+
+  const visibleTotal = visiblePRs.reduce((sum, pr) => sum + Number(pr.amount), 0);
+  const isFiltered = statusFilter !== "all" || channelFilter !== "all" || query.trim() !== "";
 
   const selectedCompany = companies.find((c) => c.code === selectedCode) ?? null;
   const selectedRows = visiblePRs.filter((p) => selected.has(p.id));
@@ -91,6 +172,13 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
   function handleCardClick(code: string) {
     setSelectedCode((prev) => (prev === code ? null : code));
     setSelected(new Set());
+  }
+
+  function resetFilters() {
+    setStatusFilter("all");
+    setChannelFilter("all");
+    setQuery("");
+    setSortKey("date_desc");
   }
 
   // ── การเลือกแถว ───────────────────────────────────────────────────────────
@@ -211,7 +299,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
                 <div className="mt-4 flex items-end justify-between">
                   <div>
                     <p className="text-3xl font-bold leading-none text-slate-800">{company.count}</p>
-                    <p className="mt-1 text-xs text-slate-400">รายการรอโอน</p>
+                    <p className="mt-1 text-xs text-slate-400">รายการทั้งหมด</p>
                   </div>
                   <div className="text-right">
                     <p className={`text-lg font-bold leading-none ${theme.amount}`}>
@@ -220,22 +308,33 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
                     <p className="mt-1 text-xs text-slate-400">ยอดรวม</p>
                   </div>
                 </div>
+
+                <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-2.5 text-[11px]">
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                    รอจ่าย {company.pendingCount} · {formatCurrency(company.pendingTotal)}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1 text-slate-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                    จ่ายแล้ว {company.paidCount}
+                  </span>
+                </div>
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* ── ตารางที่จ่ายแล้ว ─────────────────────────────────────────────────── */}
+      {/* ── ตารางรายการทั้งหมด ───────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* หัวตาราง */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-slate-700">
-              {selectedCompany ? `จ่ายแล้ว — ${selectedCompany.name}` : "รายการที่จ่ายแล้ว"}
+              {selectedCompany ? `รายการทั้งหมด — ${selectedCompany.name}` : "รายการทั้งหมด"}
             </h2>
             <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-              {visiblePRs.length} รายการ
+              {visiblePRs.length} รายการ · {formatCurrency(visibleTotal)}
             </span>
           </div>
           {selectedCode && (
@@ -243,9 +342,82 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
               onClick={() => { setSelectedCode(null); setSelected(new Set()); }}
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
             >
-              <X size={12} /> แสดงทั้งหมด
+              <X size={12} /> ทุกบริษัท
             </button>
           )}
+        </div>
+
+        {/* ── ค้นหา + เรียงลำดับ ────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ค้นหาเลขที่ PR / ชื่อรายการ / ผู้ขอ / ชื่อบัญชี"
+              className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+
+          <select
+            value={channelFilter}
+            onChange={(e) => setChannelFilter(e.target.value as typeof channelFilter)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="all">ทุกช่องทาง</option>
+            <option value="company">บริษัทสั่งจ่าย</option>
+            <option value="petty_cash">เงินสดย่อย</option>
+          </select>
+
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>เรียง: {opt.label}</option>
+            ))}
+          </select>
+
+          {isFiltered && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            >
+              <X size={12} /> ล้างตัวกรอง
+            </button>
+          )}
+        </div>
+
+        {/* ── ชิปกรองสถานะ ─────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 px-4 py-2.5">
+          <span className="mr-1 text-xs text-slate-400">สถานะ:</span>
+          <button
+            onClick={() => setStatusFilter("all")}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+              statusFilter === "all"
+                ? "border-slate-800 bg-slate-800 text-white"
+                : "border-slate-200 text-slate-600 hover:border-slate-300"
+            }`}
+          >
+            ทั้งหมด {statusCounts.all}
+          </button>
+          {STATUS_ORDER.map((s) => {
+            const meta = STATUS_META[s];
+            const active = statusFilter === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  active ? meta.badge + " ring-1 ring-inset" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                {meta.label} {statusCounts[s]}
+              </button>
+            );
+          })}
         </div>
 
         {/* แถบเลือก + สร้างไฟล์ KTB (ปิดชั่วคราวผ่าน KTB_ENABLED) */}
@@ -289,7 +461,9 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
         {visiblePRs.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-14 text-slate-300">
             <Inbox size={28} />
-            <p className="text-sm">ยังไม่มีรายการที่จ่ายแล้ว</p>
+            <p className="text-sm">
+              {isFiltered ? "ไม่พบรายการตามเงื่อนไขที่เลือก" : "ยังไม่มีรายการส่งมายังการเงิน"}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -307,13 +481,16 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อรายการ</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ผู้ขอ</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">บริษัท</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่จ่าย</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">ช่องทาง</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">สถานะ</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่</th>
                   <th className="px-4 py-3 text-right font-medium text-slate-500 whitespace-nowrap">จำนวนเงิน</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {visiblePRs.map((pr) => {
                   const theme = themeFor(pr.branch_code);
+                  const status = STATUS_META[pr.status];
                   const isChecked = selected.has(pr.id);
                   return (
                     <tr key={pr.id} className={isChecked ? "bg-blue-50/50" : "hover:bg-slate-50"}>
@@ -342,9 +519,24 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
                         </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
-                        {pr.paid_at ? formatDate(pr.paid_at) : "—"}
+                        {pr.channel === "petty_cash" ? "เงินสดย่อย" : pr.channel === "company" ? "บริษัทสั่งจ่าย" : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-700 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${status.badge}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
+                        {pr.date ? formatDate(pr.date) : "—"}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
+                          pr.status === "paid" ? "text-green-700"
+                            : pr.status === "cancelled" ? "text-slate-400 line-through"
+                            : "text-slate-700"
+                        }`}
+                      >
                         {formatCurrency(pr.amount)}
                       </td>
                     </tr>

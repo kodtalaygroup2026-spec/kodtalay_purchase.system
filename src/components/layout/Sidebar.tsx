@@ -10,13 +10,13 @@ import {
   ChevronRight,
   Plus,
   Landmark,
-  Banknote,
   PiggyBank,
   Users,
   FileCheck2,
   Package,
   Store,
   Building2,
+  ListFilter,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { KTB_ENABLED } from "@/lib/config/features";
@@ -110,7 +110,7 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0, 
 // ── FinanceDropdown ──────────────────────────────────────────────────────────
 
 const FINANCE_SUB = [
-  { href: "/finance",            label: "ภาพรวม",              icon: <Banknote size={13} /> },
+  { href: "/finance",            label: "รายการทั้งหมด",        icon: <ListFilter size={13} /> },
   { href: "/finance/payments",   label: "รายการบริษัทสั่งจ่าย", icon: <Building2 size={13} /> },
   { href: "/finance/petty-cash", label: "รายการเงินสดย่อย",     icon: <PiggyBank size={13} /> },
   { href: "/finance/documents",  label: "งานเอกสารสมบูรณ์",     icon: <FileCheck2 size={13} /> },
