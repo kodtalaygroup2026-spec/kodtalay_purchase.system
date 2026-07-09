@@ -7,7 +7,7 @@ import {
   ArrowLeft, Plus, Trash2, Building2, User,
   Paperclip, FileText, ImageIcon, X as XIcon,
   HelpCircle, CheckCircle2, AlertCircle, Clock, Send,
-  ChevronRight, ChevronLeft, ChevronDown,
+  ChevronRight, ChevronLeft, ChevronDown, ZoomIn,
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { CategoryCombobox, type CategoryOpt } from "@/components/pr/CategoryCombobox";
@@ -79,6 +79,7 @@ export default function NewRequisitionPage() {
 
   // ── Attachments ─────────────────────────────────────────────────────
   const [attachFiles, setAttachFiles] = useState<File[]>([]);
+  const [quotePreviewUrl, setQuotePreviewUrl] = useState<string | null>(null);
 
   // ── Load data ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -538,33 +539,38 @@ export default function NewRequisitionPage() {
           <h2 className="mb-1 font-semibold text-slate-700">ใบเสนอราคา</h2>
           <p className="mb-4 text-xs text-slate-400">แนบใบเสนอราคาจากผู้ขาย (ถ้ามี)</p>
 
-          {/* Drop zone / select button */}
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
-            <Paperclip size={22} className="text-slate-400" />
-            <p className="text-sm font-medium text-slate-600">คลิกเพื่อแนบใบเสนอราคา</p>
-            <p className="text-xs text-slate-400">รองรับ JPG, PNG, WEBP, PDF — หลายไฟล์ได้</p>
-            <input ref={fileInputRef} type="file" multiple
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              onChange={handleFileChange} className="hidden" />
-          </label>
-
-          {/* Preview list */}
+          {/* Preview list — อยู่ด้านบน กดรูปเพื่อดูขนาดเต็ม */}
           {attachFiles.length > 0 && (
-            <ul className="mt-4 space-y-2">
+            <ul className="mb-4 space-y-2">
               {attachFiles.map((file, i) => {
                 const isImage = file.type.startsWith("image/");
-                const previewUrl = isImage ? URL.createObjectURL(file) : null;
+                const objectUrl = URL.createObjectURL(file);
                 return (
                   <li key={i} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2">
-                    {/* Thumbnail / icon */}
-                    {previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={previewUrl} alt={file.name}
-                        className="h-10 w-10 shrink-0 rounded-md object-cover border border-slate-200" />
+                    {/* Thumbnail / icon — คลิกเพื่อดู */}
+                    {isImage ? (
+                      <button
+                        type="button"
+                        onClick={() => setQuotePreviewUrl(objectUrl)}
+                        title="คลิกเพื่อดูรูปเต็ม"
+                        className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-slate-200 transition hover:ring-2 hover:ring-blue-400"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={objectUrl} alt={file.name} className="h-full w-full object-cover" />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/30">
+                          <ZoomIn size={14} className="text-white opacity-0 drop-shadow transition group-hover:opacity-100" />
+                        </span>
+                      </button>
                     ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-red-50">
+                      <a
+                        href={objectUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="เปิดไฟล์ PDF"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-red-50 transition hover:bg-red-100"
+                      >
                         <FileText size={18} className="text-red-400" />
-                      </div>
+                      </a>
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-slate-700">{file.name}</p>
@@ -582,6 +588,16 @@ export default function NewRequisitionPage() {
               })}
             </ul>
           )}
+
+          {/* Drop zone / select button */}
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
+            <Paperclip size={22} className="text-slate-400" />
+            <p className="text-sm font-medium text-slate-600">คลิกเพื่อแนบใบเสนอราคา</p>
+            <p className="text-xs text-slate-400">รองรับ JPG, PNG, WEBP, PDF — หลายไฟล์ได้</p>
+            <input ref={fileInputRef} type="file" multiple
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={handleFileChange} className="hidden" />
+          </label>
         </div>
 
         {errorMessage && (
@@ -599,6 +615,29 @@ export default function NewRequisitionPage() {
           </button>
         </div>
       </form>
+
+      {/* ── Lightbox: ดูรูปใบเสนอราคาเต็มจอ ─────────────────────────────── */}
+      {quotePreviewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setQuotePreviewUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+            onClick={() => setQuotePreviewUrl(null)}
+          >
+            <XIcon size={20} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={quotePreviewUrl}
+            alt=""
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* ── Help Modal ──────────────────────────────────────────────────── */}
       {showHelp && (
