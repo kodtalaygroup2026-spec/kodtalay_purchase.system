@@ -9,6 +9,8 @@ import {
   type KTBCompanySettings, type KTBRecipient,
 } from "@/lib/utils/ktbFormat";
 import { KTB_ENABLED } from "@/lib/config/features";
+import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 
 // ── สีประจำแต่ละบริษัท (keyed by branch code) ─────────────────────────────────
 const COMPANY_THEME: Record<
@@ -117,6 +119,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<FinanceRowStatus | "all">("all");
   const [channelFilter, setChannelFilter] = useState<"all" | "company" | "petty_cash">("all");
+  const [dateRange, setDateRange] = useState<DateRange>(EMPTY_DATE_RANGE);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -130,18 +133,12 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
     [prs, selectedCode]
   );
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: companyPRs.length };
-    for (const s of STATUS_ORDER) counts[s] = 0;
-    for (const pr of companyPRs) counts[pr.status]++;
-    return counts;
-  }, [companyPRs]);
-
-  const visiblePRs = useMemo(() => {
+  // กรองทุกอย่างยกเว้นสถานะ เพื่อให้ตัวเลขบนชิปสถานะตรงกับสิ่งที่กดดูได้จริง
+  const filteredExceptStatus = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    const rows = companyPRs.filter((pr) => {
-      if (statusFilter !== "all" && pr.status !== statusFilter) return false;
+    return companyPRs.filter((pr) => {
       if (channelFilter !== "all" && pr.channel !== channelFilter) return false;
+      if (!isDateInRange(pr.date, dateRange)) return false;
       if (!keyword) return true;
       return (
         pr.pr_number.toLowerCase().includes(keyword) ||
@@ -150,6 +147,20 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
         (pr.account_holder_name ?? "").toLowerCase().includes(keyword)
       );
     });
+  }, [companyPRs, channelFilter, dateRange, query]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: filteredExceptStatus.length };
+    for (const s of STATUS_ORDER) counts[s] = 0;
+    for (const pr of filteredExceptStatus) counts[pr.status]++;
+    return counts;
+  }, [filteredExceptStatus]);
+
+  const visiblePRs = useMemo(() => {
+    const rows =
+      statusFilter === "all"
+        ? filteredExceptStatus
+        : filteredExceptStatus.filter((pr) => pr.status === statusFilter);
 
     const timeOf = (pr: FinancePR) => (pr.date ? new Date(pr.date).getTime() : 0);
     const sorted = [...rows];
@@ -161,10 +172,11 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
       default:            sorted.sort((a, b) => timeOf(b) - timeOf(a));
     }
     return sorted;
-  }, [companyPRs, statusFilter, channelFilter, query, sortKey]);
+  }, [filteredExceptStatus, statusFilter, sortKey]);
 
   const visibleTotal = visiblePRs.reduce((sum, pr) => sum + Number(pr.amount), 0);
-  const isFiltered = statusFilter !== "all" || channelFilter !== "all" || query.trim() !== "";
+  const isFiltered =
+    statusFilter !== "all" || channelFilter !== "all" || query.trim() !== "" || !isRangeEmpty(dateRange);
 
   const selectedCompany = companies.find((c) => c.code === selectedCode) ?? null;
   const selectedRows = visiblePRs.filter((p) => selected.has(p.id));
@@ -177,6 +189,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
   function resetFilters() {
     setStatusFilter("all");
     setChannelFilter("all");
+    setDateRange(EMPTY_DATE_RANGE);
     setQuery("");
     setSortKey("date_desc");
   }
@@ -347,7 +360,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
           )}
         </div>
 
-        {/* ── ค้นหา + เรียงลำดับ ────────────────────────────────────────────── */}
+        {/* ── ค้นหา + ช่วงวันที่ + เรียงลำดับ ──────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
           <div className="relative min-w-[220px] flex-1">
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -355,14 +368,16 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="ค้นหาเลขที่ PR / ชื่อรายการ / ผู้ขอ / ชื่อบัญชี"
-              className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+              className="h-[38px] w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
             />
           </div>
+
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
 
           <select
             value={channelFilter}
             onChange={(e) => setChannelFilter(e.target.value as typeof channelFilter)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
           >
             <option value="all">ทุกช่องทาง</option>
             <option value="company">บริษัทสั่งจ่าย</option>
@@ -372,7 +387,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>เรียง: {opt.label}</option>
@@ -382,7 +397,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
           {isFiltered && (
             <button
               onClick={resetFilters}
-              className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              className="flex h-[38px] items-center gap-1 rounded-lg border border-slate-300 px-2.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             >
               <X size={12} /> ล้างตัวกรอง
             </button>
