@@ -11,12 +11,22 @@ import { env } from "@/lib/env";
 // เส้นทางที่เข้าได้โดยไม่ต้องล็อกอิน
 const PUBLIC_PATHS = ["/login", "/auth"];
 
+// เส้นทางที่ระบบภายนอกเรียกเข้ามา — ไม่มี session cookie จึงต้องข้าม middleware ทั้งหมด
+// ไม่ใช่ช่องโหว่: webhook ตรวจสิทธิ์เองด้วยลายเซ็น HMAC ของ LINE
+const EXTERNAL_WEBHOOK_PATHS = ["/api/line/webhook"];
+
 /**
  * อัปเดต session ของ Supabase ในทุก request และ redirect ไป /login
  * ถ้าผู้ใช้ยังไม่ได้ล็อกอินและพยายามเข้าหน้า protected
  */
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ต้องเช็คก่อนทุกอย่าง ไม่งั้น LINE จะโดน redirect ไป /login แทนที่จะถึง handler
+  if (EXTERNAL_WEBHOOK_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next({ request });
+  }
+
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   // ถ้า env ยังไม่ได้ตั้งค่า (เช่น build โดยไม่มี env) → redirect ไป login แทน crash
