@@ -72,9 +72,14 @@ export async function sendLineMulticast(lineUserIds: string[], text: string): Pr
 
 /** ตอบกลับ event ของ LINE (ใช้ replyToken จาก webhook) */
 export async function sendLineReply(replyToken: string, text: string): Promise<void> {
-  if (!env.LINE_CHANNEL_ACCESS_TOKEN || !replyToken) return;
+  if (!env.LINE_CHANNEL_ACCESS_TOKEN) {
+    console.error("[line-reply] LINE_CHANNEL_ACCESS_TOKEN ไม่ได้ถูกตั้งค่า");
+    return;
+  }
+  if (!replyToken) return;
+
   try {
-    await fetch(LINE_REPLY_URL, {
+    const res = await fetch(LINE_REPLY_URL, {
       method: "POST",
       headers: lineHeaders(),
       body: JSON.stringify({
@@ -82,7 +87,11 @@ export async function sendLineReply(replyToken: string, text: string): Promise<v
         messages: [{ type: "text", text }],
       }),
     });
+    // LINE ปฏิเสธเงียบ ๆ ได้หลายกรณี เช่น token ผิด channel หรือ OA อยู่โหมดแชท
+    if (!res.ok) {
+      console.error(`[line-reply] LINE ตอบ ${res.status}:`, await res.text());
+    }
   } catch (err) {
-    console.error("LINE reply error:", err);
+    console.error("[line-reply] error:", err);
   }
 }

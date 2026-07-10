@@ -31,17 +31,41 @@ function verifySignature(rawBody: string, signature: string, secret: string): bo
   return hash === signature;
 }
 
+/**
+ * ถาม LINE ว่า access token ที่ตั้งไว้ใช้ได้จริงและเป็นของบอทตัวไหน
+ * ใช้แยกว่า token ผิด channel หรือ token หมดอายุ
+ */
+async function inspectAccessToken(): Promise<{ valid: boolean | null; botBasicId: string | null }> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
+  if (!token) return { valid: null, botBasicId: null };
+
+  try {
+    const res = await fetch("https://api.line.me/v2/bot/info", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return { valid: false, botBasicId: null };
+
+    const info = (await res.json()) as { basicId?: string };
+    return { valid: true, botBasicId: info.basicId ?? null };
+  } catch {
+    return { valid: null, botBasicId: null };
+  }
+}
+
 // GET  /api/line/webhook — health check: บอกว่า route ถูก deploy และ env ครบหรือยัง
 // POST /api/line/webhook — รับ event จาก LINE Messaging API เพื่อเชื่อม LINE account กับ user
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // เปิดใน browser ได้เลยเพื่อตรวจว่า env ถูกตั้งบนเซิร์ฟเวอร์จริง (ไม่เปิดเผยค่า)
   if (req.method === "GET") {
+    const { valid, botBasicId } = await inspectAccessToken();
     return res.status(200).json({
       ok: true,
       endpoint: "line-webhook",
       hasChannelSecret: Boolean(process.env.LINE_CHANNEL_SECRET),
       hasAccessToken: Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN),
       hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      accessTokenValid: valid,
+      botBasicId,
     });
   }
 
