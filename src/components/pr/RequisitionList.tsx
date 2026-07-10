@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, useMemo, Fragment } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,20 @@ import { ChevronDown, Search, X, FileText, Settings2, Clock, ImagePlus, Banknote
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { PR_STATUS_LABELS } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { StatusFilterDropdown } from "@/components/pr/StatusFilterDropdown";
+import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 import type { PrStatus, PoStatus } from "@/types/database";
+
+type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "pr_number";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "date_desc",   label: "วันที่ล่าสุดก่อน" },
+  { value: "date_asc",    label: "วันที่เก่าสุดก่อน" },
+  { value: "amount_desc", label: "ยอดเงินมาก → น้อย" },
+  { value: "amount_asc",  label: "ยอดเงินน้อย → มาก" },
+  { value: "pr_number",   label: "เลขที่ PR" },
+];
 
 // ── Branch badge colors (keyed by branch code) ────────────────────────────
 const BRANCH_BADGE: Record<string, string> = {
@@ -241,6 +254,8 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PrStatus | "">("");
+  const [dateRange, setDateRange] = useState<DateRange>(EMPTY_DATE_RANGE);
+  const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [activeStep, setActiveStep] = useState<number | null>(initialStep);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, ExpandedItem[]>>({});
@@ -252,18 +267,60 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
     setSearch("");
   }
 
+  function resetFilters() {
+    setSearch("");
+    setStatusFilter("");
+    setDateRange(EMPTY_DATE_RANGE);
+    setSortKey("date_desc");
+    setActiveStep(null);
+  }
+
+  // สถานะที่เลือกได้ ขึ้นกับขั้นตอนที่กำลังดูอยู่
+  const statusOptions = activeStep !== null
+    ? STEP_STATUSES[activeStep]
+    : (Object.keys(PR_STATUS_LABELS) as PrStatus[]);
+
   // ── Filter ───────────────────────────────────────────────────────────────
-  const filtered = prs.filter(pr => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      pr.pr_number.toLowerCase().includes(q) ||
-      pr.title.toLowerCase().includes(q) ||
-      (pr.profiles?.full_name ?? "").toLowerCase().includes(q);
-    const matchStatus = !statusFilter || pr.status === statusFilter;
-    const matchStep = activeStep === null || SUMMARY_STEPS[activeStep].match(pr);
-    return matchSearch && matchStatus && matchStep;
-  });
+  // กรองทุกอย่างยกเว้นสถานะ เพื่อให้ตัวเลขในดรอปดาวน์ตรงกับสิ่งที่กดดูได้จริง
+  const filteredExceptStatus = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return prs.filter(pr => {
+      const matchSearch =
+        !q ||
+        pr.pr_number.toLowerCase().includes(q) ||
+        pr.title.toLowerCase().includes(q) ||
+        (pr.profiles?.full_name ?? "").toLowerCase().includes(q);
+      const matchStep = activeStep === null || SUMMARY_STEPS[activeStep].match(pr);
+      return matchSearch && matchStep && isDateInRange(pr.created_at, dateRange);
+    });
+  }, [prs, search, activeStep, dateRange]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const pr of filteredExceptStatus) {
+      counts[pr.status] = (counts[pr.status] ?? 0) + 1;
+    }
+    return counts;
+  }, [filteredExceptStatus]);
+
+  const filtered = useMemo(() => {
+    const rows = statusFilter
+      ? filteredExceptStatus.filter(pr => pr.status === statusFilter)
+      : filteredExceptStatus;
+
+    const timeOf = (pr: PRRow) => new Date(pr.created_at).getTime();
+    const sorted = [...rows];
+    switch (sortKey) {
+      case "date_asc":    sorted.sort((a, b) => timeOf(a) - timeOf(b)); break;
+      case "amount_desc": sorted.sort((a, b) => Number(b.total_amount) - Number(a.total_amount)); break;
+      case "amount_asc":  sorted.sort((a, b) => Number(a.total_amount) - Number(b.total_amount)); break;
+      case "pr_number":   sorted.sort((a, b) => a.pr_number.localeCompare(b.pr_number)); break;
+      default:            sorted.sort((a, b) => timeOf(b) - timeOf(a));
+    }
+    return sorted;
+  }, [filteredExceptStatus, statusFilter, sortKey]);
+
+  const isFiltered = search.trim() !== "" || statusFilter !== "" || !isRangeEmpty(dateRange);
 
   // คลิกแถว = ไปหน้ารายละเอียด
   function handleRowClick(prId: string) {
@@ -322,52 +379,60 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
       <ProgressSummary prs={prs} activeStep={activeStep} onStep={handleStepClick} />
 
       {/* ── Filter bar ───────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setActiveStep(null); }}
-            placeholder="ค้นหาเลขที่ / ชื่อ / ผู้ขอ..."
-            className="w-full rounded-lg border border-slate-300 pl-9 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none"
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); setActiveStep(null); }}
+              placeholder="ค้นหาเลขที่ / ชื่อ / ผู้ขอ..."
+              className="h-[38px] w-full rounded-lg border border-slate-300 pl-9 pr-8 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <StatusFilterDropdown
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+            counts={statusCounts}
+            totalCount={filteredExceptStatus.length}
           />
-          {search && (
+
+          <DateRangePicker value={dateRange} onChange={setDateRange} placeholder="วันที่สร้าง: ทุกช่วงเวลา" />
+
+          <select
+            value={sortKey}
+            onChange={e => setSortKey(e.target.value as SortKey)}
+            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+          >
+            {SORT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>เรียง: {opt.label}</option>
+            ))}
+          </select>
+
+          {isFiltered && (
             <button
-              onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              onClick={resetFilters}
+              className="flex h-[38px] items-center gap-1 rounded-lg border border-slate-300 px-2.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             >
-              <X size={14} />
+              <X size={12} /> ล้างตัวกรอง
             </button>
           )}
+
+          <span className="ml-auto whitespace-nowrap text-xs text-slate-400">
+            {filtered.length} รายการ
+            {prs.length !== filtered.length ? ` จาก ${prs.length}` : ""}
+          </span>
         </div>
-
-        <select
-          value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value as PrStatus | ""); }}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">สถานะทั้งหมด</option>
-          {(activeStep !== null
-            ? STEP_STATUSES[activeStep]
-            : (Object.keys(PR_STATUS_LABELS) as PrStatus[])
-          ).map(val => (
-            <option key={val} value={val}>{PR_STATUS_LABELS[val]}</option>
-          ))}
-        </select>
-
-        {(search || statusFilter) && (
-          <button
-            onClick={() => { setSearch(""); setStatusFilter(""); setActiveStep(null); }}
-            className="text-sm text-slate-500 hover:text-slate-700"
-          >
-            ล้างตัวกรอง
-          </button>
-        )}
-
-        <span className="ml-auto text-xs text-slate-400">
-          {filtered.length} รายการ
-          {prs.length !== filtered.length ? ` จาก ${prs.length}` : ""}
-        </span>
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────────── */}
