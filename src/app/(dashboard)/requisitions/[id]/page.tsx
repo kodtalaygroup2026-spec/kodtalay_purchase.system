@@ -558,7 +558,6 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           requester_id: pr.requester_id,
         }}
         currentUserId={user?.id ?? ""}
-        currentUserName={(currentProfile as any)?.full_name ?? user?.email ?? ""}
         currentUserRole={currentUserRole}
       />
 

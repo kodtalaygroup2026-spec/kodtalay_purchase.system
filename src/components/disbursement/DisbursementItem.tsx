@@ -102,6 +102,23 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
     } catch { /* ignore */ }
   }
 
+  /** แจ้ง LINE ฝ่ายบัญชีว่ามีรายการรอจ่าย — ข้ามคนที่กดตรวจสอบเอง */
+  async function notifyFinanceToPay(channel: "company" | "petty_cash") {
+    try {
+      await fetch("/api/notifications/pr-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prId: pr.id,
+          event: "verified",
+          actorId: currentUserId,
+          channel,
+          origin: window.location.origin,
+        }),
+      });
+    } catch { /* ignore */ }
+  }
+
   // ── ตรวจสอบแล้ว → verified + เลือกช่องทางจ่าย (บริษัท/เงินสดย่อย) ──
   async function handleVerify(channel: "company" | "petty_cash") {
     if (!evidence) return;
@@ -129,6 +146,10 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
         entityId: evidence.id,
         metadata: { pr_id: pr.id, pr_number: pr.pr_number, channel },
       });
+
+      // แจ้งฝ่ายบัญชีคนอื่นว่ามีรายการเข้าคิวรอจ่ายตามช่องทางที่เลือก
+      void notifyFinanceToPay(channel);
+
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err?.message ?? "เกิดข้อผิดพลาด");

@@ -210,6 +210,24 @@ export function EvidenceSubmissionSection({
     }
   }
 
+  /** แจ้ง LINE ฝ่ายบัญชีว่ามีหลักฐานรอตรวจสอบ — เซิร์ฟเวอร์หาผู้รับและประกอบข้อความเอง */
+  async function notifyFinanceToVerify() {
+    try {
+      await fetch("/api/notifications/pr-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prId,
+          event: "evidence_submitted",
+          actorId: currentUserId,
+          origin: window.location.origin,
+        }),
+      });
+    } catch {
+      // ไม่ block flow หลัก ถ้า notification ส่งไม่สำเร็จ
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -280,6 +298,9 @@ export function EvidenceSubmissionSection({
         entityId: evidence.id,
         metadata: { pr_id: prId, payment_type: paymentMode, account_holder_name: insertHolderName },
       });
+
+      // แจ้งฝ่ายบัญชีว่ามีงานเข้าคิวตรวจสอบ
+      void notifyFinanceToVerify();
 
       // บันทึกชื่อและธนาคารลง localStorage (เฉพาะ send_bill)
       if (paymentMode === "send_bill") {

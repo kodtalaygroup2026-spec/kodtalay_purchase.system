@@ -18,14 +18,12 @@ interface PRApprovalPanelProps {
     requester_id: string;
   };
   currentUserId: string;
-  currentUserName: string;
   currentUserRole: UserRole | undefined;
 }
 
 export function PRApprovalPanel({
   pr,
   currentUserId,
-  currentUserName,
   currentUserRole,
 }: PRApprovalPanelProps) {
   const router = useRouter();
@@ -65,26 +63,22 @@ export function PRApprovalPanel({
     }
   }
 
-  async function notifyManagersOnSubmit() {
-    const { data: managers } = await (supabase as any)
-      .from("profiles")
-      .select("line_user_id")
-      .in("role", ["admin", "manager"])
-      .eq("is_active", true)
-      .not("line_user_id", "is", null);
-
-    if (!managers?.length) return;
-
-    const message =
-      `📋 ใบขอซื้อใหม่รอการอนุมัติ\n\n` +
-      `เลขที่: ${pr.pr_number}\n` +
-      `ผู้ขอ: ${currentUserName}\n` +
-      `หัวข้อ: ${pr.title}\n` +
-      `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
-      `👉 ดูรายละเอียด:\n${prUrl()}`;
-
-    for (const { line_user_id } of managers) {
-      void notifyLine(line_user_id, message);
+  // เดิมยิงหา admin/manager ทุกคนทั้งบริษัท
+  // เปลี่ยนเป็นให้เซิร์ฟเวอร์หาผู้อนุมัติของใบนี้เอง (หัวหน้าแผนก + ตำแหน่งของหมวด + บช.)
+  async function notifyApproversOnSubmit() {
+    try {
+      await fetch("/api/notifications/pr-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prId: pr.id,
+          event: "submitted",
+          actorId: currentUserId,
+          origin: window.location.origin,
+        }),
+      });
+    } catch {
+      // ไม่ block flow หลัก ถ้า notification ส่งไม่สำเร็จ
     }
   }
 
@@ -150,7 +144,7 @@ export function PRApprovalPanel({
       entityId: pr.id,
       metadata: { pr_number: pr.pr_number, title: pr.title },
     });
-    void notifyManagersOnSubmit();
+    void notifyApproversOnSubmit();
     setIsLoading(false);
   }
 
