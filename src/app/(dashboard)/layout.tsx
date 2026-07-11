@@ -5,6 +5,45 @@ import { Navbar } from "@/components/layout/Navbar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { RealtimeNotificationProvider } from "@/components/shared/RealtimeNotificationProvider";
 
+/**
+ * นับเอกสารของตัวเองที่ไม่สมบูรณ์ (ถูกตีกลับ + จ่ายแล้วแต่ค้างเอกสารตัวจริง)
+ * ต้องเช็คสถานะ PR ด้วย เพราะใบที่ส่งหลักฐานใหม่ไปแล้วไม่ควรนับซ้ำ
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function countIncompleteDocs(supabase: any, userId: string): Promise<number> {
+  const { data: incRows } = await supabase
+    .from("payment_evidences")
+    .select("pr_id, status, submitted_at")
+    .eq("submitted_by", userId)
+    .eq("close_status", "incomplete")
+    .order("submitted_at", { ascending: false })
+    .limit(200);
+
+  if (!incRows || incRows.length === 0) return 0;
+
+  const incPrIds = [...new Set(incRows.map((r: any) => r.pr_id))];
+  const { data: incPrs } = await supabase
+    .from("purchase_requisitions")
+    .select("id, status")
+    .in("id", incPrIds);
+  const prStatusById: Record<string, string> = Object.fromEntries(
+    (incPrs ?? []).map((p: any) => [p.id, p.status])
+  );
+
+  let count = 0;
+  const seen = new Set<string>();
+  for (const ev of incRows as any[]) {
+    if (seen.has(ev.pr_id)) continue;
+    seen.add(ev.pr_id);
+    const prStatus = prStatusById[ev.pr_id];
+    if (!prStatus) continue;
+    const isPendingFix = ev.status === "returned" && ["approved", "converted"].includes(prStatus);
+    const isAwaitingDocs = ev.status === "paid";
+    if (isPendingFix || isAwaitingDocs) count++;
+  }
+  return count;
+}
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -31,73 +70,38 @@ export default async function DashboardLayout({
 
   const avatarUrl = user.user_metadata?.avatar_url as string | undefined;
 
-  // นับรายการที่รอการอนุมัติตาม role
-  let approvalCount = 0;
-  let editedCount = 0;
-  if (profile.role === "manager" || profile.role === "admin") {
-    const [{ count }, { data: editedPRIds }] = await Promise.all([
-      (supabase as any)
-        .from("purchase_requisitions")
-        .select("id", { count: "exact", head: true })
-        .in("status", ["submitted", "pending_second_approval"]),
-      (supabase as any)
-        .from("pr_item_edit_logs")
-        .select("pr_id")
-        .limit(200),
-    ]);
-    approvalCount = count ?? 0;
-    editedCount = new Set(((editedPRIds ?? []) as any[]).map((r) => r.pr_id)).size;
-  }
+  const isApprover = profile.role === "manager" || profile.role === "admin";
+  const isFinance = profile.role === "finance" || profile.role === "admin";
 
-  // นับงานที่รอฝ่ายบัญชีตรวจสอบ (evidence status = submitted) — เฉพาะ finance/admin
-  let verifyCount = 0;
-  if (profile.role === "finance" || profile.role === "admin") {
-    const { count } = await (supabase as any)
-      .from("payment_evidences")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "submitted");
-    verifyCount = count ?? 0;
-  }
-
-  // นับเอกสารของตัวเองที่ไม่สมบูรณ์ — ทั้งที่ถูกตีกลับ และที่จ่ายแล้วแต่ค้างเอกสารตัวจริง
-  // (ต้องเช็คสถานะ PR ด้วย เพราะใบที่ส่งหลักฐานใหม่ไปแล้วไม่ควรนับซ้ำ)
-  const { data: incRows } = await (supabase as any)
-    .from("payment_evidences")
-    .select("pr_id, status, submitted_at")
-    .eq("submitted_by", user.id)
-    .eq("close_status", "incomplete")
-    .order("submitted_at", { ascending: false })
-    .limit(200);
-
-  let incompleteCount = 0;
-  if (incRows && incRows.length > 0) {
-    const incPrIds = [...new Set(incRows.map((r: any) => r.pr_id))];
-    const { data: incPrs } = await (supabase as any)
+  // ยิงทุก query สำหรับ badge พร้อมกันในรอบเดียว (เดิมยิงทีละอันตามลำดับ)
+  const [approvalRes, editedRes, verifyRes, incompleteCount, todoRes] = await Promise.all([
+    isApprover
+      ? (supabase as any)
+          .from("purchase_requisitions")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["submitted", "pending_second_approval"])
+      : Promise.resolve({ count: 0 }),
+    isApprover
+      ? (supabase as any).from("pr_item_edit_logs").select("pr_id").limit(200)
+      : Promise.resolve({ data: [] }),
+    isFinance
+      ? (supabase as any)
+          .from("payment_evidences")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "submitted")
+      : Promise.resolve({ count: 0 }),
+    countIncompleteDocs(supabase, user.id),
+    (supabase as any)
       .from("purchase_requisitions")
-      .select("id, status")
-      .in("id", incPrIds);
-    const prStatusById: Record<string, string> = Object.fromEntries(
-      (incPrs ?? []).map((p: any) => [p.id, p.status])
-    );
-    const seen = new Set<string>();
-    for (const ev of incRows as any[]) {
-      if (seen.has(ev.pr_id)) continue;
-      seen.add(ev.pr_id);
-      const prStatus = prStatusById[ev.pr_id];
-      if (!prStatus) continue;
-      const isPendingFix = ev.status === "returned" && ["approved", "converted"].includes(prStatus);
-      const isAwaitingDocs = ev.status === "paid";
-      if (isPendingFix || isAwaitingDocs) incompleteCount++;
-    }
-  }
+      .select("id", { count: "exact", head: true })
+      .eq("requester_id", user.id)
+      .in("status", ["draft", "returned", "rejected", "approved", "converted"]),
+  ]);
 
-  // นับ PR ของตัวเองที่ "เจ้าของต้องจัดการ" — ร่าง/ตีกลับ/ไม่อนุมัติ + รอแนบบิล
-  const { count: todoCnt } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select("id", { count: "exact", head: true })
-    .eq("requester_id", user.id)
-    .in("status", ["draft", "returned", "rejected", "approved", "converted"]);
-  const todoCount = todoCnt ?? 0;
+  const approvalCount = approvalRes.count ?? 0;
+  const editedCount = new Set(((editedRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
+  const verifyCount = verifyRes.count ?? 0;
+  const todoCount = todoRes.count ?? 0;
 
   return (
     <div className="flex min-h-screen bg-slate-50">
