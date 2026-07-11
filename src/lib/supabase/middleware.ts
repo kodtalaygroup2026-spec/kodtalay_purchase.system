@@ -9,7 +9,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
 // เส้นทางที่เข้าได้โดยไม่ต้องล็อกอิน
-const PUBLIC_PATHS = ["/login", "/auth"];
+// /line/link ตรวจ auth เองภายใน route แล้วเด้งไป /login พร้อมเก็บ linkToken ไว้
+const PUBLIC_PATHS = ["/login", "/auth", "/line/link"];
 
 // เส้นทางที่ระบบภายนอกเรียกเข้ามา — ไม่มี session cookie จึงต้องข้าม middleware ทั้งหมด
 // ไม่ใช่ช่องโหว่: webhook ตรวจสิทธิ์เองด้วยลายเซ็น HMAC ของ LINE

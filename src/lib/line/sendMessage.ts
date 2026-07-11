@@ -70,22 +70,22 @@ export async function sendLineMulticast(lineUserIds: string[], text: string): Pr
   }
 }
 
-/** ตอบกลับ event ของ LINE (ใช้ replyToken จาก webhook) */
-export async function sendLineReply(replyToken: string, text: string): Promise<void> {
+/** ตอบกลับ event ของ LINE ด้วย message objects ดิบ (รองรับ text / template / flex) */
+export async function sendLineReplyMessages(
+  replyToken: string,
+  messages: Record<string, unknown>[],
+): Promise<void> {
   if (!env.LINE_CHANNEL_ACCESS_TOKEN) {
     console.error("[line-reply] LINE_CHANNEL_ACCESS_TOKEN ไม่ได้ถูกตั้งค่า");
     return;
   }
-  if (!replyToken) return;
+  if (!replyToken || messages.length === 0) return;
 
   try {
     const res = await fetch(LINE_REPLY_URL, {
       method: "POST",
       headers: lineHeaders(),
-      body: JSON.stringify({
-        replyToken,
-        messages: [{ type: "text", text }],
-      }),
+      body: JSON.stringify({ replyToken, messages }),
     });
     // LINE ปฏิเสธเงียบ ๆ ได้หลายกรณี เช่น token ผิด channel หรือ OA อยู่โหมดแชท
     if (!res.ok) {
@@ -93,5 +93,33 @@ export async function sendLineReply(replyToken: string, text: string): Promise<v
     }
   } catch (err) {
     console.error("[line-reply] error:", err);
+  }
+}
+
+/** ตอบกลับ event ของ LINE ด้วยข้อความ text (ใช้ replyToken จาก webhook) */
+export async function sendLineReply(replyToken: string, text: string): Promise<void> {
+  await sendLineReplyMessages(replyToken, [{ type: "text", text }]);
+}
+
+/**
+ * ออก linkToken สำหรับ Account Link — ต้องรู้ userId ก่อน (จาก webhook event)
+ * linkToken อายุสั้น (~10 นาที) ใช้ได้ครั้งเดียว
+ */
+export async function issueLinkToken(lineUserId: string): Promise<string | null> {
+  if (!env.LINE_CHANNEL_ACCESS_TOKEN || !lineUserId) return null;
+  try {
+    const res = await fetch(`https://api.line.me/v2/bot/user/${lineUserId}/linkToken`, {
+      method: "POST",
+      headers: lineHeaders(),
+    });
+    if (!res.ok) {
+      console.error(`[line-linkToken] LINE ตอบ ${res.status}:`, await res.text());
+      return null;
+    }
+    const data = (await res.json()) as { linkToken?: string };
+    return data.linkToken ?? null;
+  } catch (err) {
+    console.error("[line-linkToken] error:", err);
+    return null;
   }
 }

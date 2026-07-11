@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { sendLineReply } from "@/lib/line/sendMessage";
+import { sendLineReply, sendLineReplyMessages, issueLinkToken } from "@/lib/line/sendMessage";
+import { externalBrowserLink } from "@/lib/line/externalLink";
+
+// คำสั่งเริ่มเชื่อมบัญชีแบบกดปุ่ม (Rich Menu ส่งข้อความนี้มา หรือผู้ใช้พิมพ์เอง)
+const LINK_TRIGGERS = ["verify", "เชื่อมบัญชี", "เชื่อม", "link", "เชื่อมต่อ"];
 
 export const config = {
   api: { bodyParser: false }, // ต้องการ raw body สำหรับ HMAC verification
@@ -96,49 +100,121 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // events ว่าง = LINE กดปุ่ม Verify — ตอบ 200 ให้ผ่าน
   console.log(`[line-webhook] ได้รับ ${body.events?.length ?? 0} event`);
 
+  const origin = `https://${req.headers.host}`;
+
   for (const event of body.events ?? []) {
-    if (event.type !== "message" || event.message?.type !== "text") continue;
-
-    const code = event.message.text.trim();
-    const lineUserId = event.source?.userId;
-    if (!lineUserId) continue;
-
-    // ข้อความที่ไม่ใช่รหัส 6 หลัก — ตอบวิธีใช้ เพื่อยืนยันว่า webhook ทำงาน
-    if (!/^\d{6}$/.test(code)) {
-      console.log("[line-webhook] ข้อความไม่ใช่รหัส 6 หลัก");
-      await sendLineReply(
-        event.replyToken,
-        "กรุณาส่งรหัส 6 หลักที่ได้จากหน้าโปรไฟล์ในระบบจัดซื้อ\n(รหัสมีอายุ 10 นาที)",
-      );
+    // ── Account Link — LINE ส่งกลับมาหลังผู้ใช้ยืนยันเชื่อมบัญชี ──
+    if (event.type === "accountLink") {
+      await handleAccountLink(event);
       continue;
     }
 
-    const { data: linkCode } = await adminClient
-      .from("line_link_codes")
-      .select("user_id, expires_at")
-      .eq("code", code)
-      .maybeSingle();
+    if (event.type !== "message" || event.message?.type !== "text") continue;
 
-    if (linkCode && new Date(linkCode.expires_at) > new Date()) {
-      await adminClient
-        .from("profiles")
-        .update({ line_user_id: lineUserId })
-        .eq("id", linkCode.user_id);
+    const text = event.message.text.trim();
+    const lineUserId = event.source?.userId;
+    if (!lineUserId) continue;
 
-      await adminClient.from("line_link_codes").delete().eq("code", code);
-
-      console.log(`[line-webhook] เชื่อมบัญชีสำเร็จ user=${linkCode.user_id}`);
-      await sendLineReply(
-        event.replyToken,
-        "✅ เชื่อม LINE สำเร็จ!\nคุณจะได้รับการแจ้งเตือนจากระบบจัดซื้อผ่าน LINE นี้",
-      );
-    } else {
-      console.log(`[line-webhook] รหัส ${code} ${linkCode ? "หมดอายุ" : "ไม่พบในระบบ"}`);
-      await sendLineReply(event.replyToken, "❌ รหัสไม่ถูกต้องหรือหมดอายุแล้ว กรุณาขอรหัสใหม่จากระบบ");
+    // คำสั่งกดปุ่มเชื่อมบัญชี → เริ่ม Account Link
+    if (LINK_TRIGGERS.includes(text.toLowerCase())) {
+      await startAccountLink(event.replyToken, lineUserId, origin);
+      continue;
     }
+
+    // รหัส 6 หลัก → เชื่อมบัญชีแบบเดิม (ยังรองรับไว้)
+    if (/^\d{6}$/.test(text)) {
+      await handleCodeLink(event.replyToken, lineUserId, text);
+      continue;
+    }
+
+    // ข้อความอื่น — ตอบวิธีใช้ พร้อมปุ่มเชื่อมบัญชี
+    console.log("[line-webhook] ข้อความทั่วไป — ส่งปุ่มเชื่อมบัญชี");
+    await startAccountLink(event.replyToken, lineUserId, origin);
   }
 
   return res.status(200).json({ ok: true });
+}
+
+/** เริ่มเชื่อมบัญชี — ออก linkToken แล้วตอบด้วยปุ่มเปิดหน้าเชื่อมบัญชี */
+async function startAccountLink(replyToken: string, lineUserId: string, origin: string) {
+  const linkToken = await issueLinkToken(lineUserId);
+  if (!linkToken) {
+    await sendLineReply(replyToken, "ขออภัย ระบบเชื่อมบัญชีขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง");
+    return;
+  }
+
+  // เปิดในเบราว์เซอร์ภายนอก (Chrome/Safari) เพราะ Google Login ใช้ในเบราว์เซอร์ของ LINE ไม่ได้
+  const linkUrl = externalBrowserLink(`${origin}/line/link?linkToken=${encodeURIComponent(linkToken)}`);
+
+  await sendLineReplyMessages(replyToken, [
+    {
+      type: "template",
+      altText: "เชื่อมบัญชีระบบจัดซื้อกับ LINE",
+      template: {
+        type: "buttons",
+        title: "เชื่อมบัญชีระบบจัดซื้อ",
+        text: "กดปุ่มด้านล่างเพื่อเข้าสู่ระบบและเชื่อม LINE นี้เข้ากับบัญชีของคุณ",
+        actions: [{ type: "uri", label: "เชื่อมบัญชี", uri: linkUrl }],
+      },
+    },
+  ]);
+}
+
+/** เชื่อมบัญชีด้วยรหัส 6 หลัก (ช่องทางเดิม) */
+async function handleCodeLink(replyToken: string, lineUserId: string, code: string) {
+  const { data: linkCode } = await adminClient
+    .from("line_link_codes")
+    .select("user_id, expires_at")
+    .eq("code", code)
+    .maybeSingle();
+
+  if (linkCode && new Date(linkCode.expires_at) > new Date()) {
+    await adminClient.from("profiles").update({ line_user_id: lineUserId }).eq("id", linkCode.user_id);
+    await adminClient.from("line_link_codes").delete().eq("code", code);
+    console.log(`[line-webhook] เชื่อมบัญชี (code) สำเร็จ user=${linkCode.user_id}`);
+    await sendLineReply(
+      replyToken,
+      "✅ เชื่อม LINE สำเร็จ!\nคุณจะได้รับการแจ้งเตือนจากระบบจัดซื้อผ่าน LINE นี้",
+    );
+  } else {
+    console.log(`[line-webhook] รหัส ${code} ${linkCode ? "หมดอายุ" : "ไม่พบในระบบ"}`);
+    await sendLineReply(replyToken, "❌ รหัสไม่ถูกต้องหรือหมดอายุแล้ว กรุณาขอรหัสใหม่จากระบบ");
+  }
+}
+
+/** รับ accountLink event จาก LINE แล้วจับคู่ nonce → บันทึก line_user_id */
+async function handleAccountLink(event: LineEvent) {
+  const nonce = event.link?.nonce;
+  const lineUserId = event.source?.userId;
+
+  if (event.link?.result !== "ok" || !nonce || !lineUserId) {
+    console.log("[line-webhook] accountLink ล้มเหลวหรือข้อมูลไม่ครบ");
+    if (event.replyToken) {
+      await sendLineReply(event.replyToken, "การเชื่อมบัญชีไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
+    return;
+  }
+
+  const { data: row } = await adminClient
+    .from("line_link_nonces")
+    .select("user_id, expires_at")
+    .eq("nonce", nonce)
+    .maybeSingle();
+
+  if (!row || new Date(row.expires_at) < new Date()) {
+    console.log(`[line-webhook] nonce ${nonce} ${row ? "หมดอายุ" : "ไม่พบ"}`);
+    await sendLineReply(event.replyToken, "ลิงก์เชื่อมบัญชีหมดอายุ กรุณาเริ่มใหม่อีกครั้ง");
+    return;
+  }
+
+  await adminClient.from("profiles").update({ line_user_id: lineUserId }).eq("id", row.user_id);
+  await adminClient.from("line_link_nonces").delete().eq("nonce", nonce);
+
+  console.log(`[line-webhook] เชื่อมบัญชี (accountLink) สำเร็จ user=${row.user_id}`);
+  await sendLineReply(
+    event.replyToken,
+    "✅ เชื่อม LINE สำเร็จ!\nคุณจะได้รับการแจ้งเตือนจากระบบจัดซื้อผ่าน LINE นี้",
+  );
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -147,4 +223,5 @@ interface LineEvent {
   replyToken: string;
   source?: { userId?: string };
   message?: { type: string; text: string };
+  link?: { result: string; nonce: string };
 }

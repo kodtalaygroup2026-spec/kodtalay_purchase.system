@@ -13,10 +13,18 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
+
+      // เก็บปลายทางหลังล็อกอิน (เช่น กลับไปหน้าเชื่อมบัญชี LINE) — รับเฉพาะ path ภายใน
+      const nextParam = new URLSearchParams(window.location.search).get("next");
+      const safeNext = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
+      const callbackUrl = safeNext
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`
+        : `${window.location.origin}/auth/callback`;
+
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl,
           queryParams: {
             // บังคับ Google แสดง account picker ทุกครั้ง
             prompt: "select_account",
