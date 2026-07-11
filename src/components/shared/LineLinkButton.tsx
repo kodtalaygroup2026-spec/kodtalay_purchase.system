@@ -28,7 +28,8 @@ interface LineLinkButtonProps {
 }
 
 export function LineLinkButton({ userId, initialLineUserId, compact = false }: LineLinkButtonProps) {
-  const supabase = createClient();
+  // ทำ instance ให้เสถียร ไม่ให้ effect รันซ้ำทุก render
+  const [supabase] = useState(() => createClient());
   const [lineUserId, setLineUserId] = useState(initialLineUserId);
   const [code, setCode] = useState<string | null>(null);
   const [codeExpired, setCodeExpired] = useState(false);
@@ -63,6 +64,29 @@ export function LineLinkButton({ userId, initialLineUserId, compact = false }: L
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  // ระหว่างรอผู้ใช้ส่งรหัส/กดเชื่อมในแอป LINE — เช็คสถานะทุก 3 วิ
+  // พอ line_user_id ถูกบันทึกฝั่งเซิร์ฟเวอร์ หน้าเว็บจะเด้งเป็น "เชื่อมแล้ว" เอง
+  useEffect(() => {
+    if (!code || lineUserId) return;
+
+    const poll = setInterval(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("line_user_id")
+        .eq("id", userId)
+        .single();
+
+      if (data?.line_user_id) {
+        setLineUserId(data.line_user_id as string);
+        setCode(null);
+        setCodeExpired(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+      }
+    }, 3000);
+
+    return () => clearInterval(poll);
+  }, [code, lineUserId, userId, supabase]);
 
   function formatTime(s: number): string {
     const m = Math.floor(s / 60);
