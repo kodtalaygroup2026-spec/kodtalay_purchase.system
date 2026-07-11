@@ -1,9 +1,25 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { MessageCircle, Link2, Unlink2, Copy, Check, RefreshCw } from "lucide-react";
+import { MessageCircle, Link2, Unlink2, Copy, Check, RefreshCw, Send, UserPlus } from "lucide-react";
 
 const CODE_TTL_SECONDS = 10 * 60; // 10 นาที ตรงกับ DB expires_at
+
+// Basic ID ของ LINE OA (ตั้งค่าได้ที่ env NEXT_PUBLIC_LINE_OA_BASIC_ID เช่น "@630golkc")
+const OA_BASIC_ID = process.env.NEXT_PUBLIC_LINE_OA_BASIC_ID || "@630golkc";
+
+/** ลิงก์เพิ่มเพื่อน OA */
+function addFriendUrl(): string {
+  return `https://line.me/R/ti/p/${encodeURIComponent(OA_BASIC_ID)}`;
+}
+
+/**
+ * ลิงก์เปิดแชท OA พร้อมเติมข้อความรหัสไว้ให้ — ผู้ใช้แค่กดส่ง
+ * ข้อความต้องเป็นรหัส 6 หลักล้วน เพื่อให้ webhook (regex ^\d{6}$) จับได้
+ */
+function sendCodeUrl(code: string): string {
+  return `https://line.me/R/oaMessage/${encodeURIComponent(OA_BASIC_ID)}/?${encodeURIComponent(code)}`;
+}
 
 interface LineLinkButtonProps {
   userId: string;
@@ -145,7 +161,7 @@ export function LineLinkButton({ userId, initialLineUserId, compact = false }: L
         /* ── แสดง code + countdown ── */
         <div className="space-y-3">
           <p className="text-sm text-slate-600">
-            ส่งรหัสนี้ให้ LINE Bot ของระบบเพื่อเชื่อมบัญชี
+            กดปุ่มด้านล่างเพื่อเปิด LINE แล้วส่งรหัส — ระบบจะเชื่อมบัญชีให้อัตโนมัติ
           </p>
 
           {/* ตัวรหัส + ปุ่ม copy */}
@@ -161,6 +177,20 @@ export function LineLinkButton({ userId, initialLineUserId, compact = false }: L
               {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
             </button>
           </div>
+
+          {/* ปุ่มหลัก — เปิด LINE พร้อมเติมรหัสให้ */}
+          <a
+            href={sendCodeUrl(code)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
+          >
+            <Send size={16} />
+            เปิด LINE แล้วส่งรหัส
+          </a>
+          <p className="text-[11px] text-slate-400">
+            ถ้าปุ่มไม่ทำงาน ให้คัดลอกรหัสด้านบนไปวางในแชท LINE ของ {OA_BASIC_ID} เอง
+          </p>
 
           {/* countdown bar */}
           <div className="space-y-1">
@@ -215,14 +245,29 @@ export function LineLinkButton({ userId, initialLineUserId, compact = false }: L
       ) : (
         /* ── ยังไม่เชื่อม ── */
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">ยังไม่ได้เชื่อม LINE — คลิกเพื่อรับรหัสเชื่อมบัญชี</p>
+          <p className="text-sm text-slate-600">
+            เชื่อมบัญชีเพื่อรับการแจ้งเตือน — ทำ 2 ขั้นตอน
+          </p>
+
+          {/* ขั้นที่ 1 — เพิ่มเพื่อน OA (ต้องเป็นเพื่อนก่อน LINE ถึงจะส่งข้อความหาได้) */}
+          <a
+            href={addFriendUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
+          >
+            <UserPlus size={15} />
+            1. เพิ่มเพื่อน LINE OA
+          </a>
+
+          {/* ขั้นที่ 2 — ขอรหัสเชื่อมบัญชี */}
           <button
             onClick={handleGenerateCode}
             disabled={isLoading}
             className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-700 disabled:opacity-60"
           >
             <Link2 size={15} />
-            {isLoading ? "กำลังสร้างรหัส..." : "เชื่อม LINE"}
+            {isLoading ? "กำลังสร้างรหัส..." : "2. ขอรหัสเชื่อม LINE"}
           </button>
         </div>
       )}
