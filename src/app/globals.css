@@ -14,3 +14,15 @@ body {
   /* ฟอนต์ระบบ รองรับภาษาไทยและโหลดเร็ว (ไม่ต้องดึงฟอนต์ภายนอก) */
   font-family: "Sarabun", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
 }
+
+/* Loading indicator — จุดสว่างสลับกันเป็นคลื่นระหว่างโหลดหน้า */
+@keyframes loading-dot {
+  0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+.loading-dot {
+  animation: loading-dot 1.2s ease-in-out infinite;
+}
+/* หน่วงเวลาแต่ละจุดให้สว่างไล่กัน */
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
