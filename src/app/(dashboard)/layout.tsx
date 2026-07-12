@@ -8,9 +8,17 @@ import { RealtimeNotificationProvider } from "@/components/shared/RealtimeNotifi
 /**
  * นับเอกสารของตัวเองที่ไม่สมบูรณ์ (ถูกตีกลับ + จ่ายแล้วแต่ค้างเอกสารตัวจริง)
  * ต้องเช็คสถานะ PR ด้วย เพราะใบที่ส่งหลักฐานใหม่ไปแล้วไม่ควรนับซ้ำ
+ * - count        = ทั้งหมด (ป้ายเมนู "งานเอกสารไม่สมบูรณ์")
+ * - pendingFixIds = ใบที่ถูกตีกลับและ PR ยังเป็น approved/converted
+ *                   ใช้หักออกจากป้าย "งานเอกสาร" ไม่ให้นับซ้ำ
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function countIncompleteDocs(supabase: any, userId: string): Promise<number> {
+async function countIncompleteDocs(
+  supabase: any,
+  userId: string
+): Promise<{ count: number; pendingFixIds: Set<string> }> {
+  const empty = { count: 0, pendingFixIds: new Set<string>() };
+
   const { data: incRows } = await supabase
     .from("payment_evidences")
     .select("pr_id, status, submitted_at")
@@ -19,7 +27,7 @@ async function countIncompleteDocs(supabase: any, userId: string): Promise<numbe
     .order("submitted_at", { ascending: false })
     .limit(200);
 
-  if (!incRows || incRows.length === 0) return 0;
+  if (!incRows || incRows.length === 0) return empty;
 
   const incPrIds = [...new Set(incRows.map((r: any) => r.pr_id))];
   const { data: incPrs } = await supabase
@@ -31,6 +39,7 @@ async function countIncompleteDocs(supabase: any, userId: string): Promise<numbe
   );
 
   let count = 0;
+  const pendingFixIds = new Set<string>();
   const seen = new Set<string>();
   for (const ev of incRows as any[]) {
     if (seen.has(ev.pr_id)) continue;
@@ -39,9 +48,10 @@ async function countIncompleteDocs(supabase: any, userId: string): Promise<numbe
     if (!prStatus) continue;
     const isPendingFix = ev.status === "returned" && ["approved", "converted"].includes(prStatus);
     const isAwaitingDocs = ev.status === "paid";
+    if (isPendingFix) pendingFixIds.add(ev.pr_id);
     if (isPendingFix || isAwaitingDocs) count++;
   }
-  return count;
+  return { count, pendingFixIds };
 }
 
 export default async function DashboardLayout({
@@ -74,7 +84,7 @@ export default async function DashboardLayout({
   const isFinance = profile.role === "finance" || profile.role === "admin";
 
   // ยิงทุก query สำหรับ badge พร้อมกันในรอบเดียว (เดิมยิงทีละอันตามลำดับ)
-  const [approvalRes, editedRes, verifyRes, incompleteCount, todoRes] = await Promise.all([
+  const [approvalRes, editedRes, verifyRes, incompleteInfo, todoRes] = await Promise.all([
     isApprover
       ? (supabase as any)
           .from("purchase_requisitions")
@@ -101,7 +111,9 @@ export default async function DashboardLayout({
   const approvalCount = approvalRes.count ?? 0;
   const editedCount = new Set(((editedRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
   const verifyCount = verifyRes.count ?? 0;
-  const todoCount = todoRes.count ?? 0;
+  const incompleteCount = incompleteInfo.count;
+  // งานเอกสาร = งานของเจ้าของทั้งหมด แต่หักใบที่ถูก บช. ตีกลับออก (ไปนับที่ "ไม่สมบูรณ์" แทน)
+  const todoCount = Math.max(0, (todoRes.count ?? 0) - incompleteInfo.pendingFixIds.size);
 
   return (
     <div className="flex min-h-screen bg-slate-50">

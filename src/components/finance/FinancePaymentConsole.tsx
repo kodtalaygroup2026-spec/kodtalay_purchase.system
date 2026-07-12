@@ -231,7 +231,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   }
 
   // ── ตีกลับ ───────────────────────────────────────────────────────────────
-  // fromIncompleteDocs = ตีกลับเพราะเอกสารไม่สมบูรณ์ (ติดธงให้ไปแสดงในหน้างานเอกสารไม่สมบูรณ์)
+  // ตีกลับจาก บช. ทุกกรณี → ติดธง incomplete เสมอ เพื่อให้ไปแสดงในหน้า "งานเอกสารไม่สมบูรณ์"
+  // fromIncompleteDocs = ตีกลับเพราะเอกสารไม่สมบูรณ์ (ใช้เลือกถ้อยคำในข้อความแจ้งเตือน)
   // slip = สลิปโอน (ถ้ามี) — กรณีจ่ายไปแล้วแต่เอกสารยังไม่ครบ แนบไปพร้อมตีกลับได้
   async function doReturn(row: PaymentRow, note: string, fromIncompleteDocs = false, slip?: SlipInfo) {
     const { data, error } = await (supabase as any)
@@ -248,8 +249,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         .from("payment_evidences")
         .update({
           status: "returned",
+          close_status: "incomplete",
           review_note: note,
-          ...(fromIncompleteDocs ? { close_status: "incomplete" } : {}),
           reviewed_by: currentUserId,
           reviewed_at: new Date().toISOString(),
         })
@@ -261,9 +262,6 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
 
     if (row.requester_line_id) {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const targetUrl = fromIncompleteDocs
-        ? `${origin}/requisitions/incomplete`
-        : `${origin}/requisitions/${row.id}`;
       void sendLine(
         row.requester_line_id,
         (fromIncompleteDocs
@@ -272,7 +270,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
         `เหตุผล : ${note}\n\n` +
         `กรุณาแก้ไขเอกสารและส่งเข้าระบบจ่ายอีกครั้ง\n` +
-        `รายละเอียด : ${externalBrowserLink(targetUrl)}`
+        `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/incomplete`)}`
       );
     }
 
@@ -285,7 +283,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         pr_id: row.id,
         pr_number: row.pr_number,
         note,
-        ...(fromIncompleteDocs ? { close_status: "incomplete" } : {}),
+        close_status: "incomplete",
       },
     });
   }

@@ -173,10 +173,12 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
       if (error) throw error;
       if (!data || data.length === 0) throw new Error("รายการถูกดำเนินการไปแล้ว กรุณารีเฟรช");
 
+      // ตีกลับจาก บช. → ติดธง incomplete เพื่อให้ไปแสดงในหน้า "งานเอกสารไม่สมบูรณ์"
       await (supabase as any)
         .from("payment_evidences")
         .update({
           status: "returned",
+          close_status: "incomplete",
           review_note: returnReason.trim(),
           reviewed_by: currentUserId,
           reviewed_at: new Date().toISOString(),
@@ -191,7 +193,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
           `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
           `เหตุผล : ${returnReason.trim()}\n\n` +
           `กรุณาแก้ไขหลักฐานและส่งเข้าระบบอีกครั้ง\n` +
-          `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
+          `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/incomplete`)}`
         );
       }
 
@@ -200,7 +202,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
         action: "payment_returned",
         entity: "purchase_requisitions",
         entityId: pr.id,
-        metadata: { pr_number: pr.pr_number, note: returnReason.trim(), stage: "verify" },
+        metadata: { pr_number: pr.pr_number, note: returnReason.trim(), stage: "verify", close_status: "incomplete" },
       });
       router.refresh();
     } catch (err: any) {
