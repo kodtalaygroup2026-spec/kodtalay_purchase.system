@@ -58,10 +58,15 @@ export async function notifyPrEvent(params: NotifyPrEventParams): Promise<number
   switch (event) {
     case "submitted": {
       recipients = await resolveApproverLineIds(pr);
+      // ใบด่วน → เน้นหัวข้อและเพิ่มบรรทัดขอให้พิจารณาโดยเร็ว
+      const header = pr.is_urgent
+        ? `🔴 ด่วน : มีใบขอซื้อรอการอนุมัติ`
+        : `📋 แจ้งเตือน : มีใบขอซื้อรอการอนุมัติ`;
+      const urgentNote = pr.is_urgent ? `\n⚠️ รายการนี้ทำเครื่องหมายว่าด่วน กรุณาพิจารณาโดยเร็ว` : "";
       message =
-        `📋 แจ้งเตือน : มีใบขอซื้อรอการอนุมัติ\n\n` +
+        `${header}\n\n` +
         `${prDetailLines(pr)}\n\n` +
-        `กรุณาตรวจสอบและพิจารณาอนุมัติ\n` +
+        `กรุณาตรวจสอบและพิจารณาอนุมัติ${urgentNote}\n` +
         `รายละเอียด : ${prLink}`;
       break;
     }

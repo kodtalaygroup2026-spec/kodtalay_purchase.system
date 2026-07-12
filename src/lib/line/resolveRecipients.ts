@@ -21,13 +21,14 @@ export interface PrSummary {
   requester_name: string;
   requester_department: string | null;
   category_id: string | null;
+  is_urgent: boolean;
 }
 
 /** อ่านข้อมูลใบขอซื้อที่จำเป็นต่อการประกอบข้อความแจ้งเตือน */
 export async function getPrSummary(prId: string): Promise<PrSummary | null> {
   const { data: pr, error } = await adminClient
     .from("purchase_requisitions")
-    .select("id, pr_number, title, total_amount, requester_id")
+    .select("id, pr_number, title, total_amount, requester_id, is_urgent")
     .eq("id", prId)
     .maybeSingle();
 
@@ -48,6 +49,7 @@ export async function getPrSummary(prId: string): Promise<PrSummary | null> {
     requester_name: requester?.full_name ?? "—",
     requester_department: requester?.department ?? null,
     category_id: await readCategoryId(prId),
+    is_urgent: Boolean(pr.is_urgent),
   };
 }
 
