@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -34,7 +34,25 @@ export function MobileNav({
   todoCount = 0,
 }: MobileNavProps) {
   const pathname = usePathname() ?? "/";
-  const [open, setOpen] = useState(false);
+  // render = อยู่ใน DOM (คงไว้ระหว่างสไลด์ลงตอนปิด) · show = สถานะเปิด (คุมทรานซิชัน)
+  const [render, setRender] = useState(false);
+  const [show, setShow] = useState(false);
+
+  // พอ mount แล้วค่อยพลิก show เป็น true ในเฟรมถัดไป เพื่อให้สไลด์ขึ้นจากด้านล่าง
+  useEffect(() => {
+    if (!render) return;
+    const id = requestAnimationFrame(() => setShow(true));
+    return () => cancelAnimationFrame(id);
+  }, [render]);
+
+  function openSheet() {
+    setRender(true);
+  }
+  function closeSheet() {
+    setShow(false);
+    // ถอดออกจาก DOM หลังทรานซิชันจบ (ตรงกับ duration-300)
+    window.setTimeout(() => setRender(false), 300);
+  }
 
   if (pathname === "/") return null;
 
@@ -113,7 +131,7 @@ export function MobileNav({
 
           {/* ปุ่มเมนู */}
           <button
-            onClick={() => setOpen(true)}
+            onClick={openSheet}
             className="flex flex-1 flex-col items-center gap-0.5 py-2 text-slate-500 transition active:text-slate-800"
           >
             <Menu size={20} />
@@ -122,13 +140,21 @@ export function MobileNav({
         </div>
       </nav>
 
-      {/* ── Bottom sheet: เมนูเต็ม ───────────────────────────────────────── */}
-      {open && (
-        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-
+      {/* ── Bottom sheet: เมนูเต็ม (สไลด์ขึ้น/ลงนุ่ม ๆ) ──────────────────── */}
+      {render && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={closeSheet}>
+          {/* ฉากหลังจาง — fade เข้า/ออก */}
           <div
-            className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl"
+            className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none ${
+              show ? "opacity-100" : "opacity-0"
+            }`}
+          />
+
+          {/* แผ่นเมนู — สไลด์ขึ้นจากด้านล่าง */}
+          <div
+            className={`absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
+              show ? "translate-y-0" : "translate-y-full"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* handle + header */}
@@ -136,26 +162,26 @@ export function MobileNav({
               <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold text-slate-800">เมนูทั้งหมด</h2>
-                <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-slate-400 active:bg-slate-100">
+                <button onClick={closeSheet} className="rounded-lg p-1.5 text-slate-400 active:bg-slate-100">
                   <X size={18} />
                 </button>
               </div>
             </div>
 
             <div className="space-y-5 px-5 pb-6">
-              <DrawerSection title="งานของฉัน" links={myWork} pathname={pathname} onNavigate={() => setOpen(false)} />
-              <DrawerSection title="การอนุมัติ" links={approvals} pathname={pathname} onNavigate={() => setOpen(false)} />
+              <DrawerSection title="งานของฉัน" links={myWork} pathname={pathname} onNavigate={closeSheet} />
+              <DrawerSection title="การอนุมัติ" links={approvals} pathname={pathname} onNavigate={closeSheet} />
               {finance.length > 0 && (
-                <DrawerSection title="การเงิน" links={finance} pathname={pathname} onNavigate={() => setOpen(false)} />
+                <DrawerSection title="การเงิน" links={finance} pathname={pathname} onNavigate={closeSheet} />
               )}
               {admin.length > 0 && (
-                <DrawerSection title="จัดการระบบ" links={admin} pathname={pathname} onNavigate={() => setOpen(false)} />
+                <DrawerSection title="จัดการระบบ" links={admin} pathname={pathname} onNavigate={closeSheet} />
               )}
               <DrawerSection
                 title="บัญชีผู้ใช้"
                 links={[{ href: "/profile", label: "โปรไฟล์ของฉัน", icon: UserIcon }]}
                 pathname={pathname}
-                onNavigate={() => setOpen(false)}
+                onNavigate={closeSheet}
               />
             </div>
           </div>
