@@ -91,28 +91,30 @@ export function PRApprovalPanel({
 
     if (!requester?.line_user_id) return;
 
-    const noteText = note ? `\nเหตุผล: ${note}` : "";
+    const noteText = note ? `\nเหตุผล : ${note}` : "";
     let message = "";
 
     if (action === "approve") {
       message =
-        `✅ ใบขอซื้อของคุณได้รับการอนุมัติ\n\n` +
-        `เลขที่: ${pr.pr_number}\n` +
-        `หัวข้อ: ${pr.title}\n` +
-        `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
-        `👉 ดูรายละเอียด:\n${prUrl()}`;
+        `✅ แจ้งผลการพิจารณา : ใบขอซื้อได้รับการอนุมัติ\n\n` +
+        `เลขที่เอกสาร : ${pr.pr_number}\n` +
+        `รายการ : ${pr.title}\n` +
+        `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n\n` +
+        `ท่านสามารถดำเนินการในขั้นตอนถัดไปได้\n` +
+        `รายละเอียด : ${prUrl()}`;
     } else if (action === "reject") {
       message =
-        `❌ ใบขอซื้อของคุณถูกปฏิเสธ\n\n` +
-        `เลขที่: ${pr.pr_number}\n` +
-        `หัวข้อ: ${pr.title}${noteText}\n\n` +
-        `👉 ดูรายละเอียด:\n${prUrl()}`;
+        `❌ แจ้งผลการพิจารณา : ใบขอซื้อไม่ได้รับการอนุมัติ\n\n` +
+        `เลขที่เอกสาร : ${pr.pr_number}\n` +
+        `รายการ : ${pr.title}${noteText}\n\n` +
+        `รายละเอียด : ${prUrl()}`;
     } else {
       message =
-        `🔄 ใบขอซื้อถูกตีกลับ กรุณาแก้ไขและส่งใหม่\n\n` +
-        `เลขที่: ${pr.pr_number}\n` +
-        `หัวข้อ: ${pr.title}${noteText}\n\n` +
-        `👉 ดูรายละเอียด:\n${prUrl()}`;
+        `🔄 แจ้งเตือน : ใบขอซื้อถูกส่งกลับเพื่อแก้ไข\n\n` +
+        `เลขที่เอกสาร : ${pr.pr_number}\n` +
+        `รายการ : ${pr.title}${noteText}\n\n` +
+        `กรุณาแก้ไขข้อมูลและส่งขออนุมัติอีกครั้ง\n` +
+        `รายละเอียด : ${prUrl()}`;
     }
 
     void notifyLine(requester.line_user_id, message);

@@ -148,10 +148,11 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
         if (pr.requester_line_id) {
           void sendLineNotify(
             pr.requester_line_id,
-            `✅ ใบขอซื้อของคุณได้รับการอนุมัติ\n\n` +
-            `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
-            `มูลค่ารวม: ${formatCurrency(pr.total_amount)}\n\n` +
-            `👉 ดูรายละเอียด:\n${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
+            `✅ แจ้งผลการพิจารณา : ใบขอซื้อได้รับการอนุมัติ\n\n` +
+            `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+            `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n\n` +
+            `ท่านสามารถดำเนินการในขั้นตอนถัดไปได้\n` +
+            `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
           );
         }
       }
@@ -186,16 +187,18 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
 
     if (!error) {
       const origin = window.location.origin;
-      const icon = isReturn ? "↩️" : "❌";
-      const label = isReturn ? "ถูกตีกลับ" : "ไม่ได้รับการอนุมัติ";
+      const header = isReturn
+        ? "🔄 แจ้งเตือน : ใบขอซื้อถูกส่งกลับเพื่อแก้ไข"
+        : "❌ แจ้งผลการพิจารณา : ใบขอซื้อไม่ได้รับการอนุมัติ";
+      const actionLine = isReturn ? "กรุณาแก้ไขข้อมูลและส่งขออนุมัติอีกครั้ง\n" : "";
       for (const pr of prs.filter((p) => ids.includes(p.id))) {
         if (pr.requester_line_id) {
           void sendLineNotify(
             pr.requester_line_id,
-            `${icon} ใบขอซื้อของคุณ${label}\n\n` +
-            `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
-            `เหตุผล: ${bulkNote.trim()}\n\n` +
-            `👉 ดูรายละเอียด:\n${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
+            `${header}\n\n` +
+            `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+            `เหตุผล : ${bulkNote.trim()}\n\n` +
+            `${actionLine}รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
           );
         }
       }

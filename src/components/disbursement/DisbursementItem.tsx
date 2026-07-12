@@ -187,10 +187,11 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         void sendLine(
           pr.requester_line_id,
-          `↩️ หลักฐานการจ่ายถูกตีกลับจากฝ่ายบัญชี\n\n` +
-          `เลขที่: ${pr.pr_number}\nหัวข้อ: ${pr.title}\n` +
-          `เหตุผล: ${returnReason.trim()}\n\n` +
-          `กรุณาแก้ไขแล้วส่งใหม่\n${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
+          `🔄 แจ้งเตือน : หลักฐานการจ่ายถูกส่งกลับเพื่อแก้ไข\n\n` +
+          `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+          `เหตุผล : ${returnReason.trim()}\n\n` +
+          `กรุณาแก้ไขหลักฐานและส่งเข้าระบบอีกครั้ง\n` +
+          `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
         );
       }
 

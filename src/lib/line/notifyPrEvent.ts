@@ -33,10 +33,10 @@ export interface NotifyPrEventParams {
 /** บล็อกข้อมูลใบขอซื้อที่ใช้ซ้ำในทุกข้อความ */
 function prDetailLines(pr: PrSummary): string {
   return (
-    `เลขที่: ${pr.pr_number}\n` +
-    `ผู้ขอ: ${pr.requester_name}\n` +
-    `หัวข้อ: ${pr.title}\n` +
-    `มูลค่ารวม: ${formatCurrency(pr.total_amount)}`
+    `เลขที่เอกสาร : ${pr.pr_number}\n` +
+    `ผู้ขอซื้อ : ${pr.requester_name}\n` +
+    `รายการ : ${pr.title}\n` +
+    `จำนวนเงิน : ${formatCurrency(pr.total_amount)}`
   );
 }
 
@@ -59,9 +59,10 @@ export async function notifyPrEvent(params: NotifyPrEventParams): Promise<number
     case "submitted": {
       recipients = await resolveApproverLineIds(pr);
       message =
-        `📋 ใบขอซื้อใหม่รอการอนุมัติ\n\n` +
+        `📋 แจ้งเตือน : มีใบขอซื้อรอการอนุมัติ\n\n` +
         `${prDetailLines(pr)}\n\n` +
-        `👉 ดูรายละเอียด:\n${prLink}`;
+        `กรุณาตรวจสอบและพิจารณาอนุมัติ\n` +
+        `รายละเอียด : ${prLink}`;
       break;
     }
 
@@ -69,9 +70,10 @@ export async function notifyPrEvent(params: NotifyPrEventParams): Promise<number
       recipients = await resolveFinanceLineIds(actorId);
       const verifyLink = externalBrowserLink(`${baseUrl}/disbursement`);
       message =
-        `🧾 มีหลักฐานการซื้อรอตรวจสอบ\n\n` +
+        `🧾 แจ้งเตือน : มีหลักฐานการซื้อรอตรวจสอบ\n\n` +
         `${prDetailLines(pr)}\n\n` +
-        `👉 เปิดงานตรวจสอบ:\n${verifyLink}`;
+        `กรุณาตรวจสอบหลักฐานก่อนดำเนินการจ่าย\n` +
+        `เปิดงานตรวจสอบ : ${verifyLink}`;
       break;
     }
 
@@ -81,9 +83,10 @@ export async function notifyPrEvent(params: NotifyPrEventParams): Promise<number
       const channelLabel = isPettyCash ? "เงินสดย่อย" : "บริษัทสั่งจ่าย";
       const paymentPath = isPettyCash ? "/finance/petty-cash" : "/finance/payments";
       message =
-        `💰 มีรายการรอจ่าย (${channelLabel})\n\n` +
+        `💰 แจ้งเตือน : มีรายการรอดำเนินการจ่าย (${channelLabel})\n\n` +
         `${prDetailLines(pr)}\n\n` +
-        `👉 เปิดหน้าจ่ายเงิน:\n${externalBrowserLink(`${baseUrl}${paymentPath}`)}`;
+        `กรุณาดำเนินการจ่ายตามช่องทางที่กำหนด\n` +
+        `เปิดหน้าจ่ายเงิน : ${externalBrowserLink(`${baseUrl}${paymentPath}`)}`;
       break;
     }
   }

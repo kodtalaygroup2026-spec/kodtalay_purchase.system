@@ -266,10 +266,13 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         : `${origin}/requisitions/${row.id}`;
       void sendLine(
         row.requester_line_id,
-        (fromIncompleteDocs ? `เอกสารไม่สมบูรณ์ — ถูกตีกลับ\n\n` : `การจ่ายเงินถูกตีกลับ\n\n`) +
-        `เลขที่: ${row.pr_number}\nหัวข้อ: ${row.title}\n` +
-        `เหตุผล: ${note}\n\n` +
-        `กรุณาแก้ไขเอกสารแล้วส่งมาจ่ายใหม่\n${externalBrowserLink(targetUrl)}`
+        (fromIncompleteDocs
+          ? `🔄 แจ้งเตือน : เอกสารไม่สมบูรณ์ ถูกส่งกลับเพื่อแก้ไข\n\n`
+          : `🔄 แจ้งเตือน : การจ่ายเงินถูกส่งกลับเพื่อแก้ไข\n\n`) +
+        `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
+        `เหตุผล : ${note}\n\n` +
+        `กรุณาแก้ไขเอกสารและส่งเข้าระบบจ่ายอีกครั้ง\n` +
+        `รายละเอียด : ${externalBrowserLink(targetUrl)}`
       );
     }
 
@@ -314,9 +317,10 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       void sendLine(
         row.requester_line_id,
-        `✖️ ใบขอซื้อถูกยกเลิกโดยฝ่ายการเงิน\n\n` +
-        `เลขที่: ${row.pr_number}\nหัวข้อ: ${row.title}\n` +
-        `เหตุผล: ${note}\n\n${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`
+        `⛔ แจ้งเตือน : ใบขอซื้อถูกยกเลิกโดยฝ่ายการเงิน\n\n` +
+        `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
+        `เหตุผล : ${note}\n\n` +
+        `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`
       );
     }
 
