@@ -15,6 +15,40 @@ body {
   font-family: "Sarabun", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
 }
 
+/* ── ปุ่ม/ลิงก์: กดลื่นและมีฟีดแบ็ก ทั้ง PC และมือถือ ─────────────────────── */
+/* เอาแสงไฮไลต์ตอนแตะบนมือถือออก ให้ดูสะอาด */
+button,
+a,
+[role="button"],
+input,
+select,
+textarea,
+label {
+  -webkit-tap-highlight-color: transparent;
+}
+/* ตัด delay ~300ms ตอนแตะบนมือถือบางรุ่น ให้กดแล้วตอบสนองทันที */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* ทรานซิชันนุ่มตอน hover/เปลี่ยนสี (คลาส transition-* ของ Tailwind ยัง override ได้ปกติ) */
+  button,
+  a,
+  [role="button"] {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* กดค้างแล้วยุบเล็กน้อย รู้สึกเหมือนกดปุ่มจริง (ยกเว้นปุ่มที่ถูกปิดใช้งาน) */
+  button:not(:disabled):active,
+  [role="button"]:active {
+    transform: scale(0.96);
+  }
+}
+
 /* Loading indicator — จุดสว่างสลับกันเป็นคลื่นระหว่างโหลดหน้า */
 @keyframes loading-dot {
   0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
