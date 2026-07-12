@@ -93,7 +93,6 @@ export function MobileNav({
         { href: "/finance/payments", label: "รายการบริษัทสั่งจ่าย", icon: Building2 },
         { href: "/finance/petty-cash", label: "รายการเงินสดย่อย", icon: PiggyBank },
         { href: "/finance/documents", label: "งานเอกสารสมบูรณ์", icon: FileCheck2 },
-        { href: "/finance/tax-invoices", label: "ใบกำกับภาษี", icon: FileText },
       ]
     : [];
 
