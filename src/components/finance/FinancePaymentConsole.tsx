@@ -146,6 +146,34 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     } catch { /* ignore */ }
   }
 
+  // ── สลิปโอน: อัปโหลด 1 ครั้ง แล้วแนบเข้าเอกสารได้หลายใบ ───────────────────
+  type SlipInfo = { url: string; name: string; size: number };
+
+  async function uploadSlip(slip: File): Promise<SlipInfo> {
+    const safeName = slip.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `payment-slips/${Date.now()}_${safeName}`;
+    const { error: upErr } = await supabase.storage
+      .from("evidence-attachments")
+      .upload(path, slip, { upsert: false });
+    if (upErr) throw new Error(`อัปโหลดสลิปไม่สำเร็จ: ${upErr.message}`);
+    const { data: { publicUrl } } = supabase.storage.from("evidence-attachments").getPublicUrl(path);
+    return { url: publicUrl, name: slip.name, size: slip.size };
+  }
+
+  async function attachSlipToEvidences(evidenceIds: string[], slip: SlipInfo) {
+    if (evidenceIds.length === 0) return;
+    await (supabase as any).from("evidence_files").insert(
+      evidenceIds.map((evidence_id) => ({
+        evidence_id,
+        file_name: slip.name,
+        file_url: slip.url,
+        evidence_type: "payment_slip",
+        file_size: slip.size,
+        uploaded_by: currentUserId,
+      }))
+    );
+  }
+
   // ── บันทึกจ่ายแล้ว (เดี่ยว/ชุด) + แนบสลิปโอน + สถานะเอกสาร ──────────────────
   // จ่ายได้เฉพาะกรณีเอกสาร "สมบูรณ์" (ถ้าไม่สมบูรณ์ → ตีกลับแทน)
   async function doMarkPaid(rows: PaymentRow[], slip: File) {
@@ -180,26 +208,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
     }
 
     // อัปโหลดสลิปโอน 1 ครั้ง แล้วแนบเข้าเอกสารทุกใบที่จ่าย (ให้พนักงานเห็น)
-    const safeName = slip.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `payment-slips/${Date.now()}_${safeName}`;
-    const { error: upErr } = await supabase.storage
-      .from("evidence-attachments")
-      .upload(path, slip, { upsert: false });
-    if (upErr) throw new Error(`อัปโหลดสลิปไม่สำเร็จ: ${upErr.message}`);
-    const { data: { publicUrl } } = supabase.storage.from("evidence-attachments").getPublicUrl(path);
-
-    if (evIds.length > 0) {
-      await (supabase as any).from("evidence_files").insert(
-        evIds.map((evidence_id) => ({
-          evidence_id,
-          file_name: slip.name,
-          file_url: publicUrl,
-          evidence_type: "payment_slip",
-          file_size: slip.size,
-          uploaded_by: currentUserId,
-        }))
-      );
-    }
+    const slipInfo = await uploadSlip(slip);
+    await attachSlipToEvidences(evIds, slipInfo);
 
     // บันทึก audit แยกรายใบ เพื่อให้ไทม์ไลน์ของแต่ละ PR แสดงครบ
     for (const prId of updatedIds) {
@@ -222,7 +232,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
 
   // ── ตีกลับ ───────────────────────────────────────────────────────────────
   // fromIncompleteDocs = ตีกลับเพราะเอกสารไม่สมบูรณ์ (ติดธงให้ไปแสดงในหน้างานเอกสารไม่สมบูรณ์)
-  async function doReturn(row: PaymentRow, note: string, fromIncompleteDocs = false) {
+  // slip = สลิปโอน (ถ้ามี) — กรณีจ่ายไปแล้วแต่เอกสารยังไม่ครบ แนบไปพร้อมตีกลับได้
+  async function doReturn(row: PaymentRow, note: string, fromIncompleteDocs = false, slip?: SlipInfo) {
     const { data, error } = await (supabase as any)
       .from("purchase_requisitions")
       .update({ status: "approved" })
@@ -243,6 +254,9 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
           reviewed_at: new Date().toISOString(),
         })
         .eq("id", row.evidence_id);
+
+      // แนบสลิปโอน (ถ้ามี) ให้พนักงานเห็นว่าจ่ายไปแล้ว แม้เอกสารยังไม่ครบ
+      if (slip) await attachSlipToEvidences([row.evidence_id], slip);
     }
 
     if (row.requester_line_id) {
@@ -340,8 +354,10 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         setSuccessMsg(`บันทึกจ่ายแล้ว ${n} รายการ`);
       } else if (modal.type === "pay") {
         // เอกสารไม่สมบูรณ์ → ตีกลับให้เจ้าของแก้ไข แล้วส่งกลับมาจ่ายใหม่
+        // แนบสลิปได้ (ถ้ามี) — อัปโหลด 1 ครั้งแล้วแนบเข้าทุกใบในชุด
+        const slipInfo = slipFile ? await uploadSlip(slipFile) : undefined;
         for (const row of modal.rows) {
-          await doReturn(row, incompleteReason.trim(), true);
+          await doReturn(row, incompleteReason.trim(), true, slipInfo);
         }
         setSuccessMsg(`ตีกลับ ${modal.rows.length} รายการ ให้แก้ไขแล้วส่งจ่ายใหม่`);
       } else if (modal.type === "return") {
@@ -738,21 +754,55 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                     <p className="mt-1 text-[11px] text-slate-400">สลิปนี้จะแนบเข้าเอกสารให้พนักงานเห็น (ทุกใบที่จ่ายในชุดนี้)</p>
                   </div>
                 ) : (
-                  /* ขั้นที่ 2b — เหตุผลตีกลับ (บังคับ) ยังไม่ต้องแนบสลิป */
-                  <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-                    <label className="mb-1 block text-sm font-medium text-amber-800">
-                      เหตุผลตีกลับ <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={incompleteReason}
-                      onChange={(e) => setIncompleteReason(e.target.value)}
-                      rows={3}
-                      autoFocus
-                      placeholder="เช่น ยังไม่ได้ใบกำกับภาษีตัวจริง / บิลไม่ชัด / รอใบเสร็จจากร้าน"
-                      className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-                    />
-                    <p className="mt-1.5 text-[11px] text-amber-700">
-                      ยังไม่จ่ายเงิน — ระบบจะส่งใบสั่งกลับให้พนักงานแก้ไขเอกสาร แล้วส่งมาจ่ายใหม่อีกรอบ
+                  /* ขั้นที่ 2b — เหตุผลตีกลับ (บังคับ) + แนบสลิป (ถ้ามี ไม่บังคับ) */
+                  <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-amber-800">
+                        เหตุผลตีกลับ <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={incompleteReason}
+                        onChange={(e) => setIncompleteReason(e.target.value)}
+                        rows={3}
+                        autoFocus
+                        placeholder="เช่น ยังไม่ได้ใบกำกับภาษีตัวจริง / บิลไม่ชัด / รอใบเสร็จจากร้าน"
+                        className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* แนบสลิป (ไม่บังคับ) — เผื่อจ่ายไปแล้วแต่เอกสารยังไม่ครบ */}
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-amber-800">
+                        แนบสลิปโอนเงิน <span className="font-normal text-amber-600">(ถ้ามี ไม่บังคับ)</span>
+                      </label>
+                      {slipFile ? (
+                        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2">
+                          {slipFile.type.startsWith("image/") ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={URL.createObjectURL(slipFile)} alt="" className="h-10 w-10 rounded object-cover border border-amber-200" />
+                          ) : (
+                            <FileText size={18} className="text-amber-600" />
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{slipFile.name}</span>
+                          <button onClick={() => setSlipFile(null)} className="text-slate-400 hover:text-red-500">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-amber-300 bg-white py-2.5 text-xs text-amber-600 transition hover:border-amber-400 hover:bg-amber-50">
+                          <Paperclip size={13} /> คลิกเพื่อแนบสลิป (รูป/PDF)
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) setSlipFile(f); }}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-amber-700">
+                      ระบบจะส่งใบสั่งกลับให้พนักงานแก้ไขเอกสาร แล้วส่งมาจ่ายใหม่อีกรอบ — ถ้าแนบสลิป พนักงานจะเห็นว่าจ่ายไปแล้ว
                     </p>
                   </div>
                 )}
