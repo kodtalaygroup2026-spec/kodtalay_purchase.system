@@ -22,13 +22,14 @@ export interface PrSummary {
   requester_department: string | null;
   category_id: string | null;
   is_urgent: boolean;
+  branch_name: string | null;
 }
 
 /** อ่านข้อมูลใบขอซื้อที่จำเป็นต่อการประกอบข้อความแจ้งเตือน */
 export async function getPrSummary(prId: string): Promise<PrSummary | null> {
   const { data: pr, error } = await adminClient
     .from("purchase_requisitions")
-    .select("id, pr_number, title, total_amount, requester_id, is_urgent")
+    .select("id, pr_number, title, total_amount, requester_id, is_urgent, branches!branch_id(code, name)")
     .eq("id", prId)
     .maybeSingle();
 
@@ -40,6 +41,8 @@ export async function getPrSummary(prId: string): Promise<PrSummary | null> {
     .eq("id", pr.requester_id)
     .maybeSingle();
 
+  const branch = (pr as { branches?: { code?: string; name?: string } | null }).branches ?? null;
+
   return {
     id: pr.id,
     pr_number: pr.pr_number,
@@ -50,6 +53,7 @@ export async function getPrSummary(prId: string): Promise<PrSummary | null> {
     requester_department: requester?.department ?? null,
     category_id: await readCategoryId(prId),
     is_urgent: Boolean(pr.is_urgent),
+    branch_name: branch?.name ?? branch?.code ?? null,
   };
 }
 

@@ -34,6 +34,7 @@ export interface NotifyPrEventParams {
 function prDetailLines(pr: PrSummary): string {
   return (
     `เลขที่เอกสาร : ${pr.pr_number}\n` +
+    `สาขา : ${pr.branch_name ?? "—"}\n` +
     `ผู้ขอซื้อ : ${pr.requester_name}\n` +
     `รายการ : ${pr.title}\n` +
     `จำนวนเงิน : ${formatCurrency(pr.total_amount)}`

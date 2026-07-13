@@ -192,7 +192,8 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
         void sendLine(
           pr.requester_line_id,
           `🔄 แจ้งเตือน : หลักฐานการจ่ายถูกส่งกลับเพื่อแก้ไข\n\n` +
-          `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+          `เลขที่เอกสาร : ${pr.pr_number}\nสาขา : ${pr.branch_name ?? pr.branch_code ?? "—"}\n` +
+          `รายการ : ${pr.title}\n` +
           `ตีกลับโดย : ${actorName || "ฝ่ายบัญชี"}\n` +
           `เหตุผล : ${returnReason.trim()}\n\n` +
           `กรุณาแก้ไขหลักฐานและส่งเข้าระบบอีกครั้ง\n` +

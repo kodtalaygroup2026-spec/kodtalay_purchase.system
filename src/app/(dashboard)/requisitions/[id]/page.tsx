@@ -556,6 +556,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           total_amount: pr.total_amount,
           status: pr.status as PrStatus,
           requester_id: pr.requester_id,
+          branch_name: pr.branches?.name ?? pr.branches?.code ?? null,
         }}
         currentUserId={user?.id ?? ""}
         currentUserRole={currentUserRole}

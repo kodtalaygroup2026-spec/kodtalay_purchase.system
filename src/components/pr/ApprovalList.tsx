@@ -22,6 +22,7 @@ export interface PRApprovalRow {
   requester_name: string;
   requester_line_id: string | null;
   department: string | null;
+  branch_name: string | null;
 }
 
 type SortKey = "pr_number" | "title" | "requester_name" | "department" | "created_at" | "total_amount";
@@ -151,7 +152,8 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
           void sendLineNotify(
             pr.requester_line_id,
             `✅ แจ้งผลการพิจารณา : ใบขอซื้อได้รับการอนุมัติ\n\n` +
-            `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+            `เลขที่เอกสาร : ${pr.pr_number}\nสาขา : ${pr.branch_name ?? "—"}\n` +
+            `รายการ : ${pr.title}\n` +
             `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n` +
             `อนุมัติโดย : ${actorName || "—"}\n\n` +
             `ท่านสามารถดำเนินการในขั้นตอนถัดไปได้\n` +
@@ -199,7 +201,8 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
           void sendLineNotify(
             pr.requester_line_id,
             `${header}\n\n` +
-            `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+            `เลขที่เอกสาร : ${pr.pr_number}\nสาขา : ${pr.branch_name ?? "—"}\n` +
+            `รายการ : ${pr.title}\n` +
             `ดำเนินการโดย : ${actorName || "—"}\n` +
             `เหตุผล : ${bulkNote.trim()}\n\n` +
             `${actionLine}รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`

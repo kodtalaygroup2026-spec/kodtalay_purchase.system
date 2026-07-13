@@ -269,7 +269,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         (fromIncompleteDocs
           ? `🔄 แจ้งเตือน : เอกสารไม่สมบูรณ์ ถูกส่งกลับเพื่อแก้ไข\n\n`
           : `🔄 แจ้งเตือน : การจ่ายเงินถูกส่งกลับเพื่อแก้ไข\n\n`) +
-        `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
+        `เลขที่เอกสาร : ${row.pr_number}\nสาขา : ${row.branch_name ?? row.branch_code ?? "—"}\n` +
+        `รายการ : ${row.title}\n` +
         `ส่งกลับโดย : ${actorName || "ฝ่ายการเงิน"}\n` +
         `เหตุผล : ${note}\n\n` +
         `กรุณาแก้ไขเอกสารและส่งเข้าระบบจ่ายอีกครั้ง\n` +
@@ -319,7 +320,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       void sendLine(
         row.requester_line_id,
         `⛔ แจ้งเตือน : ใบขอซื้อถูกยกเลิกโดยฝ่ายการเงิน\n\n` +
-        `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
+        `เลขที่เอกสาร : ${row.pr_number}\nสาขา : ${row.branch_name ?? row.branch_code ?? "—"}\n` +
+        `รายการ : ${row.title}\n` +
         `ยกเลิกโดย : ${actorName || "ฝ่ายการเงิน"}\n` +
         `เหตุผล : ${note}\n\n` +
         `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`

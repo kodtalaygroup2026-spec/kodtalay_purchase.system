@@ -44,7 +44,8 @@ export default async function ApprovalsPage() {
     .select(
       `id, pr_number, title, status, total_amount, created_at, requester_id, category_id,
        profiles!requester_id(full_name, department, line_user_id),
-       categories!category_id(position_id)`
+       categories!category_id(position_id),
+       branches!branch_id(code, name)`
     )
     .eq("status", "submitted")
     .order("created_at");
@@ -70,6 +71,7 @@ export default async function ApprovalsPage() {
     requester_name: pr.profiles?.full_name ?? "—",
     requester_line_id: pr.profiles?.line_user_id ?? null,
     department: pr.profiles?.department ?? null,
+    branch_name: pr.branches?.name ?? pr.branches?.code ?? null,
   }));
 
   return (

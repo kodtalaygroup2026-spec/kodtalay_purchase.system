@@ -17,6 +17,7 @@ interface PRApprovalPanelProps {
     total_amount: number;
     status: PrStatus;
     requester_id: string;
+    branch_name?: string | null;
   };
   currentUserId: string;
   currentUserRole: UserRole | undefined;
@@ -95,12 +96,14 @@ export function PRApprovalPanel({
 
     const noteText = note ? `\nเหตุผล : ${note}` : "";
     const by = actorName || "—";
+    const branch = pr.branch_name ?? "—";
     let message = "";
 
     if (action === "approve") {
       message =
         `✅ แจ้งผลการพิจารณา : ใบขอซื้อได้รับการอนุมัติ\n\n` +
         `เลขที่เอกสาร : ${pr.pr_number}\n` +
+        `สาขา : ${branch}\n` +
         `รายการ : ${pr.title}\n` +
         `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n` +
         `อนุมัติโดย : ${by}\n\n` +
@@ -110,6 +113,7 @@ export function PRApprovalPanel({
       message =
         `❌ แจ้งผลการพิจารณา : ใบขอซื้อไม่ได้รับการอนุมัติ\n\n` +
         `เลขที่เอกสาร : ${pr.pr_number}\n` +
+        `สาขา : ${branch}\n` +
         `รายการ : ${pr.title}\n` +
         `พิจารณาโดย : ${by}${noteText}\n\n` +
         `รายละเอียด : ${prUrl()}`;
@@ -117,6 +121,7 @@ export function PRApprovalPanel({
       message =
         `🔄 แจ้งเตือน : ใบขอซื้อถูกส่งกลับเพื่อแก้ไข\n\n` +
         `เลขที่เอกสาร : ${pr.pr_number}\n` +
+        `สาขา : ${branch}\n` +
         `รายการ : ${pr.title}\n` +
         `ส่งกลับโดย : ${by}${noteText}\n\n` +
         `กรุณาแก้ไขข้อมูลและส่งขออนุมัติอีกครั้ง\n` +
