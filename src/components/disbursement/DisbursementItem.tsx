@@ -12,6 +12,7 @@ import {
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
 import { externalBrowserLink } from "@/lib/line/externalLink";
+import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 
 const BANK_LABELS: Record<string, string> = {
   KBANK: "กสิกรไทย",
@@ -77,6 +78,7 @@ interface DisbursementItemProps {
 export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
   const router = useRouter();
   const supabase = createClient();
+  const actorName = useCurrentUserName(currentUserId);
   const [isExpanded, setIsExpanded] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"return" | "verify" | null>(null);
   const [confirmAction, setConfirmAction] = useState<"return" | "verify" | null>(null);
@@ -191,6 +193,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
           pr.requester_line_id,
           `🔄 แจ้งเตือน : หลักฐานการจ่ายถูกส่งกลับเพื่อแก้ไข\n\n` +
           `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+          `ตีกลับโดย : ${actorName || "ฝ่ายบัญชี"}\n` +
           `เหตุผล : ${returnReason.trim()}\n\n` +
           `กรุณาแก้ไขหลักฐานและส่งเข้าระบบอีกครั้ง\n` +
           `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/incomplete`)}`

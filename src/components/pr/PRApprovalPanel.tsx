@@ -7,6 +7,7 @@ import { CheckCircle, XCircle, Send, X, RotateCcw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
 import { externalBrowserLink } from "@/lib/line/externalLink";
+import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 
 interface PRApprovalPanelProps {
   pr: {
@@ -28,6 +29,7 @@ export function PRApprovalPanel({
 }: PRApprovalPanelProps) {
   const router = useRouter();
   const supabase = createClient();
+  const actorName = useCurrentUserName(currentUserId);
   const [isLoading, setIsLoading] = useState(false);
   const [note, setNote] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -92,6 +94,7 @@ export function PRApprovalPanel({
     if (!requester?.line_user_id) return;
 
     const noteText = note ? `\nเหตุผล : ${note}` : "";
+    const by = actorName || "—";
     let message = "";
 
     if (action === "approve") {
@@ -99,20 +102,23 @@ export function PRApprovalPanel({
         `✅ แจ้งผลการพิจารณา : ใบขอซื้อได้รับการอนุมัติ\n\n` +
         `เลขที่เอกสาร : ${pr.pr_number}\n` +
         `รายการ : ${pr.title}\n` +
-        `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n\n` +
+        `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n` +
+        `อนุมัติโดย : ${by}\n\n` +
         `ท่านสามารถดำเนินการในขั้นตอนถัดไปได้\n` +
         `รายละเอียด : ${prUrl()}`;
     } else if (action === "reject") {
       message =
         `❌ แจ้งผลการพิจารณา : ใบขอซื้อไม่ได้รับการอนุมัติ\n\n` +
         `เลขที่เอกสาร : ${pr.pr_number}\n` +
-        `รายการ : ${pr.title}${noteText}\n\n` +
+        `รายการ : ${pr.title}\n` +
+        `พิจารณาโดย : ${by}${noteText}\n\n` +
         `รายละเอียด : ${prUrl()}`;
     } else {
       message =
         `🔄 แจ้งเตือน : ใบขอซื้อถูกส่งกลับเพื่อแก้ไข\n\n` +
         `เลขที่เอกสาร : ${pr.pr_number}\n` +
-        `รายการ : ${pr.title}${noteText}\n\n` +
+        `รายการ : ${pr.title}\n` +
+        `ส่งกลับโดย : ${by}${noteText}\n\n` +
         `กรุณาแก้ไขข้อมูลและส่งขออนุมัติอีกครั้ง\n` +
         `รายละเอียด : ${prUrl()}`;
     }

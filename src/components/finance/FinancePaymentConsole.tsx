@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
 import { externalBrowserLink } from "@/lib/line/externalLink";
+import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import { KTB_ENABLED } from "@/lib/config/features";
 import {
   generateKTBContent, validateKTBSettings,
@@ -79,6 +80,7 @@ type ActionType = "pay" | "return" | "cancel";
 export function FinancePaymentConsole({ companies, payments, settingsByBranch, currentUserId, channel = "company" }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const actorName = useCurrentUserName(currentUserId);
   const isPettyCash = channel === "petty_cash";
 
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null); // branch code
@@ -268,6 +270,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
           ? `🔄 แจ้งเตือน : เอกสารไม่สมบูรณ์ ถูกส่งกลับเพื่อแก้ไข\n\n`
           : `🔄 แจ้งเตือน : การจ่ายเงินถูกส่งกลับเพื่อแก้ไข\n\n`) +
         `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
+        `ส่งกลับโดย : ${actorName || "ฝ่ายการเงิน"}\n` +
         `เหตุผล : ${note}\n\n` +
         `กรุณาแก้ไขเอกสารและส่งเข้าระบบจ่ายอีกครั้ง\n` +
         `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/incomplete`)}`
@@ -317,6 +320,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
         row.requester_line_id,
         `⛔ แจ้งเตือน : ใบขอซื้อถูกยกเลิกโดยฝ่ายการเงิน\n\n` +
         `เลขที่เอกสาร : ${row.pr_number}\nรายการ : ${row.title}\n` +
+        `ยกเลิกโดย : ${actorName || "ฝ่ายการเงิน"}\n` +
         `เหตุผล : ${note}\n\n` +
         `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${row.id}`)}`
       );

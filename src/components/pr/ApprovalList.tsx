@@ -8,6 +8,7 @@ import { CheckCircle, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDow
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { externalBrowserLink } from "@/lib/line/externalLink";
+import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import type { PrStatus } from "@/types/database";
 
 export interface PRApprovalRow {
@@ -90,6 +91,7 @@ function SortTh({
 export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
   const router = useRouter();
   const supabase = createClient();
+  const actorName = useCurrentUserName(currentUserId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
@@ -150,7 +152,8 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
             pr.requester_line_id,
             `✅ แจ้งผลการพิจารณา : ใบขอซื้อได้รับการอนุมัติ\n\n` +
             `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
-            `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n\n` +
+            `จำนวนเงิน : ${formatCurrency(pr.total_amount)}\n` +
+            `อนุมัติโดย : ${actorName || "—"}\n\n` +
             `ท่านสามารถดำเนินการในขั้นตอนถัดไปได้\n` +
             `รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
           );
@@ -197,6 +200,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
             pr.requester_line_id,
             `${header}\n\n` +
             `เลขที่เอกสาร : ${pr.pr_number}\nรายการ : ${pr.title}\n` +
+            `ดำเนินการโดย : ${actorName || "—"}\n` +
             `เหตุผล : ${bulkNote.trim()}\n\n` +
             `${actionLine}รายละเอียด : ${externalBrowserLink(`${origin}/requisitions/${pr.id}`)}`
           );
