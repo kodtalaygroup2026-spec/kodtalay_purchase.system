@@ -33,7 +33,7 @@ export default async function FinanceDocumentsPage() {
     (branchRows ?? []).map((b: any) => [b.id, b.code])
   );
 
-  // PR ที่จ่ายแล้ว
+  // ── (1) เอกสารสมบูรณ์ = PR ที่จ่ายแล้ว ──────────────────────────────────────
   const { data: paidPRs } = await (supabase as any)
     .from("purchase_requisitions")
     .select("id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at, profiles!requester_id(full_name)")
@@ -43,8 +43,7 @@ export default async function FinanceDocumentsPage() {
 
   const paidIds = (paidPRs ?? []).map((p: any) => p.id);
 
-  // evidence ล่าสุดของ PR ที่จ่าย (close_status + channel)
-  const { data: evRows } =
+  const { data: paidEvRows } =
     paidIds.length > 0
       ? await (supabase as any)
           .from("payment_evidences")
@@ -52,13 +51,13 @@ export default async function FinanceDocumentsPage() {
           .in("pr_id", paidIds)
           .order("submitted_at", { ascending: false })
       : { data: [] };
-  const evMap: Record<string, any> = {};
-  for (const ev of evRows ?? []) {
-    if (!evMap[ev.pr_id]) evMap[ev.pr_id] = ev;
+  const paidEvMap: Record<string, any> = {};
+  for (const ev of paidEvRows ?? []) {
+    if (!paidEvMap[ev.pr_id]) paidEvMap[ev.pr_id] = ev;
   }
 
-  const docs: DocRow[] = (paidPRs ?? []).map((pr: any) => {
-    const ev = evMap[pr.id] ?? null;
+  const completeDocs: DocRow[] = (paidPRs ?? []).map((pr: any) => {
+    const ev = paidEvMap[pr.id] ?? null;
     return {
       id: pr.id,
       pr_number: pr.pr_number,
@@ -66,11 +65,55 @@ export default async function FinanceDocumentsPage() {
       amount: pr.actual_amount ?? pr.total_amount ?? 0,
       branch_code: pr.branch_id ? (branchCode[pr.branch_id] ?? "—") : "—",
       requester_name: pr.profiles?.full_name ?? "—",
-      paid_at: pr.finance_action_at ?? null,
+      date: pr.finance_action_at ?? null,
       payment_channel: ev?.payment_channel ?? null,
-      close_status: ev?.close_status ?? null,
+      close_status: "complete",
+      review_note: null,
     };
   });
+
+  // ── (2) เอกสารไม่สมบูรณ์ = ถูก บช./การเงินตีกลับ รอพนักงานแก้ไข ──────────────
+  // (หลักฐานล่าสุด status=returned + close_status=incomplete, PR ยังไม่จ่าย)
+  const { data: incEvRows } = await (supabase as any)
+    .from("payment_evidences")
+    .select("pr_id, status, close_status, payment_channel, review_note, reviewed_at, submitted_at")
+    .eq("close_status", "incomplete")
+    .order("submitted_at", { ascending: false })
+    .limit(300);
+
+  const incLatest: Record<string, any> = {};
+  for (const ev of incEvRows ?? []) {
+    if (!incLatest[ev.pr_id]) incLatest[ev.pr_id] = ev;
+  }
+  const incPrIds = Object.keys(incLatest).filter((pid) => incLatest[pid].status === "returned");
+
+  const { data: incPRs } =
+    incPrIds.length > 0
+      ? await (supabase as any)
+          .from("purchase_requisitions")
+          .select("id, pr_number, title, total_amount, actual_amount, branch_id, status, profiles!requester_id(full_name)")
+          .in("id", incPrIds)
+      : { data: [] };
+
+  const incompleteDocs: DocRow[] = (incPRs ?? [])
+    .filter((pr: any) => ["approved", "converted"].includes(pr.status)) // ยังรอแก้ไข ไม่ใช่จ่ายแล้ว
+    .map((pr: any) => {
+      const ev = incLatest[pr.id];
+      return {
+        id: pr.id,
+        pr_number: pr.pr_number,
+        title: pr.title,
+        amount: pr.actual_amount ?? pr.total_amount ?? 0,
+        branch_code: pr.branch_id ? (branchCode[pr.branch_id] ?? "—") : "—",
+        requester_name: pr.profiles?.full_name ?? "—",
+        date: ev?.reviewed_at ?? ev?.submitted_at ?? null,
+        payment_channel: ev?.payment_channel ?? null,
+        close_status: "incomplete",
+        review_note: ev?.review_note ?? null,
+      };
+    });
+
+  const docs: DocRow[] = [...completeDocs, ...incompleteDocs];
 
   return (
     <div className="space-y-6">
@@ -79,8 +122,10 @@ export default async function FinanceDocumentsPage() {
           <FileCheck2 size={20} className="text-slate-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">งานเอกสารสมบูรณ์</h1>
-          <p className="text-sm text-slate-500">เอกสารที่จ่ายแล้ว — แยกตามสถานะเอกสาร (สมบูรณ์ / ค้างเอกสาร)</p>
+          <h1 className="text-lg font-bold text-slate-900">งานเอกสาร (สมบูรณ์ / ไม่สมบูรณ์)</h1>
+          <p className="text-sm text-slate-500">
+            เอกสารที่จ่ายแล้ว และเอกสารไม่สมบูรณ์ที่ถูกตีกลับให้แก้ไข — ฝ่ายการเงินตรวจสอบได้
+          </p>
         </div>
       </div>
 

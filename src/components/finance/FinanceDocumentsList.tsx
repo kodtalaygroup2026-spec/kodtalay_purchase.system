@@ -19,9 +19,12 @@ export interface DocRow {
   amount: number;
   branch_code: string;
   requester_name: string;
-  paid_at: string | null;
+  /** วันที่จ่าย (สมบูรณ์) หรือวันที่ตีกลับ (ไม่สมบูรณ์) */
+  date: string | null;
   payment_channel: "company" | "petty_cash" | null;
   close_status: "complete" | "incomplete" | null;
+  /** เหตุผลตีกลับ (เฉพาะไม่สมบูรณ์) */
+  review_note: string | null;
 }
 
 interface Props {
@@ -56,7 +59,7 @@ export function FinanceDocumentsList({ docs }: Props) {
   const filteredExceptTab = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return docs.filter((d) => {
-      if (!isDateInRange(d.paid_at, dateRange)) return false;
+      if (!isDateInRange(d.date, dateRange)) return false;
       if (!keyword) return true;
       return (
         d.pr_number.toLowerCase().includes(keyword) ||
@@ -76,7 +79,7 @@ export function FinanceDocumentsList({ docs }: Props) {
     const rows =
       tab === "all" ? filteredExceptTab : filteredExceptTab.filter((d) => d.close_status === tab);
 
-    const timeOf = (d: DocRow) => (d.paid_at ? new Date(d.paid_at).getTime() : 0);
+    const timeOf = (d: DocRow) => (d.date ? new Date(d.date).getTime() : 0);
     const sorted = [...rows];
     switch (sortKey) {
       case "date_asc":    sorted.sort((a, b) => timeOf(a) - timeOf(b)); break;
@@ -133,7 +136,7 @@ export function FinanceDocumentsList({ docs }: Props) {
             />
           </div>
 
-          <DateRangePicker value={dateRange} onChange={setDateRange} placeholder="วันที่จ่าย: ทุกช่วงเวลา" />
+          <DateRangePicker value={dateRange} onChange={setDateRange} placeholder="วันที่: ทุกช่วงเวลา" />
 
           <select
             value={sortKey}
@@ -176,56 +179,70 @@ export function FinanceDocumentsList({ docs }: Props) {
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ผู้ขอ</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">บริษัท</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-500">ช่องทาง</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่จ่าย</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-500">เอกสาร</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-500 whitespace-nowrap">วันที่</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-500">สถานะเอกสาร</th>
                   <th className="px-4 py-3 text-right font-medium text-slate-500 whitespace-nowrap">ยอด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {visible.map((d) => (
-                  <tr key={d.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
+                {visible.map((d) => {
+                  const isIncomplete = d.close_status === "incomplete";
+                  return (
+                  <tr key={d.id} className={isIncomplete ? "bg-amber-50/40 hover:bg-amber-50" : "hover:bg-slate-50"}>
+                    <td className="px-4 py-3 align-top">
                       <Link href={`/requisitions/${d.id}`} className="font-mono text-xs font-bold text-blue-600 hover:underline">
                         {d.pr_number}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3 max-w-[220px] align-top">
                       <span className="block truncate font-medium text-slate-800">{d.title}</span>
+                      {isIncomplete && d.review_note && (
+                        <span className="mt-0.5 block truncate text-[11px] text-amber-700" title={d.review_note}>
+                          เหตุผลตีกลับ: {d.review_note}
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{d.requester_name}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top whitespace-nowrap text-slate-500">{d.requester_name}</td>
+                    <td className="px-4 py-3 align-top">
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${branchBadge(d.branch_code)}`}>
                         {d.branch_code}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-3 align-top whitespace-nowrap">
                       {d.payment_channel === "petty_cash" ? (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                           <Wallet size={12} /> เงินสดย่อย
                         </span>
-                      ) : (
+                      ) : d.payment_channel === "company" ? (
                         <span className="inline-flex items-center gap-1 text-xs text-blue-600">
                           <Building2 size={12} /> บริษัท
                         </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
-                      {d.paid_at ? formatDate(d.paid_at) : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {d.close_status === "complete" ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">สมบูรณ์</span>
-                      ) : d.close_status === "incomplete" ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">ค้างเอกสาร</span>
                       ) : (
                         <span className="text-xs text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                    <td className="px-4 py-3 align-top whitespace-nowrap text-xs text-slate-500">
+                      {d.date ? formatDate(d.date) : "—"}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      {d.close_status === "complete" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> สมบูรณ์ · จ่ายแล้ว
+                        </span>
+                      ) : d.close_status === "incomplete" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> ไม่สมบูรณ์ · รอแก้ไข
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className={`px-4 py-3 align-top text-right font-semibold whitespace-nowrap ${isIncomplete ? "text-slate-500" : "text-slate-800"}`}>
                       {formatCurrency(d.amount)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
