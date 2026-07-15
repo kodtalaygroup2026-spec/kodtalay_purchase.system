@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { Inbox, Building2, Wallet, Search, X } from "lucide-react";
 import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { FilterDropdown } from "@/components/shared/FilterDropdown";
 import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 
 const BRANCH_BADGE: Record<string, string> = {
@@ -138,15 +139,13 @@ export function FinanceDocumentsList({ docs }: Props) {
 
           <DateRangePicker value={dateRange} onChange={setDateRange} placeholder="วันที่: ทุกช่วงเวลา" />
 
-          <select
+          <FilterDropdown
             value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>เรียง: {opt.label}</option>
-            ))}
-          </select>
+            onChange={setSortKey}
+            options={SORT_OPTIONS}
+            prefix="เรียง"
+            defaultValue="date_desc"
+          />
 
           {isFiltered && (
             <button

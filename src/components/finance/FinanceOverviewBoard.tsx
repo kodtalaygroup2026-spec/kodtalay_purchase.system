@@ -10,6 +10,7 @@ import {
 } from "@/lib/utils/ktbFormat";
 import { KTB_ENABLED } from "@/lib/config/features";
 import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { FilterDropdown } from "@/components/shared/FilterDropdown";
 import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 
 // ── สีประจำแต่ละบริษัท (keyed by branch code) ─────────────────────────────────
@@ -374,25 +375,24 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
 
           <DateRangePicker value={dateRange} onChange={setDateRange} />
 
-          <select
+          <FilterDropdown
             value={channelFilter}
-            onChange={(e) => setChannelFilter(e.target.value as typeof channelFilter)}
-            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="all">ทุกช่องทาง</option>
-            <option value="company">บริษัทสั่งจ่าย</option>
-            <option value="petty_cash">เงินสดย่อย</option>
-          </select>
+            onChange={setChannelFilter}
+            options={[
+              { value: "all", label: "ทุกช่องทาง" },
+              { value: "company", label: "บริษัทสั่งจ่าย" },
+              { value: "petty_cash", label: "เงินสดย่อย" },
+            ]}
+            defaultValue="all"
+          />
 
-          <select
+          <FilterDropdown
             value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>เรียง: {opt.label}</option>
-            ))}
-          </select>
+            onChange={setSortKey}
+            options={SORT_OPTIONS}
+            prefix="เรียง"
+            defaultValue="date_desc"
+          />
 
           {isFiltered && (
             <button

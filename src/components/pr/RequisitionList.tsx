@@ -10,6 +10,7 @@ import { PR_STATUS_LABELS } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatusFilterDropdown } from "@/components/pr/StatusFilterDropdown";
 import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { FilterDropdown } from "@/components/shared/FilterDropdown";
 import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 import type { PrStatus, PoStatus } from "@/types/database";
 
@@ -409,15 +410,13 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
 
           <DateRangePicker value={dateRange} onChange={setDateRange} placeholder="วันที่สร้าง: ทุกช่วงเวลา" />
 
-          <select
+          <FilterDropdown
             value={sortKey}
-            onChange={e => setSortKey(e.target.value as SortKey)}
-            className="h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-          >
-            {SORT_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>เรียง: {opt.label}</option>
-            ))}
-          </select>
+            onChange={setSortKey}
+            options={SORT_OPTIONS}
+            prefix="เรียง"
+            defaultValue="date_desc"
+          />
 
           {isFiltered && (
             <button

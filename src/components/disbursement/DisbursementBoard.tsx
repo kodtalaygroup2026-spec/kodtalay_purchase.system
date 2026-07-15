@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Search, X, ArrowUpDown } from "lucide-react";
 import { DisbursementItem, type DisbursementPR } from "./DisbursementItem";
+import { FilterDropdown } from "@/components/shared/FilterDropdown";
 
 const BRANCH_BADGE: Record<string, string> = {
   BN: "bg-blue-600 text-white", CK: "bg-red-600 text-white", RCA: "bg-emerald-600 text-white",
@@ -90,18 +91,14 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <ArrowUpDown size={14} className="text-slate-400" />
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-          >
-            {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
-              <option key={k} value={k}>{SORT_LABELS[k]}</option>
-            ))}
-          </select>
-        </div>
+        <FilterDropdown
+          value={sort}
+          onChange={setSort}
+          options={(Object.keys(SORT_LABELS) as SortKey[]).map((k) => ({ value: k, label: SORT_LABELS[k] }))}
+          prefix="เรียง"
+          icon={ArrowUpDown}
+          defaultValue="recent"
+        />
 
         <span className="ml-auto text-xs text-slate-400">
           {filtered.length} รายการ{items.length !== filtered.length ? ` จาก ${items.length}` : ""}
