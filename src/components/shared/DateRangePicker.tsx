@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ChevronDown, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { formatDate } from "@/lib/utils/format";
 import {
   EMPTY_DATE_RANGE,
   isRangeEmpty,
   presetRange,
+  toISODate,
   type DateRange,
 } from "@/lib/utils/dateRange";
 
@@ -18,6 +19,8 @@ const PRESETS: { key: Parameters<typeof presetRange>[0]; label: string }[] = [
   { key: "thisMonth", label: "เดือนนี้" },
   { key: "lastMonth", label: "เดือนที่แล้ว" },
 ];
+
+const WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
 const PANEL_WIDTH = 320;
 const VIEWPORT_MARGIN = 8;
@@ -46,6 +49,20 @@ function summarize(range: DateRange, placeholder: string): string {
   return `ถึง ${formatDate(range.to)}`;
 }
 
+/** วันทั้งหมดในเดือนที่แสดง เติม null นำหน้าให้ตรงคอลัมน์วันในสัปดาห์ */
+function buildCalendarDays(viewMonth: Date): (string | null)[] {
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0 = อาทิตย์
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: (string | null)[] = Array(firstWeekday).fill(null);
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push(toISODate(new Date(year, month, day)));
+  }
+  return cells;
+}
+
 export function DateRangePicker({
   value,
   onChange,
@@ -53,10 +70,22 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<PanelPosition | null>(null);
+  const [viewMonth, setViewMonth] = useState<Date>(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const hasRange = !isRangeEmpty(value);
+  const todayIso = toISODate(new Date());
+
+  // เปิดแผงเมื่อไร ให้ปฏิทินกระโดดไปเดือนของวันที่เลือกไว้ (หรือเดือนปัจจุบัน)
+  useEffect(() => {
+    if (!isOpen) return;
+    const base = value.from ? new Date(`${value.from}T00:00:00`) : new Date();
+    setViewMonth(new Date(base.getFullYear(), base.getMonth(), 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // วางแผงแบบ fixed อ้างอิงจากตำแหน่งปุ่ม เพื่อหลุดจากกล่องตารางที่มี overflow-hidden
   useLayoutEffect(() => {
@@ -66,13 +95,11 @@ export function DateRangePicker({
       const trigger = triggerRef.current;
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
-      const panelHeight = panelRef.current?.offsetHeight ?? 340;
+      const panelHeight = panelRef.current?.offsetHeight ?? 430;
 
-      // ชิดขอบขวาของปุ่ม แล้วกันไม่ให้ล้นซ้าย/ขวาจอ
       const maxLeft = window.innerWidth - PANEL_WIDTH - VIEWPORT_MARGIN;
       const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.right - PANEL_WIDTH, maxLeft));
 
-      // ปกติเปิดลงล่าง ถ้าล่างไม่พอและบนมีที่มากกว่า → พลิกขึ้นบน
       const spaceBelow = window.innerHeight - rect.bottom;
       const openUp = spaceBelow < panelHeight + VIEWPORT_MARGIN && rect.top > spaceBelow;
       const top = openUp
@@ -89,7 +116,7 @@ export function DateRangePicker({
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
     };
-  }, [isOpen]);
+  }, [isOpen, viewMonth]);
 
   // ปิดแผงเมื่อคลิกนอกกรอบ หรือกด Escape
   useEffect(() => {
@@ -119,10 +146,33 @@ export function DateRangePicker({
     onChange(EMPTY_DATE_RANGE);
   }
 
+  /** จิ้มครั้งแรก = วันเริ่ม · จิ้มครั้งที่สอง = วันจบ (สลับให้เองถ้าเลือกย้อนหลัง) */
+  function handleDayClick(dayIso: string) {
+    const selectingEnd = value.from && !value.to;
+    if (!selectingEnd) {
+      onChange({ from: dayIso, to: null });
+      return;
+    }
+    if (dayIso < value.from!) onChange({ from: dayIso, to: value.from });
+    else onChange({ from: value.from, to: dayIso });
+  }
+
   const activePresetKey = PRESETS.find((p) => {
     const r = presetRange(p.key);
     return r.from === value.from && r.to === value.to;
   })?.key;
+
+  const monthLabel = useMemo(
+    () => new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(viewMonth),
+    [viewMonth]
+  );
+  const calendarDays = useMemo(() => buildCalendarDays(viewMonth), [viewMonth]);
+
+  const selectionHint = !value.from
+    ? "แตะวันที่ในปฏิทินเพื่อเลือกวันเริ่มต้น"
+    : !value.to
+      ? `เริ่ม ${formatDate(value.from)} — แตะอีกครั้งเพื่อเลือกวันสิ้นสุด`
+      : `${formatDate(value.from)} – ${formatDate(value.to)}`;
 
   const panel = isOpen ? (
     <div
@@ -136,10 +186,8 @@ export function DateRangePicker({
       }}
       className="z-50 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
     >
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        ช่วงที่ใช้บ่อย
-      </p>
-      <div className="grid grid-cols-2 gap-1.5">
+      {/* ── ช่วงที่ใช้บ่อย ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-1.5">
         {PRESETS.map((preset) => {
           const isActive = activePresetKey === preset.key;
           return (
@@ -147,7 +195,7 @@ export function DateRangePicker({
               key={preset.key}
               type="button"
               onClick={() => applyPreset(preset.key)}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg border px-1.5 py-1.5 text-xs font-medium transition ${
                 isActive
                   ? "border-blue-500 bg-blue-500 text-white"
                   : "border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
@@ -160,7 +208,7 @@ export function DateRangePicker({
         <button
           type="button"
           onClick={clearRange}
-          className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+          className={`rounded-lg border px-1.5 py-1.5 text-xs font-medium transition ${
             !hasRange
               ? "border-slate-700 bg-slate-700 text-white"
               : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
@@ -172,33 +220,69 @@ export function DateRangePicker({
 
       <div className="my-3 border-t border-slate-100" />
 
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        กำหนดเอง
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-slate-500">ตั้งแต่วันที่</span>
-          <input
-            type="date"
-            value={value.from ?? ""}
-            max={value.to ?? undefined}
-            onChange={(e) => onChange({ ...value, from: e.target.value || null })}
-            className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[11px] text-slate-500">ถึงวันที่</span>
-          <input
-            type="date"
-            value={value.to ?? ""}
-            min={value.from ?? undefined}
-            onChange={(e) => onChange({ ...value, to: e.target.value || null })}
-            className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
-          />
-        </label>
+      {/* ── ปฏิทินเลือกช่วงเอง ─────────────────────────────────────────── */}
+      <div className="mb-2 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+          aria-label="เดือนก่อนหน้า"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <p className="text-sm font-semibold text-slate-700">{monthLabel}</p>
+        <button
+          type="button"
+          onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+          aria-label="เดือนถัดไป"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+      <div className="grid grid-cols-7">
+        {WEEKDAYS.map((day) => (
+          <span key={day} className="py-1 text-center text-[10px] font-semibold text-slate-400">
+            {day}
+          </span>
+        ))}
+        {calendarDays.map((iso, index) => {
+          if (!iso) return <span key={`blank-${index}`} />;
+
+          const isStart = iso === value.from;
+          const isEnd = iso === value.to;
+          const isInRange = Boolean(value.from && value.to && iso > value.from && iso < value.to);
+          const isToday = iso === todayIso;
+          const dayNumber = Number(iso.slice(8));
+
+          return (
+            <button
+              key={iso}
+              type="button"
+              onClick={() => handleDayClick(iso)}
+              className={`mx-auto flex h-9 w-9 items-center justify-center text-sm transition ${
+                isStart || isEnd
+                  ? "rounded-full bg-blue-600 font-bold text-white shadow-sm"
+                  : isInRange
+                    ? "rounded-none bg-blue-50 text-blue-800"
+                    : `rounded-full text-slate-700 hover:bg-slate-100 ${
+                        isToday ? "font-bold text-blue-600 ring-1 ring-inset ring-blue-300" : ""
+                      }`
+              }`}
+            >
+              {dayNumber}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* คำแนะนำสถานะการเลือก */}
+      <p className="mt-2 rounded-lg bg-slate-50 px-3 py-1.5 text-center text-[11px] text-slate-500">
+        {selectionHint}
+      </p>
+
+      <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2.5">
         <button
           type="button"
           onClick={clearRange}
