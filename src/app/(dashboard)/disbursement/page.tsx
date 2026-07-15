@@ -40,23 +40,24 @@ export default async function DisbursementPage() {
     return <EmptyPage />;
   }
 
-  // Batch fetch PRs (ต้องเป็น pending_finance)
+  // Batch fetch PRs + evidence_files พร้อมกัน (ทั้งคู่พึ่งแค่รายการ evidences)
   const prIds = [...new Set((evidences as any[]).map((e: any) => e.pr_id as string))];
-  const { data: prs } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, requester_id, branches!branch_id(code, name), profiles!requester_id(full_name, line_user_id)`)
-    .in("id", prIds)
-    .eq("status", "pending_finance");
+  const evidenceIds = (evidences as any[]).map((e: any) => e.id as string);
+
+  const [{ data: prs }, { data: allFiles }] = await Promise.all([
+    (supabase as any)
+      .from("purchase_requisitions")
+      .select(`id, pr_number, title, status, total_amount, actual_amount, is_urgent, created_at, requester_id, branches!branch_id(code, name), profiles!requester_id(full_name, line_user_id)`)
+      .in("id", prIds)
+      .eq("status", "pending_finance"),
+    (supabase as any)
+      .from("evidence_files")
+      .select("id, evidence_id, file_name, file_url, evidence_type, file_size")
+      .in("evidence_id", evidenceIds)
+      .order("evidence_type"),
+  ]);
 
   const prMap = new Map<string, any>((prs ?? []).map((pr: any) => [pr.id, pr]));
-
-  // Batch fetch evidence_files
-  const evidenceIds = (evidences as any[]).map((e: any) => e.id as string);
-  const { data: allFiles } = await (supabase as any)
-    .from("evidence_files")
-    .select("id, evidence_id, file_name, file_url, evidence_type, file_size")
-    .in("evidence_id", evidenceIds)
-    .order("evidence_type");
 
   const filesMap = new Map<string, any[]>();
   for (const file of (allFiles ?? []) as any[]) {

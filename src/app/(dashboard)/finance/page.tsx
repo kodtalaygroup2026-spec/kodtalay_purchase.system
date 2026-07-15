@@ -54,34 +54,30 @@ export default async function FinancePage() {
     );
   }
 
-  // ── ดึงบริษัท (สาขา) ทั้งหมด ────────────────────────────────────────────────
-  const { data: branchRows } = await (supabase as any)
-    .from("branches")
-    .select("id, code, name")
-    .order("code");
+  // ── ยิงพร้อมกัน: บริษัท / ค่าตั้งค่า KTB / หลักฐานทั้งหมด — สามตัวนี้อิสระต่อกัน ──
+  const [{ data: branchRows }, { data: settingsRows }, { data: evidenceRows }] = await Promise.all([
+    (supabase as any).from("branches").select("id, code, name").order("code"),
+    (supabase as any).from("company_ktb_settings").select("*"),
+    (supabase as any)
+      .from("payment_evidences")
+      .select(
+        `pr_id, status, payment_channel, submitted_at, reviewed_at,
+         account_holder_name, bank_account_number, ktb_branch_code`
+      )
+      .order("submitted_at", { ascending: false })
+      .limit(1000),
+  ]);
 
   const branchById: Record<string, { code: string; name: string }> = Object.fromEntries(
     (branchRows ?? []).map((b: any) => [b.id, { code: b.code, name: b.name }])
   );
 
-  // ── KTB settings per branch (สำหรับสร้างไฟล์ KTB) ──────────────────────────
-  const { data: settingsRows } = await (supabase as any)
-    .from("company_ktb_settings")
-    .select("*");
   const settingsByBranch: Record<string, Record<string, string>> = {};
   for (const row of settingsRows ?? []) {
     if (row.branch_id) settingsByBranch[row.branch_id] = row;
   }
 
-  // ── หลักฐานทุกใบที่ส่งมายังการเงิน (เอาเฉพาะฉบับล่าสุดของแต่ละ PR) ──────────
-  const { data: evidenceRows } = await (supabase as any)
-    .from("payment_evidences")
-    .select(
-      `pr_id, status, payment_channel, submitted_at, reviewed_at,
-       account_holder_name, bank_account_number, ktb_branch_code`
-    )
-    .order("submitted_at", { ascending: false })
-    .limit(1000);
+  // เอาเฉพาะหลักฐานฉบับล่าสุดของแต่ละ PR
 
   const latestEvidenceByPR: Record<string, any> = {};
   for (const ev of evidenceRows ?? []) {

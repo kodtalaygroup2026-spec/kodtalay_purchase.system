@@ -27,30 +27,51 @@ export default async function FinanceDocumentsPage() {
     );
   }
 
-  const { data: branchRows } = await (supabase as any)
-    .from("branches").select("id, code").order("code");
+  // ── ยิงพร้อมกัน: บริษัท / PR จ่ายแล้ว / หลักฐานไม่สมบูรณ์ — สามตัวนี้อิสระต่อกัน ──
+  const [{ data: branchRows }, { data: paidPRs }, { data: incEvRows }] = await Promise.all([
+    (supabase as any).from("branches").select("id, code").order("code"),
+    (supabase as any)
+      .from("purchase_requisitions")
+      .select("id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at, profiles!requester_id(full_name)")
+      .eq("status", "paid")
+      .order("finance_action_at", { ascending: false, nullsFirst: false })
+      .limit(300),
+    (supabase as any)
+      .from("payment_evidences")
+      .select("pr_id, status, close_status, payment_channel, review_note, reviewed_at, submitted_at")
+      .eq("close_status", "incomplete")
+      .order("submitted_at", { ascending: false })
+      .limit(300),
+  ]);
+
   const branchCode: Record<string, string> = Object.fromEntries(
     (branchRows ?? []).map((b: any) => [b.id, b.code])
   );
 
-  // ── (1) เอกสารสมบูรณ์ = PR ที่จ่ายแล้ว ──────────────────────────────────────
-  const { data: paidPRs } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select("id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at, profiles!requester_id(full_name)")
-    .eq("status", "paid")
-    .order("finance_action_at", { ascending: false, nullsFirst: false })
-    .limit(300);
-
   const paidIds = (paidPRs ?? []).map((p: any) => p.id);
+  const incLatest: Record<string, any> = {};
+  for (const ev of incEvRows ?? []) {
+    if (!incLatest[ev.pr_id]) incLatest[ev.pr_id] = ev;
+  }
+  const incPrIds = Object.keys(incLatest).filter((pid) => incLatest[pid].status === "returned");
 
-  const { data: paidEvRows } =
+  // ── ชุดที่ 2 (พึ่งผลชุดแรก): หลักฐานของใบที่จ่ายแล้ว + PR ของใบตีกลับ — ยิงพร้อมกัน ──
+  const [{ data: paidEvRows }, { data: incPRs }] = await Promise.all([
     paidIds.length > 0
-      ? await (supabase as any)
+      ? (supabase as any)
           .from("payment_evidences")
           .select("pr_id, close_status, payment_channel, submitted_at")
           .in("pr_id", paidIds)
           .order("submitted_at", { ascending: false })
-      : { data: [] };
+      : Promise.resolve({ data: [] }),
+    incPrIds.length > 0
+      ? (supabase as any)
+          .from("purchase_requisitions")
+          .select("id, pr_number, title, total_amount, actual_amount, branch_id, status, profiles!requester_id(full_name)")
+          .in("id", incPrIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
   const paidEvMap: Record<string, any> = {};
   for (const ev of paidEvRows ?? []) {
     if (!paidEvMap[ev.pr_id]) paidEvMap[ev.pr_id] = ev;
@@ -73,28 +94,6 @@ export default async function FinanceDocumentsPage() {
   });
 
   // ── (2) เอกสารไม่สมบูรณ์ = ถูก บช./การเงินตีกลับ รอพนักงานแก้ไข ──────────────
-  // (หลักฐานล่าสุด status=returned + close_status=incomplete, PR ยังไม่จ่าย)
-  const { data: incEvRows } = await (supabase as any)
-    .from("payment_evidences")
-    .select("pr_id, status, close_status, payment_channel, review_note, reviewed_at, submitted_at")
-    .eq("close_status", "incomplete")
-    .order("submitted_at", { ascending: false })
-    .limit(300);
-
-  const incLatest: Record<string, any> = {};
-  for (const ev of incEvRows ?? []) {
-    if (!incLatest[ev.pr_id]) incLatest[ev.pr_id] = ev;
-  }
-  const incPrIds = Object.keys(incLatest).filter((pid) => incLatest[pid].status === "returned");
-
-  const { data: incPRs } =
-    incPrIds.length > 0
-      ? await (supabase as any)
-          .from("purchase_requisitions")
-          .select("id, pr_number, title, total_amount, actual_amount, branch_id, status, profiles!requester_id(full_name)")
-          .in("id", incPrIds)
-      : { data: [] };
-
   const incompleteDocs: DocRow[] = (incPRs ?? [])
     .filter((pr: any) => ["approved", "converted"].includes(pr.status)) // ยังรอแก้ไข ไม่ใช่จ่ายแล้ว
     .map((pr: any) => {

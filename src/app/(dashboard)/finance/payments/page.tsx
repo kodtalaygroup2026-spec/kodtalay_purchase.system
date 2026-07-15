@@ -33,59 +33,52 @@ export default async function FinancePaymentsPage() {
     );
   }
 
-  // ── บริษัท ──────────────────────────────────────────────────────────────────
-  const { data: branchRows } = await (supabase as any)
-    .from("branches")
-    .select("id, code, name")
-    .order("code");
+  // ── ยิงพร้อมกัน: บริษัท / ค่าตั้งค่า KTB / PR ที่รอจ่าย — สามตัวนี้อิสระต่อกัน ──
+  const [{ data: branchRows }, { data: settingsRows }, { data: rawPRs }] = await Promise.all([
+    (supabase as any).from("branches").select("id, code, name").order("code"),
+    (supabase as any).from("company_ktb_settings").select("*"),
+    (supabase as any)
+      .from("purchase_requisitions")
+      .select("id, pr_number, title, total_amount, actual_amount, branch_id, requester_id")
+      .eq("status", "pending_finance")
+      .order("created_at", { ascending: false }),
+  ]);
 
   const branchById: Record<string, { code: string; name: string }> = Object.fromEntries(
     (branchRows ?? []).map((b: any) => [b.id, { code: b.code, name: b.name }])
   );
 
-  // ── KTB settings per branch (สำหรับสร้างไฟล์) ──────────────────────────────
-  const { data: settingsRows } = await (supabase as any)
-    .from("company_ktb_settings")
-    .select("*");
   const settingsByBranch: Record<string, Record<string, string>> = {};
   for (const row of settingsRows ?? []) {
     if (row.branch_id) settingsByBranch[row.branch_id] = row;
   }
 
-  // ── PR ที่รอจ่าย (pending_finance) ──────────────────────────────────────────
-  const { data: rawPRs } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select("id, pr_number, title, total_amount, actual_amount, branch_id, requester_id")
-    .eq("status", "pending_finance")
-    .order("created_at", { ascending: false });
-
   const prList = (rawPRs ?? []) as any[];
   const prIds = prList.map((p) => p.id);
   const requesterIds = [...new Set(prList.map((p) => p.requester_id))];
 
-  // requester name + line id
-  const { data: profileRows } =
+  // ── ชุดที่ 2 (พึ่งรายการ PR): ชื่อผู้ขอ + หลักฐาน verified — ยิงพร้อมกัน ──
+  // evidence เผื่อ payment_channel = null ไว้สำหรับรายการเก่าก่อนมีการเลือกช่องทาง (กันรายการตกหล่น)
+  const [{ data: profileRows }, { data: evidenceRows }] = await Promise.all([
     requesterIds.length > 0
-      ? await (supabase as any)
+      ? (supabase as any)
           .from("profiles")
           .select("id, full_name, line_user_id")
           .in("id", requesterIds)
-      : { data: [] };
-  const profileMap: Record<string, { full_name: string; line_user_id: string | null }> =
-    Object.fromEntries((profileRows ?? []).map((p: any) => [p.id, p]));
-
-  // evidence ที่ตรวจแล้ว (verified) + ช่องทาง = บริษัทสั่งจ่าย
-  // เผื่อ payment_channel = null ไว้สำหรับรายการเก่าก่อนมีการเลือกช่องทาง (กันรายการตกหล่น)
-  const { data: evidenceRows } =
+      : Promise.resolve({ data: [] }),
     prIds.length > 0
-      ? await (supabase as any)
+      ? (supabase as any)
           .from("payment_evidences")
           .select("id, pr_id, account_holder_name, bank_name, bank_account_number, ktb_branch_code, status, payment_type, payment_channel, submitted_at")
           .in("pr_id", prIds)
           .eq("status", "verified")
           .or("payment_channel.eq.company,payment_channel.is.null")
           .order("submitted_at", { ascending: false })
-      : { data: [] };
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const profileMap: Record<string, { full_name: string; line_user_id: string | null }> =
+    Object.fromEntries((profileRows ?? []).map((p: any) => [p.id, p]));
   const evidenceMap: Record<string, any> = {};
   for (const ev of evidenceRows ?? []) {
     if (!evidenceMap[ev.pr_id]) evidenceMap[ev.pr_id] = ev;

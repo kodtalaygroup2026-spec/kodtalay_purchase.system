@@ -12,22 +12,27 @@ export default async function ApprovalsPage() {
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, department")
-    .eq("id", user.id)
-    .single();
+  // ยิงพร้อมกัน: โปรไฟล์ / ตำแหน่งที่เป็นสมาชิก / ใบที่รออนุมัติ — สามตัวนี้ไม่พึ่งพากัน
+  // (การกรองสิทธิ์การมองเห็นทำใน JS ด้านล่าง และ RLS คุมข้อมูลอีกชั้นอยู่แล้ว)
+  const [{ data: profile }, { data: myMemberships }, { data: pendingPRs }] = await Promise.all([
+    supabase.from("profiles").select("role, department").eq("id", user.id).single(),
+    (supabase as any).from("position_members").select("position_id").eq("user_id", user.id),
+    (supabase as any)
+      .from("purchase_requisitions")
+      .select(
+        `id, pr_number, title, status, total_amount, created_at, requester_id, category_id,
+         profiles!requester_id(full_name, department, line_user_id),
+         categories!category_id(position_id),
+         branches!branch_id(code, name)`
+      )
+      .eq("status", "submitted")
+      .order("created_at"),
+  ]);
 
   const myRole = profile?.role;
   const myDept = profile?.department ?? null;
   const isManager = myRole === "manager" || myRole === "admin";
   const isFinance = myRole === "finance";
-
-  // ตำแหน่งที่ผู้ใช้เป็นสมาชิก (สำหรับ approver ตามหมวด)
-  const { data: myMemberships } = await (supabase as any)
-    .from("position_members")
-    .select("position_id")
-    .eq("user_id", user.id);
   const myPositionIds = new Set<string>(((myMemberships ?? []) as any[]).map((m) => m.position_id));
 
   // เข้าได้ถ้าเป็น manager/admin/finance(บช.) หรือเป็นสมาชิกตำแหน่งใดๆ
@@ -38,17 +43,6 @@ export default async function ApprovalsPage() {
       </div>
     );
   }
-
-  const { data: pendingPRs } = await (supabase as any)
-    .from("purchase_requisitions")
-    .select(
-      `id, pr_number, title, status, total_amount, created_at, requester_id, category_id,
-       profiles!requester_id(full_name, department, line_user_id),
-       categories!category_id(position_id),
-       branches!branch_id(code, name)`
-    )
-    .eq("status", "submitted")
-    .order("created_at");
 
   // กรอง: admin/บช.เห็นหมด, manager เห็นแผนกตัวเอง, สมาชิกตำแหน่งเห็นหมวดของตำแหน่ง
   const visible = ((pendingPRs ?? []) as any[]).filter((pr) => {
