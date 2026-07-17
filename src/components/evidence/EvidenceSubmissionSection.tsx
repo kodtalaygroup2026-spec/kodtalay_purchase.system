@@ -178,6 +178,14 @@ interface EvidenceSubmissionSectionProps {
   profileHolderName: string | null;
   /** ไฟล์จากการส่งรอบก่อน (กรณีถูกตีกลับ) — แสดงให้แก้ไข เก็บ/ลบ/เพิ่มได้ */
   previousFiles?: PreviousFile[];
+  /** ข้อมูลผู้รับเงินจากการส่งรอบก่อน — เติมให้อัตโนมัติเมื่อถูกตีกลับ */
+  previousData?: {
+    account_holder_name: string | null;
+    bank_name: string | null;
+    bank_account_number: string | null;
+    payment_type: string | null;
+    notes: string | null;
+  } | null;
 }
 
 const LS_NAMES = "evidence_account_names";
@@ -187,31 +195,37 @@ export function EvidenceSubmissionSection({
   poId, prId, prBankName, prBankAccount, currentUserId, originalAmount,
   profileBankName, profileBankAccount, profileHolderName,
   previousFiles = [],
+  previousData = null,
 }: EvidenceSubmissionSectionProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("send_bill");
+  // ส่งใหม่หลังถูกตีกลับ → เริ่มด้วยโหมดเดิม (self_pay ได้ต่อเมื่อโปรไฟล์มีบัญชี)
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>(
+    previousData?.payment_type === "self_pay" && Boolean(profileBankName && profileBankAccount)
+      ? "self_pay"
+      : "send_bill"
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // ── ชื่อ + บัญชี (สำหรับ send_bill mode) ─────────────────────────────────
+  // ── ชื่อ + บัญชี (สำหรับ send_bill mode) — เติมค่าจากรอบก่อนถ้ามี ─────────
   const [savedNames, setSavedNames] = useState<string[]>([]);
   const [showNameList, setShowNameList] = useState(false);
-  const [accountHolderName, setAccountHolderName] = useState("");
-  const [bankName, setBankName] = useState(prBankName ?? "");
-  const [bankAccount, setBankAccount] = useState(prBankAccount ?? "");
+  const [accountHolderName, setAccountHolderName] = useState(previousData?.account_holder_name ?? "");
+  const [bankName, setBankName] = useState(previousData?.bank_name ?? prBankName ?? "");
+  const [bankAccount, setBankAccount] = useState(previousData?.bank_account_number ?? prBankAccount ?? "");
 
   useEffect(() => {
     try {
       const names: string[] = JSON.parse(localStorage.getItem(LS_NAMES) ?? "[]");
       setSavedNames(names);
       const lastBank = localStorage.getItem(LS_BANK);
-      if (lastBank && !prBankName) setBankName(lastBank);
+      if (lastBank && !prBankName && !previousData?.bank_name) setBankName(lastBank);
     } catch { /* ignore */ }
-  }, [prBankName]);
+  }, [prBankName, previousData?.bank_name]);
 
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(previousData?.notes ?? "");
   const [billFiles, setBillFiles] = useState<File[]>([]);
   const [slipFiles, setSlipFiles] = useState<File[]>([]);
   const [goodsReceiptFiles, setGoodsReceiptFiles] = useState<File[]>([]);

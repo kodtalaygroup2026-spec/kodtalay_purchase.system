@@ -97,7 +97,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   const [{ data: evidenceRows }, { data: itemEditLogs }] = await Promise.all([
     (supabase as any)
       .from("payment_evidences")
-      .select("id, account_holder_name, bank_name, bank_account_number, notes, submitted_at, status, review_note")
+      .select("id, account_holder_name, bank_name, bank_account_number, notes, payment_type, submitted_at, status, review_note")
       .eq("pr_id", id)
       .order("submitted_at", { ascending: false }),
     (supabase as any)
@@ -634,6 +634,17 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           profileBankAccount={(currentProfile as any)?.bank_account_number ?? null}
           profileHolderName={(currentProfile as any)?.bank_account_holder_name ?? currentProfile?.full_name ?? null}
           previousFiles={returnedEvidenceFiles}
+          previousData={
+            returnedEvidence
+              ? {
+                  account_holder_name: returnedEvidence.account_holder_name ?? null,
+                  bank_name: returnedEvidence.bank_name ?? null,
+                  bank_account_number: returnedEvidence.bank_account_number ?? null,
+                  payment_type: returnedEvidence.payment_type ?? null,
+                  notes: returnedEvidence.notes ?? null,
+                }
+              : null
+          }
         />
       )}
 
