@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { CheckCircle, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown, RotateCcw, XCircle, X } from "lucide-react";
+import { CheckCircle, CheckSquare, Square, ChevronUp, ChevronDown, ChevronsUpDown, RotateCcw, XCircle, X, Filter } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { externalBrowserLink } from "@/lib/line/externalLink";
@@ -100,17 +100,61 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
   const [pendingBulk, setPendingBulk] = useState<"return" | "reject" | null>(null);
   const [bulkNote, setBulkNote] = useState("");
 
+  // ── ค้นหาแบบเจาะจงรายคอลัมน์ (กรองเฉพาะบนหน้าจอ ไม่แตะข้อมูล) ─────────────
+  const EMPTY_COL_FILTERS = {
+    pr_number: "",
+    title: "",
+    department: "",
+    amountMin: "",
+    amountMax: "",
+  };
+  const [showColumnSearch, setShowColumnSearch] = useState(false);
+  const [colFilters, setColFilters] = useState(EMPTY_COL_FILTERS);
+
+  const activeFilterCount = Object.values(colFilters).filter((v) => v.trim() !== "").length;
+
+  function setColFilter(key: keyof typeof EMPTY_COL_FILTERS, value: string) {
+    setColFilters((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // ปิดแถบค้นหา = ล้างเงื่อนไขด้วย กันกรองค้างแบบมองไม่เห็น
+  function toggleColumnSearch() {
+    setShowColumnSearch((open) => {
+      if (open) setColFilters(EMPTY_COL_FILTERS);
+      return !open;
+    });
+  }
+
   function handleSort(col: SortKey) {
     if (col === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(col); setSortDir("asc"); }
   }
 
-  const sorted = sortPRs(prs, sortKey, sortDir);
-  const allSelected = prs.length > 0 && selected.size === prs.length;
+  const filtered = useMemo(() => {
+    if (activeFilterCount === 0) return prs;
+    const prNo = colFilters.pr_number.trim().toLowerCase();
+    const name = colFilters.title.trim().toLowerCase();
+    const dept = colFilters.department.trim().toLowerCase();
+    const min = parseFloat(colFilters.amountMin);
+    const max = parseFloat(colFilters.amountMax);
+
+    return prs.filter((pr) => {
+      if (prNo && !pr.pr_number.toLowerCase().includes(prNo)) return false;
+      if (name && !pr.title.toLowerCase().includes(name) && !pr.requester_name.toLowerCase().includes(name)) return false;
+      if (dept && !(pr.department ?? "").toLowerCase().includes(dept)) return false;
+      if (!Number.isNaN(min) && Number(pr.total_amount) < min) return false;
+      if (!Number.isNaN(max) && Number(pr.total_amount) > max) return false;
+      return true;
+    });
+  }, [prs, colFilters, activeFilterCount]);
+
+  const sorted = sortPRs(filtered, sortKey, sortDir);
+  // เลือกทั้งหมด = เฉพาะรายการที่มองเห็นอยู่ (หลังกรอง)
+  const allSelected = sorted.length > 0 && sorted.every((pr) => selected.has(pr.id));
 
   function toggleAll() {
     if (allSelected) setSelected(new Set());
-    else setSelected(new Set(prs.map((pr) => pr.id)));
+    else setSelected(new Set(sorted.map((pr) => pr.id)));
   }
 
   function toggleOne(id: string) {
@@ -316,6 +360,31 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
         </div>
       )}
 
+      {/* ── ปุ่มเปิดค้นหาแบบเจาะจง + สรุปผลกรอง ─────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          onClick={toggleColumnSearch}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+            showColumnSearch
+              ? "border-blue-400 bg-blue-50 text-blue-700"
+              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+          }`}
+        >
+          <Filter size={13} />
+          ค้นหาแบบเจาะจง
+          {activeFilterCount > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        {activeFilterCount > 0 && (
+          <span className="text-xs text-slate-400">
+            พบ {sorted.length} จาก {prs.length} รายการ
+          </span>
+        )}
+      </div>
+
       {/* ── Table ───────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -337,8 +406,78 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
               <SortTh label="มูลค่า"        col="total_amount" active={sortKey} dir={sortDir} onSort={handleSort} className="text-right" />
               <th className="px-4 py-3 w-24" />
             </tr>
+
+            {/* ── แถวค้นหาแบบเจาะจงรายคอลัมน์ ─────────────────────────────── */}
+            {showColumnSearch && (
+              <tr className="border-t border-slate-100 bg-white">
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2">
+                  <input
+                    value={colFilters.pr_number}
+                    onChange={(e) => setColFilter("pr_number", e.target.value)}
+                    placeholder="เช่น 0006"
+                    className="h-8 w-full min-w-[90px] rounded-md border border-slate-200 px-2 text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    value={colFilters.title}
+                    onChange={(e) => setColFilter("title", e.target.value)}
+                    placeholder="ชื่อรายการ / ผู้ขอ"
+                    className="h-8 w-full min-w-[120px] rounded-md border border-slate-200 px-2 text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    value={colFilters.department}
+                    onChange={(e) => setColFilter("department", e.target.value)}
+                    placeholder="แผนก"
+                    className="h-8 w-full min-w-[80px] rounded-md border border-slate-200 px-2 text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                  />
+                </td>
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2">
+                  <div className="flex items-center justify-end gap-1">
+                    <input
+                      value={colFilters.amountMin}
+                      onChange={(e) => setColFilter("amountMin", e.target.value.replace(/[^\d.]/g, ""))}
+                      placeholder="ต่ำสุด"
+                      inputMode="decimal"
+                      className="h-8 w-16 rounded-md border border-slate-200 px-2 text-right text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    />
+                    <span className="text-slate-300">–</span>
+                    <input
+                      value={colFilters.amountMax}
+                      onChange={(e) => setColFilter("amountMax", e.target.value.replace(/[^\d.]/g, ""))}
+                      placeholder="สูงสุด"
+                      inputMode="decimal"
+                      className="h-8 w-16 rounded-md border border-slate-200 px-2 text-right text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    />
+                  </div>
+                </td>
+                <td className="px-4 py-2 text-center">
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={() => setColFilters(EMPTY_COL_FILTERS)}
+                      title="ล้างเงื่อนไขค้นหา"
+                      className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
           </thead>
           <tbody>
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">
+                  ไม่พบรายการตามเงื่อนไขที่ค้นหา
+                </td>
+              </tr>
+            )}
             {sorted.map((pr) => {
               const isChecked = selected.has(pr.id);
               return (
