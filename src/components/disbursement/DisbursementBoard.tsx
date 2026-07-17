@@ -4,8 +4,8 @@ import { useState, useMemo } from "react";
 import { Search, X, ArrowUpDown, Zap } from "lucide-react";
 import { DisbursementItem, type DisbursementPR } from "./DisbursementItem";
 import { FilterDropdown } from "@/components/shared/FilterDropdown";
-import { DatePicker } from "@/components/shared/DatePicker";
-import { toISODate } from "@/lib/utils/dateRange";
+import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 
 const BRANCH_BADGE: Record<string, string> = {
   BN: "bg-blue-600 text-white", CK: "bg-red-600 text-white", RCA: "bg-emerald-600 text-white",
@@ -36,7 +36,7 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
   const [search, setSearch] = useState("");
   const [company, setCompany] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("recent");
-  const [dateFilter, setDateFilter] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange>(EMPTY_DATE_RANGE);
   const [amountMin, setAmountMin] = useState("");
   const [amountMax, setAmountMax] = useState("");
   const [urgentOnly, setUrgentOnly] = useState(false);
@@ -48,11 +48,11 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
   );
 
   const hasExtraFilters =
-    dateFilter !== "" || amountMin !== "" || amountMax !== "" || urgentOnly || search.trim() !== "";
+    !isRangeEmpty(dateRange) || amountMin !== "" || amountMax !== "" || urgentOnly || search.trim() !== "";
 
   function resetFilters() {
     setSearch("");
-    setDateFilter("");
+    setDateRange(EMPTY_DATE_RANGE);
     setAmountMin("");
     setAmountMax("");
     setUrgentOnly(false);
@@ -70,7 +70,7 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
         pr.title.toLowerCase().includes(q) ||
         (pr.requester?.full_name ?? "").toLowerCase().includes(q);
       const matchCompany = !company || pr.branch_code === company;
-      const matchDate = !dateFilter || toISODate(new Date(pr.submitted_at)) === dateFilter;
+      const matchDate = isDateInRange(pr.submitted_at, dateRange);
       const matchMin = Number.isNaN(min) || amountOf(pr) >= min;
       const matchMax = Number.isNaN(max) || amountOf(pr) <= max;
       const matchUrgent = !urgentOnly || pr.is_urgent;
@@ -97,7 +97,7 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
 
     // รายการด่วนขึ้นก่อนเสมอ (ภายใต้ sort ที่เลือก)
     return [...rows.filter((r) => r.is_urgent), ...rows.filter((r) => !r.is_urgent)];
-  }, [items, search, company, sort, dateFilter, amountMin, amountMax, urgentOnly]);
+  }, [items, search, company, sort, dateRange, amountMin, amountMax, urgentOnly]);
 
   return (
     <div className="space-y-4">
@@ -122,10 +122,12 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
             )}
           </div>
 
-          {/* วันที่ส่งหลักฐาน */}
-          <div className="w-[170px]">
-            <DatePicker value={dateFilter} onChange={setDateFilter} placeholder="วันที่ส่งหลักฐาน" />
-          </div>
+          {/* ช่วงวันที่ส่งหลักฐาน — เลือกวันเดียวหรือตั้งแต่วันถึงวันก็ได้ */}
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            placeholder="วันที่ส่งหลักฐาน: ทุกช่วงเวลา"
+          />
 
           {/* ช่วงยอดเงิน */}
           <div className="flex items-center gap-1">
