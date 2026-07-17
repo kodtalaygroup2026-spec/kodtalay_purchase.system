@@ -112,21 +112,12 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
     amountMin: "",
     amountMax: "",
   };
-  const [showColumnSearch, setShowColumnSearch] = useState(false);
   const [colFilters, setColFilters] = useState(EMPTY_COL_FILTERS);
 
   const activeFilterCount = Object.values(colFilters).filter((v) => v.trim() !== "").length;
 
   function setColFilter(key: keyof typeof EMPTY_COL_FILTERS, value: string) {
     setColFilters((prev) => ({ ...prev, [key]: value }));
-  }
-
-  // ปิดแถบค้นหา = ล้างเงื่อนไขด้วย กันกรองค้างแบบมองไม่เห็น
-  function toggleColumnSearch() {
-    setShowColumnSearch((open) => {
-      if (open) setColFilters(EMPTY_COL_FILTERS);
-      return !open;
-    });
   }
 
   function handleSort(col: SortKey) {
@@ -364,30 +355,15 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
         </div>
       )}
 
-      {/* ── ปุ่มเปิดค้นหาแบบเจาะจง + สรุปผลกรอง ─────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          onClick={toggleColumnSearch}
-          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-            showColumnSearch
-              ? "border-blue-400 bg-blue-50 text-blue-700"
-              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-          }`}
-        >
-          <Filter size={13} />
-          ค้นหาแบบเจาะจง
-          {activeFilterCount > 0 && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
-        {activeFilterCount > 0 && (
-          <span className="text-xs text-slate-400">
-            พบ {sorted.length} จาก {prs.length} รายการ
+      {/* ── สรุปผลการค้นหาแบบเจาะจง (โผล่เมื่อกรองอยู่) ─────────────────────── */}
+      {activeFilterCount > 0 && (
+        <div className="flex items-center justify-end gap-2">
+          <Filter size={12} className="text-blue-500" />
+          <span className="text-xs text-slate-500">
+            พบ <span className="font-semibold text-blue-600">{sorted.length}</span> จาก {prs.length} รายการ
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Table ───────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -406,7 +382,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 label="เลขที่ PR"
                 col="pr_number"
                 active={sortKey} dir={sortDir} onSort={handleSort}
-                search={showColumnSearch && (
+                search={(
                   <input
                     value={colFilters.pr_number}
                     onChange={(e) => setColFilter("pr_number", e.target.value)}
@@ -419,7 +395,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 label="ชื่อ / ผู้ขอ"
                 col="title"
                 active={sortKey} dir={sortDir} onSort={handleSort}
-                search={showColumnSearch && (
+                search={(
                   <input
                     value={colFilters.title}
                     onChange={(e) => setColFilter("title", e.target.value)}
@@ -432,7 +408,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 label="แผนก"
                 col="department"
                 active={sortKey} dir={sortDir} onSort={handleSort}
-                search={showColumnSearch && (
+                search={(
                   <input
                     value={colFilters.department}
                     onChange={(e) => setColFilter("department", e.target.value)}
@@ -448,7 +424,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 col="total_amount"
                 active={sortKey} dir={sortDir} onSort={handleSort}
                 className="text-right"
-                search={showColumnSearch && (
+                search={(
                   <div className="flex items-center gap-1">
                     <input
                       value={colFilters.amountMin}
@@ -469,7 +445,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 )}
               />
               <th className="px-4 py-3 w-24 align-top">
-                {showColumnSearch && activeFilterCount > 0 && (
+                {activeFilterCount > 0 && (
                   <button
                     onClick={() => setColFilters(EMPTY_COL_FILTERS)}
                     title="ล้างเงื่อนไขค้นหา"
