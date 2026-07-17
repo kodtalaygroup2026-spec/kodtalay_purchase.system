@@ -132,6 +132,17 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     evidenceFiles = efData ?? [];
   }
 
+  // ไฟล์ของหลักฐานที่ถูกตีกลับ — ส่งให้ฟอร์มแนบใหม่ เพื่อให้แก้ไข (เก็บ/ลบ/เพิ่ม) ได้
+  let returnedEvidenceFiles: any[] = [];
+  if (returnedEvidence) {
+    const { data: refData } = await (supabase as any)
+      .from("evidence_files")
+      .select("id, file_name, file_url, evidence_type, file_size")
+      .eq("evidence_id", returnedEvidence.id)
+      .order("evidence_type");
+    returnedEvidenceFiles = refData ?? [];
+  }
+
   // ── Audit trail profile IDs (รวม editor ของ item edits ด้วย) ────────────
   const editLogEditorIds = ((itemEditLogs ?? []) as any[]).map((l: any) => l.edited_by).filter(Boolean);
   const auditActorIds = ((auditLogs ?? []) as any[]).map((l: any) => l.actor_id).filter(Boolean);
@@ -603,6 +614,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           profileBankName={(currentProfile as any)?.bank_name ?? null}
           profileBankAccount={(currentProfile as any)?.bank_account_number ?? null}
           profileHolderName={(currentProfile as any)?.bank_account_holder_name ?? currentProfile?.full_name ?? null}
+          previousFiles={returnedEvidenceFiles}
         />
       )}
 

@@ -25,12 +25,24 @@ type PaymentMode = "self_pay" | "send_bill";
 
 // ── FileUploadZone ─────────────────────────────────────────────────────────────
 
+/** ไฟล์ที่เคยอัปโหลดไว้ในรอบก่อน (ตอนส่งใหม่หลังถูกตีกลับ) */
+export interface PreviousFile {
+  id: string;
+  file_name: string;
+  file_url: string;
+  evidence_type: string;
+  file_size: number | null;
+}
+
 interface FileUploadZoneProps {
   label: string;
   description: string;
   files: File[];
   onAdd: (files: File[]) => void;
   onRemove: (index: number) => void;
+  /** ไฟล์เดิมจากรอบก่อนที่ยังเก็บไว้ — ลบออกจากชุดส่งใหม่ได้ */
+  existing?: PreviousFile[];
+  onRemoveExisting?: (id: string) => void;
   accept?: string;
   required?: boolean;
   icon: React.ElementType;
@@ -45,15 +57,17 @@ function formatFileSize(bytes: number): string {
 
 function FileUploadZone({
   label, description, files, onAdd, onRemove,
+  existing = [], onRemoveExisting,
   accept = "image/jpeg,image/png,image/webp,application/pdf",
   required, icon: Icon, accentColor,
 }: FileUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const totalCount = files.length + existing.length;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
-    const existing = new Set(files.map(f => f.name + f.size));
-    onAdd(selected.filter(f => !existing.has(f.name + f.size)));
+    const dup = new Set(files.map(f => f.name + f.size));
+    onAdd(selected.filter(f => !dup.has(f.name + f.size)));
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -65,13 +79,46 @@ function FileUploadZone({
           {label}
           {required && <span className="ml-1 text-red-500">*</span>}
         </span>
-        {files.length > 0 && (
+        {totalCount > 0 && (
           <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${accentColor} bg-slate-100`}>
-            {files.length} ไฟล์
+            {totalCount} ไฟล์
           </span>
         )}
       </div>
       <p className="mb-3 text-xs text-slate-400">{description}</p>
+
+      {/* ไฟล์เดิมจากรอบก่อน — โชว์รูปเดิม ลบออกได้ */}
+      {existing.length > 0 && (
+        <ul className="mb-3 space-y-1.5">
+          {existing.map((file) => {
+            const isPdf = file.file_name.toLowerCase().endsWith(".pdf");
+            return (
+              <li key={file.id} className="flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50/50 px-2.5 py-1.5">
+                {isPdf ? (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
+                    <FileText size={14} className="text-red-400" />
+                  </div>
+                ) : (
+                  <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={file.file_url} alt={file.file_name}
+                      className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
+                  </a>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-slate-700">{file.file_name}</p>
+                  <p className="text-[10px] text-blue-500">ไฟล์เดิมจากรอบก่อน</p>
+                </div>
+                <button type="button" onClick={() => onRemoveExisting?.(file.id)}
+                  title="เอาไฟล์เดิมออกจากชุดที่จะส่ง"
+                  className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
+                  <XIcon size={12} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {files.length > 0 && (
         <ul className="mb-3 space-y-1.5">
@@ -126,6 +173,8 @@ interface EvidenceSubmissionSectionProps {
   profileBankName: string | null;
   profileBankAccount: string | null;
   profileHolderName: string | null;
+  /** ไฟล์จากการส่งรอบก่อน (กรณีถูกตีกลับ) — แสดงให้แก้ไข เก็บ/ลบ/เพิ่มได้ */
+  previousFiles?: PreviousFile[];
 }
 
 const LS_NAMES = "evidence_account_names";
@@ -134,6 +183,7 @@ const LS_BANK  = "evidence_last_bank";
 export function EvidenceSubmissionSection({
   poId, prId, prBankName, prBankAccount, currentUserId, originalAmount,
   profileBankName, profileBankAccount, profileHolderName,
+  previousFiles = [],
 }: EvidenceSubmissionSectionProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -162,6 +212,17 @@ export function EvidenceSubmissionSection({
   const [billFiles, setBillFiles] = useState<File[]>([]);
   const [slipFiles, setSlipFiles] = useState<File[]>([]);
   const [goodsReceiptFiles, setGoodsReceiptFiles] = useState<File[]>([]);
+
+  // ไฟล์เดิมจากรอบก่อนที่ยัง "เก็บไว้" — ผู้ใช้กด ✕ เพื่อเอาออกจากชุดที่จะส่งใหม่ได้
+  const [keptPrevFiles, setKeptPrevFiles] = useState<PreviousFile[]>(
+    () => previousFiles.filter((f) => ["bill", "slip", "goods_receipt"].includes(f.evidence_type))
+  );
+  function removePrevFile(id: string) {
+    setKeptPrevFiles((prev) => prev.filter((f) => f.id !== id));
+  }
+  const prevBills  = keptPrevFiles.filter((f) => f.evidence_type === "bill");
+  const prevSlips  = keptPrevFiles.filter((f) => f.evidence_type === "slip");
+  const prevGoods  = keptPrevFiles.filter((f) => f.evidence_type === "goods_receipt");
 
   // ── bank format (send_bill mode) ───────────────────────────────────────────
   const selectedFmt = getBankFormat(bankName);
@@ -240,9 +301,10 @@ export function EvidenceSubmissionSection({
       setErrorMessage("กรุณาเพิ่มบัญชีธนาคารในโปรไฟล์ก่อน");
       return;
     }
-    if (billFiles.length === 0)         { setErrorMessage("กรุณาแนบบิล / ใบเสร็จ อย่างน้อย 1 ไฟล์"); return; }
-    if (goodsReceiptFiles.length === 0) { setErrorMessage("กรุณาแนบรูปถ่ายการรับของ อย่างน้อย 1 ไฟล์"); return; }
-    if (paymentMode === "self_pay" && slipFiles.length === 0) {
+    // นับไฟล์เดิมที่เก็บไว้รวมกับไฟล์ใหม่ (กรณีส่งซ้ำหลังถูกตีกลับ)
+    if (billFiles.length + prevBills.length === 0)         { setErrorMessage("กรุณาแนบบิล / ใบเสร็จ อย่างน้อย 1 ไฟล์"); return; }
+    if (goodsReceiptFiles.length + prevGoods.length === 0) { setErrorMessage("กรุณาแนบรูปถ่ายการรับของ อย่างน้อย 1 ไฟล์"); return; }
+    if (paymentMode === "self_pay" && slipFiles.length + prevSlips.length === 0) {
       setErrorMessage("กรุณาแนบสลิปการโอนเงินที่ชำระไปแล้ว");
       return;
     }
@@ -275,7 +337,22 @@ export function EvidenceSubmissionSection({
 
       if (evidenceError || !evidence) throw evidenceError ?? new Error("ไม่สามารถสร้างข้อมูลหลักฐานได้");
 
-      await uploadFiles(evidence.id, billFiles, "bill");
+      // คัดลอกไฟล์เดิมที่เก็บไว้เข้าชุดใหม่ (อ้างไฟล์เดียวกันใน storage ไม่อัปโหลดซ้ำ)
+      if (keptPrevFiles.length > 0) {
+        const { error: copyError } = await (supabase as any).from("evidence_files").insert(
+          keptPrevFiles.map((f) => ({
+            evidence_id: evidence.id,
+            file_name: f.file_name,
+            file_url: f.file_url,
+            evidence_type: f.evidence_type,
+            file_size: f.file_size,
+            uploaded_by: currentUserId,
+          }))
+        );
+        if (copyError) throw new Error(`คัดลอกไฟล์เดิมไม่สำเร็จ: ${copyError.message}`);
+      }
+
+      if (billFiles.length > 0)         await uploadFiles(evidence.id, billFiles, "bill");
       if (slipFiles.length > 0)         await uploadFiles(evidence.id, slipFiles, "slip");
       if (goodsReceiptFiles.length > 0) await uploadFiles(evidence.id, goodsReceiptFiles, "goods_receipt");
 
@@ -511,6 +588,8 @@ export function EvidenceSubmissionSection({
               files={billFiles}
               onAdd={addFiles(setBillFiles)}
               onRemove={removeFile(setBillFiles)}
+              existing={prevBills}
+              onRemoveExisting={removePrevFile}
               required
               icon={FileText}
               accentColor="text-orange-500"
@@ -521,6 +600,8 @@ export function EvidenceSubmissionSection({
               files={slipFiles}
               onAdd={addFiles(setSlipFiles)}
               onRemove={removeFile(setSlipFiles)}
+              existing={prevSlips}
+              onRemoveExisting={removePrevFile}
               required={paymentMode === "self_pay"}
               icon={ImageIcon}
               accentColor="text-blue-500"
@@ -531,6 +612,8 @@ export function EvidenceSubmissionSection({
               files={goodsReceiptFiles}
               onAdd={addFiles(setGoodsReceiptFiles)}
               onRemove={removeFile(setGoodsReceiptFiles)}
+              existing={prevGoods}
+              onRemoveExisting={removePrevFile}
               required
               icon={Package}
               accentColor="text-green-500"
@@ -553,21 +636,21 @@ export function EvidenceSubmissionSection({
         {/* ── Summary + Submit ── */}
         <div className="px-5 py-4">
           <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
-            <span className={billFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
-              {billFiles.length > 0
-                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />บิล {billFiles.length} ไฟล์</>
+            <span className={billFiles.length + prevBills.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
+              {billFiles.length + prevBills.length > 0
+                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />บิล {billFiles.length + prevBills.length} ไฟล์</>
                 : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีบิล *</>}
             </span>
             {paymentMode === "self_pay" && (
-              <span className={slipFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
-                {slipFiles.length > 0
-                  ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />สลิป {slipFiles.length} ไฟล์</>
+              <span className={slipFiles.length + prevSlips.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
+                {slipFiles.length + prevSlips.length > 0
+                  ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />สลิป {slipFiles.length + prevSlips.length} ไฟล์</>
                   : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีสลิป *</>}
               </span>
             )}
-            <span className={goodsReceiptFiles.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
-              {goodsReceiptFiles.length > 0
-                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />รูปรับของ {goodsReceiptFiles.length} ไฟล์</>
+            <span className={goodsReceiptFiles.length + prevGoods.length > 0 ? "font-semibold text-green-700" : "font-semibold text-red-500"}>
+              {goodsReceiptFiles.length + prevGoods.length > 0
+                ? <><CheckCircle2 size={11} className="mr-1 inline text-green-600" />รูปรับของ {goodsReceiptFiles.length + prevGoods.length} ไฟล์</>
                 : <><AlertTriangle size={11} className="mr-1 inline" />ยังไม่มีรูปรับของ *</>}
             </span>
             <span className="ml-auto font-semibold text-blue-800">
