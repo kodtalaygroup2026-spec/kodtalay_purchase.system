@@ -61,6 +61,7 @@ function SortTh({
   dir,
   onSort,
   className = "",
+  search,
 }: {
   label: string;
   col: SortKey;
@@ -68,10 +69,12 @@ function SortTh({
   dir: SortDir;
   onSort: (col: SortKey) => void;
   className?: string;
+  /** ช่องค้นหาแบบเจาะจง — แทรกใต้ป้ายชื่อในหัวคอลัมน์เดียวกัน */
+  search?: React.ReactNode;
 }) {
   const isActive = active === col;
   return (
-    <th className={`px-4 py-3 ${className}`}>
+    <th className={`px-4 py-3 align-top ${className}`}>
       <button
         onClick={() => onSort(col)}
         className="flex items-center gap-1 font-medium text-slate-500 hover:text-slate-700 group"
@@ -83,6 +86,7 @@ function SortTh({
             : <ChevronsUpDown size={13} />}
         </span>
       </button>
+      {search && <div className="mt-1.5">{search}</div>}
     </th>
   );
 }
@@ -398,53 +402,60 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                     : <Square size={16} className="text-slate-400" />}
                 </button>
               </th>
-              <SortTh label="เลขที่ PR"   col="pr_number"     active={sortKey} dir={sortDir} onSort={handleSort} />
-              <SortTh label="ชื่อ / ผู้ขอ" col="title"        active={sortKey} dir={sortDir} onSort={handleSort} />
-              <SortTh label="แผนก"         col="department"    active={sortKey} dir={sortDir} onSort={handleSort} />
-              <th className="px-4 py-3 text-center font-medium text-slate-500">สถานะ</th>
-              <SortTh label="วันที่"        col="created_at"   active={sortKey} dir={sortDir} onSort={handleSort} />
-              <SortTh label="มูลค่า"        col="total_amount" active={sortKey} dir={sortDir} onSort={handleSort} className="text-right" />
-              <th className="px-4 py-3 w-24" />
-            </tr>
-
-            {/* ── แถวค้นหาแบบเจาะจงรายคอลัมน์ ─────────────────────────────── */}
-            {showColumnSearch && (
-              <tr className="border-t border-slate-100 bg-white">
-                <td className="px-4 py-2" />
-                <td className="px-4 py-2">
+              <SortTh
+                label="เลขที่ PR"
+                col="pr_number"
+                active={sortKey} dir={sortDir} onSort={handleSort}
+                search={showColumnSearch && (
                   <input
                     value={colFilters.pr_number}
                     onChange={(e) => setColFilter("pr_number", e.target.value)}
                     placeholder="เช่น 0006"
-                    className="h-8 w-full min-w-[90px] rounded-md border border-slate-200 px-2 text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    className="h-8 w-full min-w-[90px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
                   />
-                </td>
-                <td className="px-4 py-2">
+                )}
+              />
+              <SortTh
+                label="ชื่อ / ผู้ขอ"
+                col="title"
+                active={sortKey} dir={sortDir} onSort={handleSort}
+                search={showColumnSearch && (
                   <input
                     value={colFilters.title}
                     onChange={(e) => setColFilter("title", e.target.value)}
                     placeholder="ชื่อรายการ / ผู้ขอ"
-                    className="h-8 w-full min-w-[120px] rounded-md border border-slate-200 px-2 text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    className="h-8 w-full min-w-[120px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
                   />
-                </td>
-                <td className="px-4 py-2">
+                )}
+              />
+              <SortTh
+                label="แผนก"
+                col="department"
+                active={sortKey} dir={sortDir} onSort={handleSort}
+                search={showColumnSearch && (
                   <input
                     value={colFilters.department}
                     onChange={(e) => setColFilter("department", e.target.value)}
                     placeholder="แผนก"
-                    className="h-8 w-full min-w-[80px] rounded-md border border-slate-200 px-2 text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    className="h-8 w-full min-w-[80px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
                   />
-                </td>
-                <td className="px-4 py-2" />
-                <td className="px-4 py-2" />
-                <td className="px-4 py-2">
-                  <div className="flex items-center justify-end gap-1">
+                )}
+              />
+              <th className="px-4 py-3 align-top text-center font-medium text-slate-500">สถานะ</th>
+              <SortTh label="วันที่" col="created_at" active={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortTh
+                label="มูลค่า"
+                col="total_amount"
+                active={sortKey} dir={sortDir} onSort={handleSort}
+                className="text-right"
+                search={showColumnSearch && (
+                  <div className="flex items-center gap-1">
                     <input
                       value={colFilters.amountMin}
                       onChange={(e) => setColFilter("amountMin", e.target.value.replace(/[^\d.]/g, ""))}
                       placeholder="ต่ำสุด"
                       inputMode="decimal"
-                      className="h-8 w-16 rounded-md border border-slate-200 px-2 text-right text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                      className="h-8 w-16 rounded-md border border-slate-200 px-2 text-right text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
                     />
                     <span className="text-slate-300">–</span>
                     <input
@@ -452,23 +463,23 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                       onChange={(e) => setColFilter("amountMax", e.target.value.replace(/[^\d.]/g, ""))}
                       placeholder="สูงสุด"
                       inputMode="decimal"
-                      className="h-8 w-16 rounded-md border border-slate-200 px-2 text-right text-xs placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                      className="h-8 w-16 rounded-md border border-slate-200 px-2 text-right text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
                     />
                   </div>
-                </td>
-                <td className="px-4 py-2 text-center">
-                  {activeFilterCount > 0 && (
-                    <button
-                      onClick={() => setColFilters(EMPTY_COL_FILTERS)}
-                      title="ล้างเงื่อนไขค้นหา"
-                      className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            )}
+                )}
+              />
+              <th className="px-4 py-3 w-24 align-top">
+                {showColumnSearch && activeFilterCount > 0 && (
+                  <button
+                    onClick={() => setColFilters(EMPTY_COL_FILTERS)}
+                    title="ล้างเงื่อนไขค้นหา"
+                    className="mt-6 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </th>
+            </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
