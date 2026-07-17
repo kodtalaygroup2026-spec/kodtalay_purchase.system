@@ -507,7 +507,6 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                   </td>
                   <td className="px-4 py-3 max-w-[220px]">
                     <p className="truncate font-medium text-slate-800">{pr.title}</p>
-                    <p className="text-xs text-slate-400">{pr.requester_name}</p>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
                     {pr.department ?? "—"}
