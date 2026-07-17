@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { externalBrowserLink } from "@/lib/line/externalLink";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import { toISODate } from "@/lib/utils/dateRange";
+import { DatePicker } from "@/components/shared/DatePicker";
 import type { PrStatus } from "@/types/database";
 
 export interface PRApprovalRow {
@@ -427,13 +428,11 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 col="created_at"
                 active={sortKey} dir={sortDir} onSort={handleSort}
                 search={(
-                  <input
-                    type="date"
+                  <DatePicker
                     value={colFilters.date}
-                    onChange={(e) => setColFilter("date", e.target.value)}
-                    className={`h-8 w-full min-w-[112px] rounded-md border border-slate-200 px-1.5 text-xs font-normal focus:border-blue-400 focus:outline-none ${
-                      colFilters.date ? "text-slate-700" : "text-slate-300"
-                    }`}
+                    onChange={(iso) => setColFilter("date", iso)}
+                    placeholder="เลือกวันที่"
+                    size="sm"
                   />
                 )}
               />
