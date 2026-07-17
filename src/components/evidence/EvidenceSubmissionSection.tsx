@@ -689,26 +689,26 @@ export function EvidenceSubmissionSection({
 
       </form>
 
-      {/* ── Lightbox: คลิกรูปแล้วเด้งดูเต็มในหน้านี้เลย ─────────────────────── */}
+      {/* ── Lightbox (รูปแบบมาตรฐานเดียวกับหน้าอื่นทั้งระบบ) ─────────────────── */}
       {lightboxUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           onClick={() => setLightboxUrl(null)}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxUrl}
-            alt="ดูรูปเต็ม"
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
-          />
           <button
+            type="button"
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
             onClick={() => setLightboxUrl(null)}
-            aria-label="ปิด"
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/25"
           >
             <XIcon size={20} />
           </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt=""
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

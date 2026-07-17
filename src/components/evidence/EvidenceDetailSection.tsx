@@ -166,7 +166,7 @@ export function EvidenceDetailSection({ evidence, files }: EvidenceDetailSection
           <img
             src={lightboxUrl}
             alt=""
-            className="max-h-[88vh] max-w-[88vw] rounded-xl object-contain shadow-2xl"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
