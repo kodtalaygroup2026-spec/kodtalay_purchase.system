@@ -43,6 +43,8 @@ interface FileUploadZoneProps {
   /** ไฟล์เดิมจากรอบก่อนที่ยังเก็บไว้ — ลบออกจากชุดส่งใหม่ได้ */
   existing?: PreviousFile[];
   onRemoveExisting?: (id: string) => void;
+  /** คลิกรูปแล้วเด้งดูเต็มในหน้าเดียวกัน (lightbox) */
+  onPreview?: (url: string) => void;
   accept?: string;
   required?: boolean;
   icon: React.ElementType;
@@ -57,7 +59,7 @@ function formatFileSize(bytes: number): string {
 
 function FileUploadZone({
   label, description, files, onAdd, onRemove,
-  existing = [], onRemoveExisting,
+  existing = [], onRemoveExisting, onPreview,
   accept = "image/jpeg,image/png,image/webp,application/pdf",
   required, icon: Icon, accentColor,
 }: FileUploadZoneProps) {
@@ -95,15 +97,16 @@ function FileUploadZone({
             return (
               <li key={file.id} className="flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50/50 px-2.5 py-1.5">
                 {isPdf ? (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
+                  <a href={file.file_url} target="_blank" rel="noopener noreferrer"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
                     <FileText size={14} className="text-red-400" />
-                  </div>
+                  </a>
                 ) : (
-                  <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                  <button type="button" onClick={() => onPreview?.(file.file_url)} className="shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={file.file_url} alt={file.file_name}
                       className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
-                  </a>
+                  </button>
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-slate-700">{file.file_name}</p>
@@ -128,11 +131,11 @@ function FileUploadZone({
             return (
               <li key={i} className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
                 {previewUrl ? (
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                  <button type="button" onClick={() => onPreview?.(previewUrl)} className="shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewUrl} alt={file.name}
                       className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
-                  </a>
+                  </button>
                 ) : (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
                     <FileText size={14} className="text-red-400" />
@@ -212,6 +215,9 @@ export function EvidenceSubmissionSection({
   const [billFiles, setBillFiles] = useState<File[]>([]);
   const [slipFiles, setSlipFiles] = useState<File[]>([]);
   const [goodsReceiptFiles, setGoodsReceiptFiles] = useState<File[]>([]);
+
+  // รูปที่กำลังเปิดดูเต็มจอ (lightbox)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // ไฟล์เดิมจากรอบก่อนที่ยัง "เก็บไว้" — ผู้ใช้กด ✕ เพื่อเอาออกจากชุดที่จะส่งใหม่ได้
   const [keptPrevFiles, setKeptPrevFiles] = useState<PreviousFile[]>(
@@ -590,6 +596,7 @@ export function EvidenceSubmissionSection({
               onRemove={removeFile(setBillFiles)}
               existing={prevBills}
               onRemoveExisting={removePrevFile}
+              onPreview={setLightboxUrl}
               required
               icon={FileText}
               accentColor="text-orange-500"
@@ -602,6 +609,7 @@ export function EvidenceSubmissionSection({
               onRemove={removeFile(setSlipFiles)}
               existing={prevSlips}
               onRemoveExisting={removePrevFile}
+              onPreview={setLightboxUrl}
               required={paymentMode === "self_pay"}
               icon={ImageIcon}
               accentColor="text-blue-500"
@@ -614,6 +622,7 @@ export function EvidenceSubmissionSection({
               onRemove={removeFile(setGoodsReceiptFiles)}
               existing={prevGoods}
               onRemoveExisting={removePrevFile}
+              onPreview={setLightboxUrl}
               required
               icon={Package}
               accentColor="text-green-500"
@@ -679,6 +688,29 @@ export function EvidenceSubmissionSection({
         </div>
 
       </form>
+
+      {/* ── Lightbox: คลิกรูปแล้วเด้งดูเต็มในหน้านี้เลย ─────────────────────── */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="ดูรูปเต็ม"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+          />
+          <button
+            onClick={() => setLightboxUrl(null)}
+            aria-label="ปิด"
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/25"
+          >
+            <XIcon size={20} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
