@@ -76,7 +76,7 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0, 
                 : sub.href === "/requisitions/incomplete" && incompleteCount > 0
                 ? { count: incompleteCount, color: "bg-amber-500" }
                 : sub.href === "/requisitions" && todoCount > 0
-                ? { count: todoCount, color: "bg-blue-500" }
+                ? { count: todoCount, color: "bg-red-500" }
                 : null;
 
             return (

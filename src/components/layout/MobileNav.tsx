@@ -61,7 +61,7 @@ export function MobileNav({
 
   // ── ปุ่มบนแถบล่าง (ซ้าย 2 / FAB / ขวา 2) ────────────────────────────────
   const leftItems = [
-    { href: "/requisitions", label: "งานของฉัน", icon: FileText,    badge: todoCount,     color: "bg-blue-500" },
+    { href: "/requisitions", label: "งานของฉัน", icon: FileText,    badge: todoCount,     color: "bg-red-500" },
     { href: "/approvals",    label: "อนุมัติ",    icon: CheckSquare, badge: approvalCount, color: "bg-red-500"  },
   ];
   const rightItem = isFinance
@@ -77,7 +77,7 @@ export function MobileNav({
   const myWork: DrawerLink[] = [
     { href: "/requisitions?step=1", label: "งานอนุมัติ", icon: CheckSquare },
     ...(isFinance ? [{ href: "/disbursement", label: "งานตรวจสอบ", icon: ClipboardCheck, badge: verifyCount, badgeColor: "bg-red-500" }] : []),
-    { href: "/requisitions", label: "งานเอกสาร", icon: FileText, badge: todoCount, badgeColor: "bg-blue-500" },
+    { href: "/requisitions", label: "งานเอกสาร", icon: FileText, badge: todoCount, badgeColor: "bg-red-500" },
     { href: "/requisitions/incomplete", label: "งานเอกสารไม่สมบูรณ์", icon: AlertTriangle, badge: incompleteCount, badgeColor: "bg-amber-500" },
     { href: "/requisitions/new", label: "สร้าง PR", icon: Plus },
   ];
