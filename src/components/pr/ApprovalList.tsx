@@ -139,7 +139,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
 
     return prs.filter((pr) => {
       if (prNo && !pr.pr_number.toLowerCase().includes(prNo)) return false;
-      if (name && !pr.title.toLowerCase().includes(name) && !pr.requester_name.toLowerCase().includes(name)) return false;
+      if (name && !pr.title.toLowerCase().includes(name)) return false;
       if (dept && !(pr.department ?? "").toLowerCase().includes(dept)) return false;
       if (date && toISODate(new Date(pr.created_at)) !== date) return false;
       if (!Number.isNaN(min) && Number(pr.total_amount) < min) return false;
@@ -397,14 +397,14 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 )}
               />
               <SortTh
-                label="ชื่อ / ผู้ขอ"
+                label="ชื่อรายการ"
                 col="title"
                 active={sortKey} dir={sortDir} onSort={handleSort}
                 search={(
                   <input
                     value={colFilters.title}
                     onChange={(e) => setColFilter("title", e.target.value)}
-                    placeholder="ชื่อรายการ / ผู้ขอ"
+                    placeholder="ชื่อรายการ"
                     className="h-8 w-full min-w-[96px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
                   />
                 )}
