@@ -110,9 +110,9 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   // หยิบ evidence ล่าสุด (1 PR อาจมีหลาย row จากการส่งใหม่หลังตีกลับ)
   const latestEvidence: any = (evidenceRows ?? [])[0] ?? null;
 
-  // evidence ที่ยัง active (รอตรวจ/จ่ายแล้ว) — ใช้แสดงรายละเอียด read-only
+  // evidence ที่ยัง active (รอตรวจ/ตรวจแล้วรอจ่าย/จ่ายแล้ว) — ใช้แสดงรายละเอียด read-only
   const activeEvidence: any =
-    latestEvidence && ["submitted", "paid"].includes(latestEvidence.status)
+    latestEvidence && ["submitted", "verified", "paid"].includes(latestEvidence.status)
       ? latestEvidence
       : null;
 
@@ -132,15 +132,17 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
     evidenceFiles = efData ?? [];
   }
 
-  // ไฟล์ของหลักฐานที่ถูกตีกลับ — ส่งให้ฟอร์มแนบใหม่ เพื่อให้แก้ไข (เก็บ/ลบ/เพิ่ม) ได้
-  let returnedEvidenceFiles: any[] = [];
-  if (returnedEvidence) {
+  // เคยส่งหลักฐานมาแล้ว (ไม่ว่าสถานะใด) แล้ววนกลับมาที่ฟอร์มแนบใหม่ →
+  // ดึงข้อมูล+ไฟล์รอบล่าสุดมาเติมให้เสมอ ไม่ปล่อยฟอร์มว่าง
+  const prefillEvidence: any = !activeEvidence ? latestEvidence : null;
+  let previousEvidenceFiles: any[] = [];
+  if (prefillEvidence) {
     const { data: refData } = await (supabase as any)
       .from("evidence_files")
       .select("id, file_name, file_url, evidence_type, file_size")
-      .eq("evidence_id", returnedEvidence.id)
+      .eq("evidence_id", prefillEvidence.id)
       .order("evidence_type");
-    returnedEvidenceFiles = refData ?? [];
+    previousEvidenceFiles = refData ?? [];
   }
 
   // ตีกลับจากฝ่ายการเงิน → แก้ได้เฉพาะส่วนหลักฐาน ส่วนอื่นล็อกอ่านอย่างเดียว
@@ -633,15 +635,15 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           profileBankName={(currentProfile as any)?.bank_name ?? null}
           profileBankAccount={(currentProfile as any)?.bank_account_number ?? null}
           profileHolderName={(currentProfile as any)?.bank_account_holder_name ?? currentProfile?.full_name ?? null}
-          previousFiles={returnedEvidenceFiles}
+          previousFiles={previousEvidenceFiles}
           previousData={
-            returnedEvidence
+            prefillEvidence
               ? {
-                  account_holder_name: returnedEvidence.account_holder_name ?? null,
-                  bank_name: returnedEvidence.bank_name ?? null,
-                  bank_account_number: returnedEvidence.bank_account_number ?? null,
-                  payment_type: returnedEvidence.payment_type ?? null,
-                  notes: returnedEvidence.notes ?? null,
+                  account_holder_name: prefillEvidence.account_holder_name ?? null,
+                  bank_name: prefillEvidence.bank_name ?? null,
+                  bank_account_number: prefillEvidence.bank_account_number ?? null,
+                  payment_type: prefillEvidence.payment_type ?? null,
+                  notes: prefillEvidence.notes ?? null,
                 }
               : null
           }
