@@ -12,7 +12,7 @@ import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSecti
 import Link from "next/link";
 import {
   ArrowLeft, Clock, CheckCircle2, XCircle, Send, X, FileText,
-  Edit, Plus, Pencil, Paperclip, ClipboardCheck, Banknote, RotateCcw, FileCheck2,
+  Edit, Plus, Pencil, Paperclip, ClipboardCheck, Banknote, RotateCcw, FileCheck2, Lock, ArrowDown,
 } from "lucide-react";
 import type { PrStatus, UserRole } from "@/types/database";
 
@@ -142,6 +142,10 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       .order("evidence_type");
     returnedEvidenceFiles = refData ?? [];
   }
+
+  // ตีกลับจากฝ่ายการเงิน → แก้ได้เฉพาะส่วนหลักฐาน ส่วนอื่นล็อกอ่านอย่างเดียว
+  const isPaymentReturned =
+    Boolean(returnedEvidence) && ["approved", "converted"].includes(pr.status as string);
 
   // ── Audit trail profile IDs (รวม editor ของ item edits ด้วย) ────────────
   const editLogEditorIds = ((itemEditLogs ?? []) as any[]).map((l: any) => l.edited_by).filter(Boolean);
@@ -476,9 +480,16 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           <div className="mb-1.5 flex items-start justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               {returnedEvidence ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                  ตีกลับให้แก้ไข
-                </span>
+                <>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                    ตีกลับให้แก้ไข
+                  </span>
+                  {isPaymentReturned && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                      <Lock size={10} /> แก้ไขได้เฉพาะหลักฐาน
+                    </span>
+                  )}
+                </>
               ) : (
                 <StatusBadge kind="pr" status={pr.status as PrStatus} />
               )}
@@ -508,6 +519,14 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               <span className="font-mono text-xs text-slate-500">{pr.pr_number}</span>
             </p>
             <div className="flex shrink-0 items-center gap-2">
+              {isPaymentReturned && isOwner && (
+                <a
+                  href="#evidence-fix"
+                  className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-amber-600"
+                >
+                  <ArrowDown size={13} /> ไปแก้ไขหลักฐาน
+                </a>
+              )}
               {prStatus === "draft" && isOwner && (
                 <Link
                   href={`/requisitions/${pr.id}/edit`}
@@ -549,14 +568,14 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           items={displayItems}
           totalAmount={pr.total_amount}
           collapsible={["approved", "converted", "pending_finance", "paid"].includes(prStatus)}
-          editable={["approved", "converted"].includes(prStatus) && isOwner}
+          editable={["approved", "converted"].includes(prStatus) && isOwner && !isPaymentReturned}
           prId={pr.id}
           currentUserId={user?.id ?? ""}
         />
       </div>
 
       {/* ── ใบเสนอราคา (แนบตอนสร้าง PR) ──────────────────────────────────── */}
-      <PRAttachmentsSection attachments={(prAttachments ?? []) as any} />
+      <PRAttachmentsSection attachments={(prAttachments ?? []) as any} locked={isPaymentReturned} />
 
       {/* ── PR Approval Panel ────────────────────────────────────────────── */}
       <PRApprovalPanel
@@ -586,7 +605,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
 
       {/* ── แบนเนอร์: การจ่ายถูกตีกลับ ─────────────────────────────────── */}
       {returnedEvidence && isOwner && ["approved", "converted"].includes(prStatus) && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4">
+        <div id="evidence-fix" className="flex scroll-mt-24 items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
             <span className="text-sm">↩️</span>
           </div>

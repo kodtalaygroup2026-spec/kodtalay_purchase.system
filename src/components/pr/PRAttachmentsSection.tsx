@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Paperclip, X, ZoomIn } from "lucide-react";
+import { FileText, Lock, Paperclip, X, ZoomIn } from "lucide-react";
 
 export interface PRAttachment {
   id: string;
@@ -22,7 +22,14 @@ function isImage(a: PRAttachment) {
   return a.file_type === "image" || /\.(jpg|jpeg|png|webp|gif)$/i.test(a.file_name);
 }
 
-export function PRAttachmentsSection({ attachments }: { attachments: PRAttachment[] }) {
+export function PRAttachmentsSection({
+  attachments,
+  locked = false,
+}: {
+  attachments: PRAttachment[];
+  /** true = ใบถูกตีกลับจากการเงิน แสดงป้ายอ่านอย่างเดียว */
+  locked?: boolean;
+}) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   if (attachments.length === 0) return null;
@@ -34,6 +41,11 @@ export function PRAttachmentsSection({ attachments }: { attachments: PRAttachmen
           <Paperclip size={16} className="text-slate-400" />
           <h3 className="font-semibold text-slate-700">ใบเสนอราคา</h3>
           <span className="text-xs text-slate-400">({attachments.length} ไฟล์)</span>
+          {locked && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
+              <Lock size={10} /> อ่านอย่างเดียว
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3">
