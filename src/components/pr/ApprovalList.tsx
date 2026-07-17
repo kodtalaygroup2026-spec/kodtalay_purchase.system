@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { externalBrowserLink } from "@/lib/line/externalLink";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
+import { toISODate } from "@/lib/utils/dateRange";
 import type { PrStatus } from "@/types/database";
 
 export interface PRApprovalRow {
@@ -109,6 +110,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
     pr_number: "",
     title: "",
     department: "",
+    date: "",
     amountMin: "",
     amountMax: "",
   };
@@ -130,6 +132,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
     const prNo = colFilters.pr_number.trim().toLowerCase();
     const name = colFilters.title.trim().toLowerCase();
     const dept = colFilters.department.trim().toLowerCase();
+    const date = colFilters.date;
     const min = parseFloat(colFilters.amountMin);
     const max = parseFloat(colFilters.amountMax);
 
@@ -137,6 +140,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
       if (prNo && !pr.pr_number.toLowerCase().includes(prNo)) return false;
       if (name && !pr.title.toLowerCase().includes(name) && !pr.requester_name.toLowerCase().includes(name)) return false;
       if (dept && !(pr.department ?? "").toLowerCase().includes(dept)) return false;
+      if (date && toISODate(new Date(pr.created_at)) !== date) return false;
       if (!Number.isNaN(min) && Number(pr.total_amount) < min) return false;
       if (!Number.isNaN(max) && Number(pr.total_amount) > max) return false;
       return true;
@@ -418,7 +422,21 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                 )}
               />
               <th className="px-4 py-3 align-top text-center font-medium text-slate-500">สถานะ</th>
-              <SortTh label="วันที่" col="created_at" active={sortKey} dir={sortDir} onSort={handleSort} />
+              <SortTh
+                label="วันที่"
+                col="created_at"
+                active={sortKey} dir={sortDir} onSort={handleSort}
+                search={(
+                  <input
+                    type="date"
+                    value={colFilters.date}
+                    onChange={(e) => setColFilter("date", e.target.value)}
+                    className={`h-8 w-[135px] rounded-md border border-slate-200 px-2 text-xs font-normal focus:border-blue-400 focus:outline-none ${
+                      colFilters.date ? "text-slate-700" : "text-slate-300"
+                    }`}
+                  />
+                )}
+              />
               <SortTh
                 label="มูลค่า"
                 col="total_amount"
