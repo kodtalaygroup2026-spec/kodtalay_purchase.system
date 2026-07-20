@@ -60,7 +60,7 @@ export default async function FinanceDocumentsPage() {
     paidIds.length > 0
       ? (supabase as any)
           .from("payment_evidences")
-          .select("pr_id, close_status, payment_channel, submitted_at")
+          .select("pr_id, close_status, payment_channel, review_note, submitted_at")
           .in("pr_id", paidIds)
           .order("submitted_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -77,8 +77,10 @@ export default async function FinanceDocumentsPage() {
     if (!paidEvMap[ev.pr_id]) paidEvMap[ev.pr_id] = ev;
   }
 
-  const completeDocs: DocRow[] = (paidPRs ?? []).map((pr: any) => {
+  // ใบที่จ่ายแล้ว — สถานะเอกสารตามที่ บช. เลือกตอนจ่าย (สมบูรณ์ / จ่ายแล้วแต่ค้างเอกสาร)
+  const paidDocs: DocRow[] = (paidPRs ?? []).map((pr: any) => {
     const ev = paidEvMap[pr.id] ?? null;
+    const isIncomplete = ev?.close_status === "incomplete";
     return {
       id: pr.id,
       pr_number: pr.pr_number,
@@ -88,8 +90,8 @@ export default async function FinanceDocumentsPage() {
       requester_name: pr.profiles?.full_name ?? "—",
       date: pr.finance_action_at ?? null,
       payment_channel: ev?.payment_channel ?? null,
-      close_status: "complete",
-      review_note: null,
+      close_status: isIncomplete ? "incomplete" : "complete",
+      review_note: isIncomplete ? (ev?.review_note ?? null) : null,
     };
   });
 
@@ -112,7 +114,7 @@ export default async function FinanceDocumentsPage() {
       };
     });
 
-  const docs: DocRow[] = [...completeDocs, ...incompleteDocs];
+  const docs: DocRow[] = [...paidDocs, ...incompleteDocs];
 
   return (
     <div className="space-y-6">

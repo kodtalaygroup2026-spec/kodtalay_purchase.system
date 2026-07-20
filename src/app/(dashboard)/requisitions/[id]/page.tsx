@@ -332,7 +332,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
         timeline.push({
           at: log.created_at,
           label:
-            // close_status = incomplete เกิดได้เฉพาะข้อมูลเก่า ก่อนเปลี่ยนเป็นตีกลับ
+            // incomplete = จ่ายจริงแล้วแต่ค้างเอกสาร (พนักงานตามแก้เอกสารต่อ)
             meta.close_status === "incomplete"
               ? `จ่ายเงินแล้ว — ${channelLabel} (เอกสารไม่สมบูรณ์)`
               : `จ่ายเงินแล้ว — ${channelLabel}`,
