@@ -44,7 +44,9 @@ export default async function MyDocumentsPage() {
   function docStateOf(pr: any): MyDocState {
     const ev = latestEvByPr[pr.id] ?? null;
     if (pr.status === "paid") {
-      return ev?.close_status === "incomplete" ? "incomplete_docs" : "complete";
+      if (ev?.close_status === "incomplete") return "incomplete_docs";
+      if (ev?.close_status === "fixed") return "fix_review"; // ส่งแก้แล้ว รอ บช. ตรวจ
+      return "complete";
     }
     if (
       ev?.status === "returned" &&

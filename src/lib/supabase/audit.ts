@@ -23,6 +23,8 @@ export type AuditAction =
   | "payment_cancelled"
   | "payment_verified"
   | "documents_completed"
+  | "documents_fixed"
+  | "documents_fix_rejected"
   // ผู้ใช้
   | "user_role_changed";
 

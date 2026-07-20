@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FileCheck2 } from "lucide-react";
 import { FinanceDocumentsList, type DocRow } from "@/components/finance/FinanceDocumentsList";
+import { FixedDocsReviewList, type FixedDocRow } from "@/components/finance/FixedDocsReviewList";
 
 export default async function FinanceDocumentsPage() {
   const supabase = await createClient();
@@ -29,10 +30,10 @@ export default async function FinanceDocumentsPage() {
 
   // ── ยิงพร้อมกัน: บริษัท / PR จ่ายแล้ว / หลักฐานไม่สมบูรณ์ — สามตัวนี้อิสระต่อกัน ──
   const [{ data: branchRows }, { data: paidPRs }, { data: incEvRows }] = await Promise.all([
-    (supabase as any).from("branches").select("id, code").order("code"),
+    (supabase as any).from("branches").select("id, code, name").order("code"),
     (supabase as any)
       .from("purchase_requisitions")
-      .select("id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at, profiles!requester_id(full_name)")
+      .select("id, pr_number, title, total_amount, actual_amount, branch_id, finance_action_at, profiles!requester_id(full_name, line_user_id)")
       .eq("status", "paid")
       .order("finance_action_at", { ascending: false, nullsFirst: false })
       .limit(300),
@@ -47,6 +48,9 @@ export default async function FinanceDocumentsPage() {
   const branchCode: Record<string, string> = Object.fromEntries(
     (branchRows ?? []).map((b: any) => [b.id, b.code])
   );
+  const branchName: Record<string, string> = Object.fromEntries(
+    (branchRows ?? []).map((b: any) => [b.id, b.name])
+  );
 
   const paidIds = (paidPRs ?? []).map((p: any) => p.id);
   const incLatest: Record<string, any> = {};
@@ -60,7 +64,7 @@ export default async function FinanceDocumentsPage() {
     paidIds.length > 0
       ? (supabase as any)
           .from("payment_evidences")
-          .select("pr_id, close_status, payment_channel, review_note, submitted_at")
+          .select("id, pr_id, close_status, payment_channel, review_note, reviewed_at, fix_note, fixed_at, submitted_at")
           .in("pr_id", paidIds)
           .order("submitted_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -77,8 +81,53 @@ export default async function FinanceDocumentsPage() {
     if (!paidEvMap[ev.pr_id]) paidEvMap[ev.pr_id] = ev;
   }
 
+  // ── เอกสารที่พนักงานแก้แล้ว รอ บช. ตรวจ (close_status = fixed) ──────────────
+  const fixedPRs = (paidPRs ?? []).filter((pr: any) => paidEvMap[pr.id]?.close_status === "fixed");
+  const fixedEvIds = fixedPRs.map((pr: any) => paidEvMap[pr.id].id);
+
+  // ไฟล์ที่พนักงานแนบเพิ่มหลัง บช. ตรวจตอนจ่าย (created_at > reviewed_at)
+  const { data: fixedFileRows } =
+    fixedEvIds.length > 0
+      ? await (supabase as any)
+          .from("evidence_files")
+          .select("evidence_id, file_name, file_url, created_at")
+          .in("evidence_id", fixedEvIds)
+          .order("created_at")
+      : { data: [] };
+
+  const addedFilesByEv: Record<string, { name: string; url: string }[]> = {};
+  for (const f of fixedFileRows ?? []) {
+    const ev = Object.values(paidEvMap).find((e: any) => e.id === f.evidence_id) as any;
+    const cutoff = ev?.reviewed_at ?? ev?.submitted_at ?? null;
+    if (cutoff && new Date(f.created_at) <= new Date(cutoff)) continue;
+    (addedFilesByEv[f.evidence_id] ??= []).push({ name: f.file_name, url: f.file_url });
+  }
+
+  const fixedDocs: FixedDocRow[] = fixedPRs.map((pr: any) => {
+    const ev = paidEvMap[pr.id];
+    return {
+      pr_id: pr.id,
+      pr_number: pr.pr_number,
+      title: pr.title,
+      requester_name: pr.profiles?.full_name ?? "—",
+      requester_line_id: pr.profiles?.line_user_id ?? null,
+      branch_code: pr.branch_id ? (branchCode[pr.branch_id] ?? null) : null,
+      branch_name: pr.branch_id ? (branchName[pr.branch_id] ?? null) : null,
+      amount: pr.actual_amount ?? pr.total_amount ?? 0,
+      payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
+      evidence_id: ev.id,
+      review_note: ev?.review_note ?? null,
+      fix_note: ev?.fix_note ?? null,
+      fixed_at: ev?.fixed_at ?? null,
+      added_files: addedFilesByEv[ev.id] ?? [],
+    };
+  });
+
   // ใบที่จ่ายแล้ว — สถานะเอกสารตามที่ บช. เลือกตอนจ่าย (สมบูรณ์ / จ่ายแล้วแต่ค้างเอกสาร)
-  const paidDocs: DocRow[] = (paidPRs ?? []).map((pr: any) => {
+  // ใบสถานะ fixed อยู่ในคิวตรวจด้านบนแล้ว ไม่แสดงซ้ำในตาราง
+  const paidDocs: DocRow[] = (paidPRs ?? [])
+    .filter((pr: any) => paidEvMap[pr.id]?.close_status !== "fixed")
+    .map((pr: any) => {
     const ev = paidEvMap[pr.id] ?? null;
     const isIncomplete = ev?.close_status === "incomplete";
     return {
@@ -129,6 +178,9 @@ export default async function FinanceDocumentsPage() {
           </p>
         </div>
       </div>
+
+      {/* คิวตรวจเอกสารที่พนักงานแก้แล้ว — บช. กดสมบูรณ์ หรือตีกลับอีกรอบ */}
+      <FixedDocsReviewList rows={fixedDocs} currentUserId={user.id} />
 
       <FinanceDocumentsList docs={docs} />
     </div>

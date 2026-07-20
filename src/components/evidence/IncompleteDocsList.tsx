@@ -30,10 +30,12 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
   const supabase = createClient();
   const [rows, setRows] = useState<IncompleteDoc[]>(docs);
   const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [fixNotes, setFixNotes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
 
-  async function confirmComplete(doc: IncompleteDoc) {
+  // ส่งเอกสารที่แก้แล้วให้ บช. ตรวจ (ไม่ปิดงานเอง — บช. เป็นคนยืนยันสมบูรณ์)
+  async function submitFix(doc: IncompleteDoc) {
     setBusyId(doc.evidence_id);
     setErrorId(null);
     try {
@@ -57,10 +59,16 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
         });
       }
 
-      // ยืนยันเอกสารครบ → close_status = complete
+      const fixNote = (fixNotes[doc.evidence_id] ?? "").trim();
+
+      // ส่งเข้าคิวตรวจของ บช. → close_status = fixed
       const { data, error } = await (supabase as any)
         .from("payment_evidences")
-        .update({ close_status: "complete" })
+        .update({
+          close_status: "fixed",
+          fix_note: fixNote || null,
+          fixed_at: new Date().toISOString(),
+        })
         .eq("id", doc.evidence_id)
         .eq("close_status", "incomplete")
         .select("id");
@@ -69,10 +77,15 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
 
       logAudit({
         actorId: currentUserId,
-        action: "documents_completed",
+        action: "documents_fixed",
         entity: "purchase_requisitions",
         entityId: doc.id,
-        metadata: { pr_id: doc.id, pr_number: doc.pr_number, close_status: "complete" },
+        metadata: {
+          pr_id: doc.id,
+          pr_number: doc.pr_number,
+          ...(fixNote ? { note: fixNote } : {}),
+          ...(file ? { added_file: file.name } : {}),
+        },
       });
 
       setRows((prev) => prev.filter((r) => r.evidence_id !== doc.evidence_id));
@@ -154,39 +167,47 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                 </Link>
               </div>
             ) : (
-              /* จ่ายแล้ว แต่ค้างเอกสารตัวจริง — แนบเพิ่มแล้วปิดให้สมบูรณ์ */
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                {file ? (
-                  <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs text-slate-700">
-                    <FileText size={13} className="text-green-600" />
-                    <span className="max-w-[160px] truncate">{file.name}</span>
-                    <button onClick={() => setFiles((p) => ({ ...p, [doc.evidence_id]: null }))} className="text-slate-400 hover:text-red-500">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ) : (
-                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600">
-                    <Paperclip size={13} /> แนบใบกำกับ/เอกสาร (ถ้ามี)
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setFiles((p) => ({ ...p, [doc.evidence_id]: f })); }}
-                      className="hidden"
-                    />
-                  </label>
-                )}
+              /* จ่ายแล้ว แต่ค้างเอกสารตัวจริง — แนบเพิ่ม+อธิบาย แล้วส่งให้ บช. ตรวจ */
+              <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                <input
+                  value={fixNotes[doc.evidence_id] ?? ""}
+                  onChange={(e) => setFixNotes((p) => ({ ...p, [doc.evidence_id]: e.target.value }))}
+                  placeholder="อธิบายสิ่งที่แก้/เพิ่ม เช่น แนบใบกำกับภาษีตัวจริงแล้ว"
+                  className="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {file ? (
+                    <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs text-slate-700">
+                      <FileText size={13} className="text-green-600" />
+                      <span className="max-w-[160px] truncate">{file.name}</span>
+                      <button onClick={() => setFiles((p) => ({ ...p, [doc.evidence_id]: null }))} className="text-slate-400 hover:text-red-500">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600">
+                      <Paperclip size={13} /> แนบใบกำกับ/เอกสาร (ถ้ามี)
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) setFiles((p) => ({ ...p, [doc.evidence_id]: f })); }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
 
-                <button
-                  onClick={() => confirmComplete(doc)}
-                  disabled={busy}
-                  className="ml-auto flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-60"
-                >
-                  {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                  ยืนยันเอกสารครบ
-                </button>
-                {errorId === doc.evidence_id && (
-                  <span className="text-xs text-red-500">เกิดข้อผิดพลาด ลองใหม่</span>
-                )}
+                  <button
+                    onClick={() => submitFix(doc)}
+                    disabled={busy}
+                    className="ml-auto flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                    ส่งให้การเงินตรวจ
+                  </button>
+                  {errorId === doc.evidence_id && (
+                    <span className="text-xs text-red-500">เกิดข้อผิดพลาด ลองใหม่</span>
+                  )}
+                </div>
               </div>
             )}
           </div>

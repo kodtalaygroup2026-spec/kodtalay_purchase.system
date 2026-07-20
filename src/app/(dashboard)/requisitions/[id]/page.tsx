@@ -354,6 +354,28 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
           rank: 8,
         });
         break;
+      case "documents_fixed":
+        timeline.push({
+          at: log.created_at,
+          label: "ส่งเอกสารที่แก้ไขให้การเงินตรวจ",
+          by,
+          color: "blue",
+          icon: Paperclip,
+          reason: meta.note ?? undefined,
+          rank: 8,
+        });
+        break;
+      case "documents_fix_rejected":
+        timeline.push({
+          at: log.created_at,
+          label: "การเงินตีกลับเอกสารอีกครั้ง",
+          by,
+          color: "orange",
+          icon: RotateCcw,
+          reason: meta.note ?? undefined,
+          rank: 8,
+        });
+        break;
       case "payment_cancelled":
         timeline.push({
           at: log.created_at,

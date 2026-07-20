@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FilterDropdown } from "@/components/shared/FilterDropdown";
 import type { PrStatus } from "@/types/database";
 
-export type MyDocState = "complete" | "incomplete_fix" | "incomplete_docs" | "in_progress";
+export type MyDocState = "complete" | "incomplete_fix" | "incomplete_docs" | "fix_review" | "in_progress";
 
 export interface MyDocRow {
   id: string;
@@ -33,10 +33,11 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ];
 
 const DOC_PILL: Record<MyDocState, { label: string; cls: string }> = {
-  complete:        { label: "สมบูรณ์",     cls: "bg-green-100 text-green-700" },
-  incomplete_fix:  { label: "ตีกลับ",      cls: "bg-orange-100 text-orange-700" },
-  incomplete_docs: { label: "ค้างเอกสาร",  cls: "bg-amber-100 text-amber-700" },
-  in_progress:     { label: "—",           cls: "text-slate-300" },
+  complete:        { label: "สมบูรณ์",        cls: "bg-green-100 text-green-700" },
+  incomplete_fix:  { label: "ตีกลับ",         cls: "bg-orange-100 text-orange-700" },
+  incomplete_docs: { label: "ค้างเอกสาร",     cls: "bg-amber-100 text-amber-700" },
+  fix_review:      { label: "รอการเงินตรวจ",  cls: "bg-blue-100 text-blue-700" },
+  in_progress:     { label: "—",              cls: "text-slate-300" },
 };
 
 const isIncomplete = (s: MyDocState) => s === "incomplete_fix" || s === "incomplete_docs";
