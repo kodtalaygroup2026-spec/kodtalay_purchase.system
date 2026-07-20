@@ -89,70 +89,105 @@ function FileUploadZone({
       </div>
       <p className="mb-3 text-xs text-slate-400">{description}</p>
 
-      {/* ไฟล์เดิมจากรอบก่อน — โชว์รูปเดิม ลบออกได้ */}
-      {existing.length > 0 && (
-        <ul className="mb-3 space-y-1.5">
+      {/* ── รูปตัวอย่างขนาดใหญ่ — รูปแบบเดียวกับการ์ดใบเสนอราคา ── */}
+      {totalCount > 0 && (
+        <div className="mb-3 flex flex-wrap gap-3">
+          {/* ไฟล์เดิมจากรอบก่อน */}
           {existing.map((file) => {
             const isPdf = file.file_name.toLowerCase().endsWith(".pdf");
             return (
-              <li key={file.id} className="flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50/50 px-2.5 py-1.5">
-                {isPdf ? (
-                  <a href={file.file_url} target="_blank" rel="noopener noreferrer"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
-                    <FileText size={14} className="text-red-400" />
-                  </a>
-                ) : (
-                  <button type="button" onClick={() => onPreview?.(file.file_url)} className="shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={file.file_url} alt={file.file_name}
-                      className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
+              <div key={file.id} className="flex flex-col items-center gap-1.5">
+                <div className="relative">
+                  {isPdf ? (
+                    <a
+                      href={file.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-red-50/60 shadow-sm transition hover:shadow-lg hover:ring-2 hover:ring-blue-400"
+                    >
+                      <FileText size={28} className="text-red-400" />
+                      <span className="text-[10px] font-medium text-red-400">PDF</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onPreview?.(file.file_url)}
+                      title={file.file_name}
+                      className="group block h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all duration-200 hover:shadow-lg hover:ring-2 hover:ring-blue-400 hover:ring-offset-2"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={file.file_url}
+                        alt={file.file_name}
+                        className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                      />
+                    </button>
+                  )}
+                  <span className="absolute bottom-1 left-1 rounded bg-blue-600/90 px-1.5 py-0.5 text-[9px] font-medium text-white">
+                    ไฟล์เดิม
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveExisting?.(file.id)}
+                    title="เอาไฟล์เดิมออกจากชุดที่จะส่ง"
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow transition hover:bg-red-50 hover:text-red-500"
+                  >
+                    <XIcon size={12} />
                   </button>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-slate-700">{file.file_name}</p>
-                  <p className="text-[10px] text-blue-500">ไฟล์เดิมจากรอบก่อน</p>
                 </div>
-                <button type="button" onClick={() => onRemoveExisting?.(file.id)}
-                  title="เอาไฟล์เดิมออกจากชุดที่จะส่ง"
-                  className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
-                  <XIcon size={12} />
-                </button>
-              </li>
+                <p className="w-28 truncate text-center text-[11px] text-slate-500">{file.file_name}</p>
+              </div>
             );
           })}
-        </ul>
-      )}
 
-      {files.length > 0 && (
-        <ul className="mb-3 space-y-1.5">
+          {/* ไฟล์ใหม่ที่เพิ่งเลือก */}
           {files.map((file, i) => {
             const isImage = file.type.startsWith("image/");
-            const previewUrl = isImage ? URL.createObjectURL(file) : null;
+            const objectUrl = URL.createObjectURL(file);
             return (
-              <li key={i} className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                {previewUrl ? (
-                  <button type="button" onClick={() => onPreview?.(previewUrl)} className="shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewUrl} alt={file.name}
-                      className="h-8 w-8 rounded object-cover border border-slate-200 transition hover:ring-2 hover:ring-blue-400 cursor-zoom-in" />
+              <div key={`${file.name}-${file.size}-${i}`} className="flex flex-col items-center gap-1.5">
+                <div className="relative">
+                  {isImage ? (
+                    <button
+                      type="button"
+                      onClick={() => onPreview?.(objectUrl)}
+                      title={file.name}
+                      className="group block h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all duration-200 hover:shadow-lg hover:ring-2 hover:ring-blue-400 hover:ring-offset-2"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={objectUrl}
+                        alt={file.name}
+                        className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                      />
+                    </button>
+                  ) : (
+                    <a
+                      href={objectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-red-50/60 shadow-sm transition hover:shadow-lg hover:ring-2 hover:ring-blue-400"
+                    >
+                      <FileText size={28} className="text-red-400" />
+                      <span className="text-[10px] font-medium text-red-400">PDF</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(i)}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow transition hover:bg-red-50 hover:text-red-500"
+                  >
+                    <XIcon size={12} />
                   </button>
-                ) : (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-red-50">
-                    <FileText size={14} className="text-red-400" />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-slate-700">{file.name}</p>
+                </div>
+                <div className="w-28 text-center">
+                  <p className="truncate text-[11px] text-slate-500">{file.name}</p>
                   <p className="text-[10px] text-slate-400">{formatFileSize(file.size)}</p>
                 </div>
-                <button type="button" onClick={() => onRemove(i)}
-                  className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors">
-                  <XIcon size={12} />
-                </button>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
       <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50 py-3 text-xs text-slate-400 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500">
