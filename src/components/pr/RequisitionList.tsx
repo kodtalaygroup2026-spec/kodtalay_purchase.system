@@ -122,7 +122,7 @@ export const STEP_STATUSES: PrStatus[][] = [
 const SUMMARY_STEPS = [
   {
     label: "ร่าง / รอแก้ไข",
-    subEn: "draft / editable",
+    subEn: "ฉบับร่าง / รอแก้ไข",
     iconBg: "bg-amber-100",
     iconColor: "text-amber-500",
     subIconBg: "bg-amber-500",
@@ -137,7 +137,7 @@ const SUMMARY_STEPS = [
   },
   {
     label: "รออนุมัติ",
-    subEn: "pending approval",
+    subEn: "รอการอนุมัติ",
     iconBg: "bg-blue-100",
     iconColor: "text-blue-500",
     subIconBg: "bg-blue-500",
@@ -152,7 +152,7 @@ const SUMMARY_STEPS = [
   },
   {
     label: "แนบบิล + รับของ",
-    subEn: "add bill & photo",
+    subEn: "แนบบิลและยืนยันรับของ",
     iconBg: "bg-emerald-100",
     iconColor: "text-emerald-500",
     subIconBg: "bg-emerald-500",
@@ -168,7 +168,7 @@ const SUMMARY_STEPS = [
   },
   {
     label: "รอตั้งจ่าย",
-    subEn: "pending payment",
+    subEn: "รอตั้งเบิกจ่าย",
     iconBg: "bg-violet-100",
     iconColor: "text-violet-500",
     subIconBg: "bg-violet-500",
@@ -477,7 +477,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                           </Link>
                           {pr.is_urgent && (
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-                              ⚡ ด่วน
+                              ด่วน
                             </span>
                           )}
                         </div>

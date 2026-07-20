@@ -178,7 +178,7 @@ export default function NewRequisitionPage() {
     : [];
   const approverNames = [
     ...new Set([...deptHeads, ...positionApprovers]),
-    ...(hasFinanceApprover ? ["ฝ่ายบัญชี (บช.)"] : []),
+    ...(hasFinanceApprover ? ["ฝ่ายบัญชี"] : []),
   ];
 
   // ── Items helpers ───────────────────────────────────────────────────
@@ -750,13 +750,13 @@ export default function NewRequisitionPage() {
                       icon: CheckCircle2,
                       color: "text-violet-500",
                       title: "กำหนดจ่ายเงิน",
-                      desc: "บช. ตัดจ่ายทุกวันพุธและวันศุกร์ ระบบจะแสดงวันจ่ายถัดไปให้อัตโนมัติ",
+                      desc: "ฝ่ายบัญชีตัดจ่ายทุกวันพุธและวันศุกร์ ระบบจะแสดงวันจ่ายถัดไปให้อัตโนมัติ",
                     },
                     {
                       icon: AlertCircle,
                       color: "text-amber-500",
                       title: "งานด่วน",
-                      desc: "เปิดเฉพาะเมื่อต้องการเร่งด่วนจริงๆ เพื่อให้ผู้อนุมัติเห็นสัญลักษณ์ ⚡ ชัดเจน",
+                      desc: "เปิดใช้เฉพาะกรณีเร่งด่วนเท่านั้น เพื่อให้ผู้อนุมัติเห็นป้ายกำกับงานด่วนชัดเจน",
                     },
                     {
                       icon: CheckCircle2,

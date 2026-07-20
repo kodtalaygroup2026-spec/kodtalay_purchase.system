@@ -205,7 +205,7 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                     ส่งให้การเงินตรวจ
                   </button>
                   {errorId === doc.evidence_id && (
-                    <span className="text-xs text-red-500">เกิดข้อผิดพลาด ลองใหม่</span>
+                    <span className="text-xs text-red-500">เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง</span>
                   )}
                 </div>
               </div>

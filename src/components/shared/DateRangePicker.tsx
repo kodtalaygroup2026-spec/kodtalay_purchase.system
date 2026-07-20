@@ -169,9 +169,9 @@ export function DateRangePicker({
   const calendarDays = useMemo(() => buildCalendarDays(viewMonth), [viewMonth]);
 
   const selectionHint = !value.from
-    ? "แตะวันที่ในปฏิทินเพื่อเลือกวันเริ่มต้น"
+    ? "เลือกวันที่ในปฏิทินเพื่อกำหนดวันเริ่มต้น"
     : !value.to
-      ? `เริ่ม ${formatDate(value.from)} — แตะอีกครั้งเพื่อเลือกวันสิ้นสุด`
+      ? `เริ่มต้น ${formatDate(value.from)} — เลือกอีกครั้งเพื่อกำหนดวันสิ้นสุด`
       : `${formatDate(value.from)} – ${formatDate(value.to)}`;
 
   const panel = isOpen ? (

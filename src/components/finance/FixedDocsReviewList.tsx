@@ -245,7 +245,7 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
             ) : (
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
                 {errorId === row.evidence_id && (
-                  <span className="mr-auto text-xs text-red-500">เกิดข้อผิดพลาด ลองใหม่</span>
+                  <span className="mr-auto text-xs text-red-500">เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง</span>
                 )}
                 <button
                   onClick={() => { setRejectingId(row.evidence_id); setRejectReason(""); }}

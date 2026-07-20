@@ -129,7 +129,7 @@ function FileUploadZone({
                   <button
                     type="button"
                     onClick={() => onRemoveExisting?.(file.id)}
-                    title="เอาไฟล์เดิมออกจากชุดที่จะส่ง"
+                    title="นำไฟล์เดิมออกจากชุดที่จะส่ง"
                     className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow transition hover:bg-red-50 hover:text-red-500"
                   >
                     <XIcon size={12} />
@@ -510,7 +510,7 @@ export function EvidenceSubmissionSection({
                 ส่งบิลจ่าย
               </span>
               <span className="text-[10px] text-slate-400 leading-snug">
-                กรอกบัญชีผู้รับเงิน บช. โอนให้
+                กรอกบัญชีผู้รับเงินให้ฝ่ายบัญชีโอน
               </span>
             </button>
           </div>

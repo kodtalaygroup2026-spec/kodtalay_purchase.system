@@ -38,7 +38,7 @@ export default function LoginPage() {
       }
       // ถ้าสำเร็จ browser จะ redirect ไป Google อัตโนมัติ
     } catch (err) {
-      setError("ระบบยังไม่พร้อม กรุณารอสักครู่แล้วลองใหม่");
+      setError("ระบบยังไม่พร้อมใช้งาน กรุณารอสักครู่แล้วลองใหม่อีกครั้ง");
       setIsLoading(false);
       console.error("Login error:", err);
     }

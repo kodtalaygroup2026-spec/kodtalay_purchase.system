@@ -294,7 +294,7 @@ export function PREditForm({
 
         {/* กำหนดจ่ายเงิน (ฟิก) */}
         <div className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3">
-          <p className="mb-1 text-[10px] font-medium text-violet-500">กำหนดจ่ายเงิน (โดย บช.)</p>
+          <p className="mb-1 text-[10px] font-medium text-violet-500">กำหนดจ่ายเงิน (โดยฝ่ายบัญชี)</p>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700">
               ทุกวันพุธ &amp; ศุกร์
