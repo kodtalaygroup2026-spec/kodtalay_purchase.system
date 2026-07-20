@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/utils/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PRApprovalPanel } from "@/components/pr/PRApprovalPanel";
 import { PRAttachmentsSection } from "@/components/pr/PRAttachmentsSection";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 import { PRItemsDropdown } from "@/components/pr/PRItemsDropdown";
 import { EvidenceSubmissionSection } from "@/components/evidence/EvidenceSubmissionSection";
 import { EvidenceDetailSection } from "@/components/evidence/EvidenceDetailSection";
@@ -503,10 +504,12 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
               <h2 className="text-lg font-bold leading-snug text-slate-800">{pr.title}</h2>
             </div>
             {pr.branches?.code ? (
-              <span className={`mt-0.5 shrink-0 inline-flex rounded-lg px-2.5 py-0.5 text-xs font-bold text-white ${
-                ({ BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" } as Record<string, string>)[pr.branches.code as string] ?? "bg-slate-500"
-              }`}>
-                {pr.branches.name ?? pr.branches.code}
+              <span className="mt-0.5 shrink-0">
+                <BranchBadge
+                  code={pr.branches.code}
+                  label={pr.branches.name ?? pr.branches.code}
+                  size="md"
+                />
               </span>
             ) : null}
           </div>

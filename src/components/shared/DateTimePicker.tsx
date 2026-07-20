@@ -244,7 +244,7 @@ export function DateTimePicker({ value, onChange, label, required }: DateTimePic
             <select
               value={selHour}
               onChange={(e) => applyTime(parseInt(e.target.value), selMinute)}
-              className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-sm focus:border-blue-400 focus:outline-none"
+              className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-sm focus:border-blue-500 focus:outline-none"
             >
               {Array.from({ length: 24 }).map((_, h) => (
                 <option key={h} value={h}>
@@ -259,7 +259,7 @@ export function DateTimePicker({ value, onChange, label, required }: DateTimePic
             <select
               value={selMinute}
               onChange={(e) => applyTime(selHour, parseInt(e.target.value))}
-              className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-sm focus:border-blue-400 focus:outline-none"
+              className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-sm focus:border-blue-500 focus:outline-none"
             >
               {Array.from({ length: 12 }).map((_, i) => {
                 const m = i * 5;

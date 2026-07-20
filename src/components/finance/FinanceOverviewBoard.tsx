@@ -483,7 +483,7 @@ export function FinanceOverviewBoard({ companies, prs, settingsByBranch }: Finan
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="border-b border-slate-100 bg-white">
+              <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
                   {KTB_ENABLED && (
                     <th className="px-4 py-3 text-left w-10">

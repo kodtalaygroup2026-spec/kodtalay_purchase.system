@@ -113,7 +113,7 @@ export default async function PettyCashPage() {
           <PiggyBank size={20} className="text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">รายการเงินสดย่อย</h1>
+          <h1 className="text-xl font-bold text-slate-800">รายการเงินสดย่อย</h1>
           <p className="text-sm text-slate-500">
             รายการที่ฝ่ายการเงินเลือกช่องทาง &ldquo;เงินสดย่อย&rdquo; · จ่ายแบบชุด / แยกรายการ · ตีกลับ · ยกเลิก
           </p>

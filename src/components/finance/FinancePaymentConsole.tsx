@@ -12,6 +12,7 @@ import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
 import { externalBrowserLink } from "@/lib/line/externalLink";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 import { KTB_ENABLED } from "@/lib/config/features";
 import {
   generateKTBContent, validateKTBSettings,
@@ -54,11 +55,6 @@ interface Props {
 }
 
 // ── สีบริษัท ──────────────────────────────────────────────────────────────────
-const BRANCH_BADGE: Record<string, string> = {
-  CK: "bg-red-600 text-white", BN: "bg-blue-600 text-white", RCA: "bg-emerald-600 text-white",
-};
-const branchBadge = (code: string) => BRANCH_BADGE[code] ?? "bg-slate-600 text-white";
-
 function rowToSettings(row: Record<string, string> | undefined): KTBCompanySettings {
   return {
     payerAbbreviation: row?.payer_abbreviation ?? "",
@@ -490,7 +486,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                 : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
             }`}
           >
-            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${branchBadge(c.code)}`}>{c.code}</span>
+            <BranchBadge code={c.code} />
             {c.name}
             {c.count > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
@@ -650,9 +646,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                         <p className="font-mono text-xs text-slate-500">{p.bank_account_number || "—"}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${branchBadge(p.branch_code)}`}>
-                          {p.branch_code}
-                        </span>
+                        <BranchBadge code={p.branch_code} />
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                         {formatCurrency(p.amount)}

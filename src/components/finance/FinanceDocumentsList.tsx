@@ -5,13 +5,9 @@ import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { Inbox, Building2, Wallet, Search, X } from "lucide-react";
 import { DateRangePicker } from "@/components/shared/DateRangePicker";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 import { FilterDropdown } from "@/components/shared/FilterDropdown";
 import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
-
-const BRANCH_BADGE: Record<string, string> = {
-  CK: "bg-red-600 text-white", BN: "bg-blue-600 text-white", RCA: "bg-emerald-600 text-white",
-};
-const branchBadge = (code: string) => BRANCH_BADGE[code] ?? "bg-slate-600 text-white";
 
 export interface DocRow {
   id: string;
@@ -203,9 +199,7 @@ export function FinanceDocumentsList({ docs }: Props) {
                     </td>
                     <td className="px-4 py-3 align-top whitespace-nowrap text-slate-500">{d.requester_name}</td>
                     <td className="px-4 py-3 align-top">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${branchBadge(d.branch_code)}`}>
-                        {d.branch_code}
-                      </span>
+                      <BranchBadge code={d.branch_code} />
                     </td>
                     <td className="px-4 py-3 align-top whitespace-nowrap">
                       {d.payment_channel === "petty_cash" ? (

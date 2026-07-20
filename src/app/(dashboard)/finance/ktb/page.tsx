@@ -134,7 +134,7 @@ export default async function KTBTransferPage() {
           <Landmark size={20} className="text-blue-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">KTB Smart Transfer</h1>
+          <h1 className="text-xl font-bold text-slate-800">KTB Smart Transfer</h1>
           <p className="text-sm text-slate-500">
             สร้างไฟล์โอนเงิน 3RD Party สำหรับ KTB Smart Business
           </p>

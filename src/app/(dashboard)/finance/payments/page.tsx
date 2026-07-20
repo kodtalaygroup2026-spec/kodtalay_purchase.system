@@ -128,7 +128,7 @@ export default async function FinancePaymentsPage() {
           <Building2 size={20} className="text-blue-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">รายการบริษัทสั่งจ่าย</h1>
+          <h1 className="text-xl font-bold text-slate-800">รายการบริษัทสั่งจ่าย</h1>
           <p className="text-sm text-slate-500">
             รายการที่ฝ่ายการเงินเลือกช่องทาง &ldquo;บริษัทสั่งจ่าย&rdquo; · จ่ายแบบชุด / แยกรายการ · ตีกลับ · ยกเลิก
           </p>

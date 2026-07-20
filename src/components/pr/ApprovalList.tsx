@@ -392,7 +392,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                     value={colFilters.pr_number}
                     onChange={(e) => setColFilter("pr_number", e.target.value)}
                     placeholder="เช่น 0006"
-                    className="h-8 w-full min-w-[64px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    className="h-8 w-full min-w-[64px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
                   />
                 )}
               />
@@ -405,7 +405,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                     value={colFilters.title}
                     onChange={(e) => setColFilter("title", e.target.value)}
                     placeholder="ชื่อรายการ"
-                    className="h-8 w-full min-w-[96px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    className="h-8 w-full min-w-[96px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
                   />
                 )}
               />
@@ -418,7 +418,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                     value={colFilters.department}
                     onChange={(e) => setColFilter("department", e.target.value)}
                     placeholder="แผนก"
-                    className="h-8 w-full min-w-[64px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                    className="h-8 w-full min-w-[64px] rounded-md border border-slate-200 px-2 text-xs font-normal placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
                   />
                 )}
               />
@@ -448,7 +448,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                       onChange={(e) => setColFilter("amountMin", e.target.value.replace(/[^\d.]/g, ""))}
                       placeholder="ต่ำสุด"
                       inputMode="decimal"
-                      className="h-8 w-14 rounded-md border border-slate-200 px-1.5 text-right text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                      className="h-8 w-14 rounded-md border border-slate-200 px-1.5 text-right text-xs font-normal placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
                     />
                     <span className="text-slate-300">–</span>
                     <input
@@ -456,7 +456,7 @@ export function ApprovalList({ prs, currentUserId }: ApprovalListProps) {
                       onChange={(e) => setColFilter("amountMax", e.target.value.replace(/[^\d.]/g, ""))}
                       placeholder="สูงสุด"
                       inputMode="decimal"
-                      className="h-8 w-14 rounded-md border border-slate-200 px-1.5 text-right text-xs font-normal placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                      className="h-8 w-14 rounded-md border border-slate-200 px-1.5 text-right text-xs font-normal placeholder:text-slate-300 focus:border-blue-500 focus:outline-none"
                     />
                   </div>
                 )}

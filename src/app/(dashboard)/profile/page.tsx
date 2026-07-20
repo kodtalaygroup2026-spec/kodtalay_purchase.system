@@ -26,7 +26,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4">
-      <h1 className="text-lg font-bold text-slate-800">โปรไฟล์ของฉัน</h1>
+      <h1 className="text-xl font-bold text-slate-800">โปรไฟล์ของฉัน</h1>
 
       {/* ── Single card ── */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

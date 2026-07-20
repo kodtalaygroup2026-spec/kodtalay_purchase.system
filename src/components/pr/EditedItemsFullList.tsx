@@ -123,7 +123,7 @@ export function EditedItemsFullList({ prs }: { prs: EditedPRRow[] }) {
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50">
+          <thead className="border-b border-slate-100 bg-slate-50">
             <tr>
               <SortTh
                 label="เลขที่ PR"

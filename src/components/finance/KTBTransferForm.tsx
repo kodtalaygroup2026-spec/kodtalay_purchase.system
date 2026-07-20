@@ -689,7 +689,7 @@ export function KTBTransferForm({ branches, settingsByBranch, pendingPRs, curren
                             updateRow(pr.id, "recipientName", e.target.value)
                           }
                           disabled={alreadyExported}
-                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs focus:border-blue-400 focus:outline-none disabled:bg-transparent disabled:border-transparent"
+                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none disabled:bg-transparent disabled:border-transparent"
                         />
                       </td>
 
@@ -708,7 +708,7 @@ export function KTBTransferForm({ branches, settingsByBranch, pendingPRs, curren
                           }
                           disabled={alreadyExported}
                           placeholder="0000000000"
-                          className={`w-full rounded border px-2 py-1 text-xs font-mono focus:border-blue-400 focus:outline-none disabled:bg-transparent disabled:border-transparent ${
+                          className={`w-full rounded border px-2 py-1 text-xs font-mono focus:border-blue-500 focus:outline-none disabled:bg-transparent disabled:border-transparent ${
                             row.accountNumber.length > 0 &&
                             row.accountNumber.length !== 10
                               ? "border-red-300 bg-red-50"
@@ -732,7 +732,7 @@ export function KTBTransferForm({ branches, settingsByBranch, pendingPRs, curren
                           }
                           disabled={alreadyExported}
                           placeholder="0000"
-                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-mono focus:border-blue-400 focus:outline-none disabled:bg-transparent disabled:border-transparent"
+                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-mono focus:border-blue-500 focus:outline-none disabled:bg-transparent disabled:border-transparent"
                         />
                       </td>
 
@@ -746,7 +746,7 @@ export function KTBTransferForm({ branches, settingsByBranch, pendingPRs, curren
                             updateRow(pr.id, "rawAmount", e.target.value)
                           }
                           disabled={alreadyExported}
-                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs text-right font-mono focus:border-blue-400 focus:outline-none disabled:bg-transparent disabled:border-transparent"
+                          className="w-full rounded border border-slate-200 px-2 py-1 text-xs text-right font-mono focus:border-blue-500 focus:outline-none disabled:bg-transparent disabled:border-transparent"
                         />
                       </td>
 

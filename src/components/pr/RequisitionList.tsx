@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatusFilterDropdown } from "@/components/pr/StatusFilterDropdown";
 import { DateRangePicker } from "@/components/shared/DateRangePicker";
 import { FilterDropdown } from "@/components/shared/FilterDropdown";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
 import type { PrStatus, PoStatus } from "@/types/database";
 
@@ -23,13 +24,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "amount_asc",  label: "ยอดเงินน้อย → มาก" },
   { value: "pr_number",   label: "เลขที่ PR" },
 ];
-
-// ── Branch badge colors (keyed by branch code) ────────────────────────────
-const BRANCH_BADGE: Record<string, string> = {
-  BN:  "bg-blue-600 text-white",
-  CK:  "bg-red-600 text-white",
-  RCA: "bg-emerald-600 text-white",
-};
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -436,7 +430,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
 
       {/* ── Table ────────────────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
           <p className="text-slate-400 text-sm">ไม่พบรายการที่ตรงกับเงื่อนไข</p>
         </div>
       ) : (
@@ -496,13 +490,7 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
 
                       {/* สาขา */}
                       <td className="px-4 py-3">
-                        {pr.branch_code ? (
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${BRANCH_BADGE[pr.branch_code] ?? "bg-slate-500 text-white"}`}>
-                            {pr.branch_code}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-300">—</span>
-                        )}
+                        <BranchBadge code={pr.branch_code} />
                       </td>
 
                       {/* ชื่อ / ผู้ขอ */}

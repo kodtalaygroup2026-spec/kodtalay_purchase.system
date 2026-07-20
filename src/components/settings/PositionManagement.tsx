@@ -124,7 +124,7 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
       </div>
 
       {positions.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-sm text-slate-400">
           ยังไม่มีตำแหน่ง — เพิ่มด้านบน
         </div>
       )}

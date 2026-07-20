@@ -123,7 +123,7 @@ export default async function FinanceDocumentsPage() {
           <FileCheck2 size={20} className="text-slate-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">งานเอกสาร (สมบูรณ์ / ไม่สมบูรณ์)</h1>
+          <h1 className="text-xl font-bold text-slate-800">งานเอกสาร (สมบูรณ์ / ไม่สมบูรณ์)</h1>
           <p className="text-sm text-slate-500">
             เอกสารที่จ่ายแล้ว และเอกสารไม่สมบูรณ์ที่ถูกตีกลับให้แก้ไข — ฝ่ายการเงินตรวจสอบได้
           </p>

@@ -4,13 +4,9 @@ import { useState, useMemo } from "react";
 import { Search, X, ArrowUpDown, Zap } from "lucide-react";
 import { DisbursementItem, type DisbursementPR } from "./DisbursementItem";
 import { FilterDropdown } from "@/components/shared/FilterDropdown";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 import { DateRangePicker } from "@/components/shared/DateRangePicker";
 import { EMPTY_DATE_RANGE, isDateInRange, isRangeEmpty, type DateRange } from "@/lib/utils/dateRange";
-
-const BRANCH_BADGE: Record<string, string> = {
-  BN: "bg-blue-600 text-white", CK: "bg-red-600 text-white", RCA: "bg-emerald-600 text-white",
-};
-const branchBadge = (code: string) => BRANCH_BADGE[code] ?? "bg-slate-600 text-white";
 
 type SortKey = "recent" | "oldest" | "amount_high" | "amount_low" | "pr_number" | "title";
 
@@ -208,7 +204,7 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
                   : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
               }`}
             >
-              <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${branchBadge(code)}`}>{code}</span>
+              <BranchBadge code={code} />
               {items.find((i) => i.branch_code === code)?.branch_name ?? code}
             </button>
           ))}
@@ -217,7 +213,7 @@ export function DisbursementBoard({ items, currentUserId }: DisbursementBoardPro
 
       {/* ── รายการ ─────────────────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-sm text-slate-400">
           ไม่พบรายการที่ตรงกับเงื่อนไข
         </div>
       ) : (

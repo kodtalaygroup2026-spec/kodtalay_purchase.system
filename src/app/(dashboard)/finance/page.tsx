@@ -145,7 +145,7 @@ export default async function FinancePage() {
             <ListFilter size={20} className="text-slate-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">รายการทั้งหมด</h1>
+            <h1 className="text-xl font-bold text-slate-800">รายการทั้งหมด</h1>
             <p className="text-sm text-slate-500">
               ทุกใบที่ส่งมายังฝ่ายการเงิน — ทุกสถานะและทุกช่องทาง
             </p>

@@ -62,7 +62,7 @@ export function BranchManagement({ initialBranches }: BranchManagementProps) {
         </div>
 
         <table className="min-w-full text-sm">
-          <thead className="border-b border-slate-100">
+          <thead className="border-b border-slate-100 bg-slate-50">
             <tr>
               <th className="px-4 py-3 text-left font-medium text-slate-500">รหัส</th>
               <th className="px-4 py-3 text-left font-medium text-slate-500">ชื่อสาขา</th>

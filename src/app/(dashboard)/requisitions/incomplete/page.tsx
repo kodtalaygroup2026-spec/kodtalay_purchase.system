@@ -172,7 +172,7 @@ export default async function MyDocumentsPage() {
         </h2>
 
         {prList.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
             <p className="text-sm text-slate-400">ยังไม่เคยสร้างใบสั่งซื้อ</p>
           </div>
         ) : (

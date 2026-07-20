@@ -13,6 +13,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import { logAudit } from "@/lib/supabase/audit";
 import { externalBrowserLink } from "@/lib/line/externalLink";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
+import { BranchBadge } from "@/components/shared/BranchBadge";
 
 const BANK_LABELS: Record<string, string> = {
   KBANK: "กสิกรไทย",
@@ -232,13 +233,7 @@ export function DisbursementItem({ pr, currentUserId }: DisbursementItemProps) {
             >
               {pr.pr_number}
             </Link>
-            {pr.branch_code && (
-              <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                ({ BN: "bg-blue-600", CK: "bg-red-600", RCA: "bg-emerald-600" } as Record<string, string>)[pr.branch_code] ?? "bg-slate-500"
-              } text-white`}>
-                {pr.branch_code}
-              </span>
-            )}
+            {pr.branch_code && <BranchBadge code={pr.branch_code} />}
             {pr.is_urgent && (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600">ด่วน</span>
             )}

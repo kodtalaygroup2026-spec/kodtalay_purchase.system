@@ -357,7 +357,7 @@ export function PREditForm({
                 <select
                   value={item.product_id}
                   onChange={e => applyProduct(index, e.target.value)}
-                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-400 focus:outline-none"
+                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="">— ระบุเอง —</option>
                   {products.map(p => (
