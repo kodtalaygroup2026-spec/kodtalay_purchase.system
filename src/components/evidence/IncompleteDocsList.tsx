@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { AlertTriangle, Paperclip, FileText, CheckCircle2, Loader2, X, RotateCcw, PencilLine } from "lucide-react";
+import { AlertTriangle, Paperclip, FileText, CheckCircle2, Loader2, X, RotateCcw, PencilLine, Building2, Wallet } from "lucide-react";
 import { logAudit } from "@/lib/supabase/audit";
 
 export interface IncompleteDoc {
@@ -17,6 +17,8 @@ export interface IncompleteDoc {
   review_note: string | null;
   /** returned = การเงินตีกลับ ยังไม่จ่าย · awaiting_docs = จ่ายแล้วแต่ค้างเอกสารตัวจริง */
   kind: "returned" | "awaiting_docs";
+  /** ช่องทางจ่ายที่การเงินเลือก (null = ยังไม่ได้เลือก) */
+  payment_channel: "company" | "petty_cash" | null;
 }
 
 interface Props {
@@ -112,6 +114,17 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                       <AlertTriangle size={10} /> ค้างเอกสาร
+                    </span>
+                  )}
+                  {/* แท็กช่องทางจ่ายที่การเงินเลือกไว้ */}
+                  {doc.payment_channel === "company" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                      <Building2 size={10} /> บริษัทสั่งจ่าย
+                    </span>
+                  )}
+                  {doc.payment_channel === "petty_cash" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      <Wallet size={10} /> เงินสดย่อย
                     </span>
                   )}
                 </div>

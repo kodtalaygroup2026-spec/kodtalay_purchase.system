@@ -25,7 +25,7 @@ export default async function MyDocumentsPage() {
       .limit(300),
     (supabase as any)
       .from("payment_evidences")
-      .select("id, pr_id, status, close_status, review_note, submitted_at")
+      .select("id, pr_id, status, close_status, review_note, payment_channel, submitted_at")
       .eq("submitted_by", user.id)
       .order("submitted_at", { ascending: false }),
   ]);
@@ -81,6 +81,7 @@ export default async function MyDocumentsPage() {
         paid_at: pr.finance_action_at ?? null,
         review_note: ev?.review_note ?? null,
         kind: docStates[pr.id] === "incomplete_fix" ? "returned" : "awaiting_docs",
+        payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
       };
     });
 

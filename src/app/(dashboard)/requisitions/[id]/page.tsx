@@ -97,7 +97,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
   const [{ data: evidenceRows }, { data: itemEditLogs }] = await Promise.all([
     (supabase as any)
       .from("payment_evidences")
-      .select("id, account_holder_name, bank_name, bank_account_number, notes, payment_type, submitted_at, status, review_note")
+      .select("id, account_holder_name, bank_name, bank_account_number, notes, payment_type, payment_channel, submitted_at, status, review_note")
       .eq("pr_id", id)
       .order("submitted_at", { ascending: false }),
     (supabase as any)

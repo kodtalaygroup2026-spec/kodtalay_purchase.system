@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDateTime } from "@/lib/utils/format";
-import { FileText, ImageIcon, Package, X, CheckCircle2, ZoomIn, Banknote } from "lucide-react";
+import { FileText, ImageIcon, Package, X, CheckCircle2, ZoomIn, Banknote, Building2, Wallet } from "lucide-react";
 
 const EVIDENCE_TYPE_CONFIG = {
   bill:          { label: "บิล / ใบเสร็จ",         icon: FileText,  color: "text-orange-500", bg: "bg-orange-50",  required: true  },
@@ -31,6 +31,8 @@ interface EvidenceDetailSectionProps {
     bank_account_number: string | null;
     notes: string | null;
     submitted_at: string;
+    /** ช่องทางจ่ายที่การเงินเลือกตอนตรวจสอบ (null = ยังไม่ได้เลือก) */
+    payment_channel?: "company" | "petty_cash" | null;
   };
   files: EvidenceFile[];
 }
@@ -47,11 +49,24 @@ export function EvidenceDetailSection({ evidence, files }: EvidenceDetailSection
     <>
       {/* ── Card หัว ── */}
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CheckCircle2 size={16} className="text-green-500" />
           <h3 className="font-semibold text-slate-700">หลักฐานการรับของ</h3>
-          <span className="ml-auto rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
-            ส่งแล้ว
+          <span className="ml-auto flex items-center gap-1.5">
+            {/* แท็กช่องทางจ่ายที่การเงินเลือกไว้ */}
+            {evidence.payment_channel === "company" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                <Building2 size={11} /> บริษัทสั่งจ่าย
+              </span>
+            )}
+            {evidence.payment_channel === "petty_cash" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                <Wallet size={11} /> เงินสดย่อย
+              </span>
+            )}
+            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
+              ส่งแล้ว
+            </span>
           </span>
         </div>
 
