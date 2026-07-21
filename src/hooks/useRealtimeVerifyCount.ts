@@ -31,10 +31,13 @@ export function useRealtimeVerifyCount(
     const supabase = createClient();
 
     async function refetchCount() {
+      // นับเฉพาะใบที่ยังรอตรวจจริง — หลักฐาน submitted และ PR ยังเป็น pending_finance
+      // (ตรงกับที่หน้า /disbursement กรอง กันนับใบที่จ่าย/ตีกลับไปแล้วซ้ำ)
       const { data } = await (supabase as any)
         .from("payment_evidences")
-        .select("pr_id")
+        .select("pr_id, purchase_requisitions!inner(status)")
         .eq("status", "submitted")
+        .eq("purchase_requisitions.status", "pending_finance")
         .limit(500);
       const distinctPrCount = new Set(
         ((data ?? []) as { pr_id: string }[]).map((row) => row.pr_id)

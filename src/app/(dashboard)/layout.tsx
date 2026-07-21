@@ -97,8 +97,9 @@ export default async function DashboardLayout({
     isFinance
       ? (supabase as any)
           .from("payment_evidences")
-          .select("pr_id")
+          .select("pr_id, purchase_requisitions!inner(status)")
           .eq("status", "submitted")
+          .eq("purchase_requisitions.status", "pending_finance")
           .limit(500)
       : Promise.resolve({ data: [] }),
     countIncompleteDocs(supabase, user.id),
