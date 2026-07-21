@@ -28,7 +28,6 @@ export default function GuidePage() {
           subtitle="เส้นทางของใบขอซื้อตั้งแต่สร้างจนปิดงาน"
           icon={Workflow}
           tone="slate"
-          defaultOpen
         >
           <ol>
             <li><strong>พนักงาน</strong> สร้างใบขอซื้อ เลือกหมวดและรายการสินค้า แล้วส่งขออนุมัติ</li>
