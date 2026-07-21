@@ -21,7 +21,7 @@ export default function GuidePage() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {/* ── ภาพรวม ─────────────────────────────────────────────────────── */}
         <GuideSection
           title="ภาพรวมขั้นตอนของระบบ"

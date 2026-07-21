@@ -39,23 +39,23 @@ export function GuideSection({
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
+        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition hover:bg-slate-50"
       >
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colors.iconBg}`}>
-          <Icon size={20} className={colors.iconText} />
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colors.iconBg}`}>
+          <Icon size={16} className={colors.iconText} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-semibold text-slate-800">{title}</span>
-          {subtitle && <span className="block truncate text-xs text-slate-400">{subtitle}</span>}
+          <span className="block text-sm font-semibold text-slate-800">{title}</span>
+          {subtitle && <span className="block truncate text-[11px] text-slate-400">{subtitle}</span>}
         </span>
         <ChevronDown
-          size={18}
+          size={16}
           className={`shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
       {isOpen && (
-        <div className="border-t border-slate-100 px-5 py-4">
+        <div className="border-t border-slate-100 px-4 py-3">
           <div className="prose-sm max-w-none space-y-3 text-sm leading-6 text-slate-600 [&_h4]:mb-1 [&_h4]:mt-4 [&_h4]:text-[13px] [&_h4]:font-bold [&_h4]:text-slate-700 [&_li]:mt-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
             {children}
           </div>
