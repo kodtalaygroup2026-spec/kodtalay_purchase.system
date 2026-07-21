@@ -30,19 +30,26 @@ export default async function DisbursementPage() {
   }
 
   // ── หลักฐานที่รอตรวจสอบ (status = submitted) ────────────────────────────────
-  const { data: evidences } = await (supabase as any)
+  const { data: evidenceRows } = await (supabase as any)
     .from("payment_evidences")
     .select("id, pr_id, account_holder_name, bank_name, bank_account_number, notes, submitted_at")
     .eq("status", "submitted")
     .order("submitted_at", { ascending: false });
 
-  if (!evidences || evidences.length === 0) {
+  // เก็บเฉพาะหลักฐานฉบับล่าสุดของแต่ละใบ (กันแสดงซ้ำเมื่อใบเดียวมีหลายฉบับ submitted)
+  const latestByPr = new Map<string, any>();
+  for (const ev of (evidenceRows ?? []) as any[]) {
+    if (!latestByPr.has(ev.pr_id)) latestByPr.set(ev.pr_id, ev);
+  }
+  const evidences = [...latestByPr.values()];
+
+  if (evidences.length === 0) {
     return <EmptyPage />;
   }
 
   // Batch fetch PRs + evidence_files พร้อมกัน (ทั้งคู่พึ่งแค่รายการ evidences)
-  const prIds = [...new Set((evidences as any[]).map((e: any) => e.pr_id as string))];
-  const evidenceIds = (evidences as any[]).map((e: any) => e.id as string);
+  const prIds = [...latestByPr.keys()];
+  const evidenceIds = evidences.map((e: any) => e.id as string);
 
   const [{ data: prs }, { data: allFiles }] = await Promise.all([
     (supabase as any)
