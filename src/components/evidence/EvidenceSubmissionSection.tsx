@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { logAudit } from "@/lib/supabase/audit";
 import { formatCurrency } from "@/lib/utils/format";
+import { BankCombobox } from "@/components/shared/BankCombobox";
 import {
   BANK_FORMATS,
   getBankFormat,
@@ -587,16 +588,7 @@ export function EvidenceSubmissionSection({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">ธนาคาร</label>
-                  <select
-                    value={bankName}
-                    onChange={e => handleBankNameChange(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">— เลือกธนาคาร —</option>
-                    {BANK_FORMATS.map(b => (
-                      <option key={b.code} value={b.code}>{b.label}</option>
-                    ))}
-                  </select>
+                  <BankCombobox value={bankName} onChange={handleBankNameChange} />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">เลขที่บัญชี</label>
