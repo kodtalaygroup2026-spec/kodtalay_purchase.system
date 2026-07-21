@@ -13,8 +13,6 @@ import {
   PiggyBank,
   Users,
   FileCheck2,
-  Package,
-  Store,
   Building2,
   ListFilter,
   BookOpen,
@@ -344,28 +342,6 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
           >
             <Users size={17} />
             ตำแหน่งผู้ดูแล
-          </Link>
-          <Link
-            href="/products"
-            className={`mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-              pathname.startsWith("/products")
-                ? "bg-blue-600 text-white"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <Package size={17} />
-            จัดการสินค้า
-          </Link>
-          <Link
-            href="/suppliers"
-            className={`mt-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-              pathname.startsWith("/suppliers")
-                ? "bg-blue-600 text-white"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <Store size={17} />
-            จัดการผู้ขาย
           </Link>
         </div>
       )}

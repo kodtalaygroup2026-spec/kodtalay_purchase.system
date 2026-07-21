@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { CompanySelector, getBranchBorderColor } from "@/components/shared/CompanySelector";
 import { CategoryCombobox, type CategoryOpt } from "@/components/pr/CategoryCombobox";
-import { ProductCombobox } from "@/components/pr/ProductCombobox";
 import { logAudit } from "@/lib/supabase/audit";
 import { getNextPaymentDate, formatPaymentDate } from "@/lib/utils/paymentSchedule";
 import type { Branch } from "@/types/database";
@@ -21,23 +20,14 @@ import type { Branch } from "@/types/database";
 // -----------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  unit: string;
-  unit_price: number;
-}
-
 interface PRItem {
-  product_id: string;
   description: string;
   unit: string;
   quantity: number;
   unit_price: number;
 }
 
-const EMPTY_ITEM: PRItem = { product_id: "", description: "", unit: "", quantity: 1, unit_price: 0 };
+const EMPTY_ITEM: PRItem = { description: "", unit: "", quantity: 1, unit_price: 0 };
 
 // -----------------------------------------------------------------------
 // Component
@@ -52,8 +42,7 @@ export default function NewRequisitionPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
-  // ── Products & branches ─────────────────────────────────────────────
-  const [products, setProducts] = useState<Product[]>([]);
+  // ── Branches ────────────────────────────────────────────────────────
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
   const [branchFromMemory, setBranchFromMemory] = useState(false);
@@ -156,12 +145,6 @@ export default function NewRequisitionPage() {
         }
       }
 
-      const { data: productData } = await supabase
-        .from("products")
-        .select("id, name, sku, unit, unit_price")
-        .eq("is_active", true)
-        .order("name");
-      setProducts(productData ?? []);
     }
     loadAll();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,18 +170,6 @@ export default function NewRequisitionPage() {
 
   function updateItem(index: number, field: keyof PRItem, value: string | number) {
     setItems((prev) => prev.map((item, i) => i !== index ? item : { ...item, [field]: value }));
-  }
-
-  function applyProduct(index: number, productId: string) {
-    setItems((prev) =>
-      prev.map((item, i) => {
-        if (i !== index) return item;
-        if (!productId) return { ...item, product_id: "", description: "", unit: "", unit_price: 0 };
-        const p = products.find((prod) => prod.id === productId);
-        if (!p) return item;
-        return { ...item, product_id: productId, description: p.name, unit: p.unit, unit_price: p.unit_price };
-      })
-    );
   }
 
   // ── Attachment helpers ──────────────────────────────────────────────
@@ -278,7 +249,7 @@ export default function NewRequisitionPage() {
     const prItems = items.map((it, i) => ({
       pr_id: pr.id,
       line_no: i + 1,
-      product_id: it.product_id || null,
+      product_id: null,
       description: it.description.trim(),
       quantity: it.quantity,
       unit: it.unit || "ชิ้น",
@@ -480,15 +451,7 @@ export default function NewRequisitionPage() {
                   </div>
 
                   <div className="space-y-2.5 sm:ml-7">
-                    {/* แถว 2: เลือกสินค้าจากแคตตาล็อก */}
-                    <ProductCombobox
-                      products={products}
-                      value={item.product_id}
-                      onChange={(id) => applyProduct(index, id)}
-                      className="w-full sm:w-64"
-                    />
-
-                    {/* แถว 3: จำนวน / หน่วย / ราคา — grid 3 ช่องบนมือถือ, แนวนอนบนจอใหญ่ */}
+                    {/* แถว 2: จำนวน / หน่วย / ราคา — grid 3 ช่องบนมือถือ, แนวนอนบนจอใหญ่ */}
                     <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
                       <div className="sm:w-24">
                         <label className="mb-1 block text-[10px] font-medium text-slate-400">จำนวน</label>

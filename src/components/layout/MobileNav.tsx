@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   FileText, CheckSquare, Plus, Banknote, Menu, X,
   AlertTriangle, ClipboardCheck, PiggyBank, FileCheck2,
-  Users, Settings, Package, Store, User as UserIcon, Building2, ListFilter, BookOpen,
+  Users, Settings, User as UserIcon, Building2, ListFilter, BookOpen,
 } from "lucide-react";
 import type { UserRole } from "@/types/database";
 
@@ -100,8 +100,6 @@ export function MobileNav({
     ? [
         { href: "/settings/users", label: "จัดการผู้ใช้", icon: Settings },
         { href: "/settings/positions", label: "ตำแหน่งผู้ดูแล", icon: Users },
-        { href: "/products", label: "จัดการสินค้า", icon: Package },
-        { href: "/suppliers", label: "จัดการผู้ขาย", icon: Store },
       ]
     : [];
 
