@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { notifyPrEvent, type PrNotificationEvent } from "@/lib/line/notifyPrEvent";
+import { LINE_NOTIFY_ENABLED } from "@/lib/config/features";
 
 const ALLOWED_EVENTS: PrNotificationEvent[] = ["submitted", "evidence_submitted", "verified"];
 
@@ -9,6 +10,11 @@ const ALLOWED_EVENTS: PrNotificationEvent[] = ["submitted", "evidence_submitted"
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // ปิดการแจ้งเตือน LINE ชั่วคราว (feature flag) — ตอบ ok เฉย ๆ ไม่ส่งข้อความ
+  if (!LINE_NOTIFY_ENABLED) {
+    return res.status(200).json({ ok: true, recipientCount: 0, disabled: true });
   }
 
   const { prId, event, actorId, channel, origin } = req.body ?? {};

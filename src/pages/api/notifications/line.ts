@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { sendLineMessage } from "@/lib/line/sendMessage";
+import { LINE_NOTIFY_ENABLED } from "@/lib/config/features";
 
 // POST /api/notifications/line
 // Body: { lineUserId: string, message: string }
@@ -7,6 +8,11 @@ import { sendLineMessage } from "@/lib/line/sendMessage";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // ปิดการแจ้งเตือน LINE ชั่วคราว (feature flag) — ตอบ ok เฉย ๆ ไม่ส่งข้อความ
+  if (!LINE_NOTIFY_ENABLED) {
+    return res.status(200).json({ ok: true, disabled: true });
   }
 
   const { lineUserId, message } = req.body ?? {};
