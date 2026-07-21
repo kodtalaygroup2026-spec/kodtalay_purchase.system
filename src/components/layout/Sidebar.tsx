@@ -17,6 +17,7 @@ import {
   Store,
   Building2,
   ListFilter,
+  BookOpen,
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { KTB_ENABLED } from "@/lib/config/features";
@@ -288,6 +289,19 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
           approvalCount={approvalCount}
           editedCount={editedCount}
         />
+
+        {/* คู่มือการใช้งาน */}
+        <Link
+          href="/guide"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+            pathname === "/guide"
+              ? "bg-blue-600 text-white"
+              : "text-slate-300 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
+          <BookOpen size={17} />
+          คู่มือการใช้งาน
+        </Link>
 
         {/* การเงิน — แสดงให้ finance และ admin */}
         {(role === "finance" || role === "admin") && (

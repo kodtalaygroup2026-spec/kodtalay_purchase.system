@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   FileText, CheckSquare, Plus, Banknote, Menu, X,
   AlertTriangle, ClipboardCheck, PiggyBank, FileCheck2,
-  Users, Settings, Package, Store, User as UserIcon, Building2, ListFilter,
+  Users, Settings, Package, Store, User as UserIcon, Building2, ListFilter, BookOpen,
 } from "lucide-react";
 import type { UserRole } from "@/types/database";
 
@@ -178,7 +178,10 @@ export function MobileNav({
               )}
               <DrawerSection
                 title="บัญชีผู้ใช้"
-                links={[{ href: "/profile", label: "โปรไฟล์ของฉัน", icon: UserIcon }]}
+                links={[
+                  { href: "/profile", label: "โปรไฟล์ของฉัน", icon: UserIcon },
+                  { href: "/guide", label: "คู่มือการใช้งาน", icon: BookOpen },
+                ]}
                 pathname={pathname}
                 onNavigate={closeSheet}
               />
