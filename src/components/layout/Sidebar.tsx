@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { KTB_ENABLED } from "@/lib/config/features";
+import { useRealtimeVerifyCount } from "@/hooks/useRealtimeVerifyCount";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
@@ -256,6 +257,13 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
+  // ป้ายแดง "งานตรวจสอบ" อัปเดตเรียลไทม์เมื่อมีการส่งหลักฐานเข้ามา (เฉพาะ finance/admin)
+  const liveVerifyCount = useRealtimeVerifyCount(
+    verifyCount,
+    role === "finance" || role === "admin",
+    "sidebar-verify-count"
+  );
+
   if (pathname === "/") return null;
 
   return (
@@ -293,7 +301,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} role={role} verifyCount={verifyCount} incompleteCount={incompleteCount} todoCount={todoCount} />
+          <MyWorkDropdown pathname={pathname} role={role} verifyCount={liveVerifyCount} incompleteCount={incompleteCount} todoCount={todoCount} />
         </Suspense>
 
         {/* การอนุมัติ */}

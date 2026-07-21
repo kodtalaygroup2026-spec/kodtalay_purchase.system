@@ -116,19 +116,14 @@ export default async function DisbursementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <ClipboardCheck size={20} className="text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-800">งานตรวจสอบหลักฐาน</h1>
-          </div>
-          <p className="mt-0.5 text-sm text-slate-500">
-            ตรวจบิล/หลักฐานก่อนส่งเข้ารอตั้งจ่าย · รอตรวจ {allItems.length} รายการ
-          </p>
+      <div>
+        <div className="flex items-center gap-2">
+          <ClipboardCheck size={20} className="text-blue-600" />
+          <h1 className="text-xl font-bold text-slate-800">งานตรวจสอบหลักฐาน</h1>
         </div>
-        <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-blue-100 px-2.5 text-sm font-bold text-blue-700">
-          {allItems.length}
-        </span>
+        <p className="mt-0.5 text-sm text-slate-500">
+          ตรวจบิล/หลักฐานก่อนส่งเข้ารอตั้งจ่าย · รอตรวจ {allItems.length} รายการ
+        </p>
       </div>
 
       <DisbursementBoard items={allItems} currentUserId={user.id} />
