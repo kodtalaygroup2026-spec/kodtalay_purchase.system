@@ -1,3 +1,5 @@
+"use client";
+
 import {
   BookOpen, Workflow, User, UserCheck, Users, Landmark, Settings, MessageCircle,
 } from "lucide-react";
