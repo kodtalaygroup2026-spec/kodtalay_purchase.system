@@ -23,7 +23,6 @@ export default async function EditRequisitionPage({ params }: PageProps) {
     { data: prItems },
     { data: attachments },
     { data: branches },
-    { data: products },
   ] = await Promise.all([
     (supabase as any)
       .from("purchase_requisitions")
@@ -49,11 +48,6 @@ export default async function EditRequisitionPage({ params }: PageProps) {
       .select("id, name, code, is_active")
       .eq("is_active", true)
       .order("code"),
-    supabase
-      .from("products")
-      .select("id, name, sku, unit, unit_price")
-      .eq("is_active", true)
-      .order("name"),
   ]);
 
   // Guard: เฉพาะเจ้าของ PR และสถานะ draft หรือ returned เท่านั้น
@@ -169,9 +163,6 @@ export default async function EditRequisitionPage({ params }: PageProps) {
           file_type: "image" | "pdf"; file_size: number | null;
         }[]}
         branches={branches ?? []}
-        products={(products ?? []) as {
-          id: string; name: string; sku: string; unit: string; unit_price: number;
-        }[]}
         currentUserId={user.id}
       />
 

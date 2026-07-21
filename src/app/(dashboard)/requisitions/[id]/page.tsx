@@ -73,7 +73,7 @@ export default async function RequisitionDetailPage({ params }: PageProps) {
       .single(),
     supabase
       .from("pr_items")
-      .select(`*, products(name, unit, sku)`)
+      .select(`*`)
       .eq("pr_id", id)
       .order("line_no"),
   ]);

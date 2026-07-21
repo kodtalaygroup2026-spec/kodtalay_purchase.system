@@ -32,7 +32,7 @@ export async function getPRItems(prId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("pr_items")
-    .select(`*, products(name, unit, sku)`)
+    .select(`*`)
     .eq("pr_id", prId)
     .order("line_no");
 

@@ -52,7 +52,6 @@ interface PREditFormProps {
   }[];
   attachments: ExistingAttachment[];
   branches: Branch[];
-  products: { id: string; name: string; sku: string; unit: string; unit_price: number }[];
   currentUserId: string;
 }
 
@@ -64,7 +63,6 @@ export function PREditForm({
   prItems,
   attachments,
   branches,
-  products,
   currentUserId,
 }: PREditFormProps) {
   const router = useRouter();
@@ -113,18 +111,6 @@ export function PREditForm({
   function updateItem(i: number, field: keyof EditItem, value: string | number) {
     setItems(p => p.map((it, idx) => idx !== i ? it : { ...it, [field]: value }));
   }
-  function applyProduct(i: number, productId: string) {
-    setItems(p =>
-      p.map((it, idx) => {
-        if (idx !== i) return it;
-        if (!productId) return { ...it, product_id: "", unit: "", unit_price: 0 };
-        const prod = products.find(p => p.id === productId);
-        if (!prod) return it;
-        return { ...it, product_id: productId, unit: prod.unit, unit_price: prod.unit_price };
-      })
-    );
-  }
-
   // ── Attachment handlers ─────────────────────────────────────────────────────
   function removeExisting(att: ExistingAttachment) {
     setDeletedAttachments(prev => [...prev, { id: att.id, file_url: att.file_url }]);
@@ -354,17 +340,6 @@ export function PREditForm({
               </div>
 
               <div className="ml-7 flex flex-wrap items-center gap-2 text-sm">
-                <select
-                  value={item.product_id}
-                  onChange={e => applyProduct(index, e.target.value)}
-                  className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">— ระบุเอง —</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>[{p.sku}] {p.name}</option>
-                  ))}
-                </select>
-
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-slate-400">จำนวน</span>
                   <input

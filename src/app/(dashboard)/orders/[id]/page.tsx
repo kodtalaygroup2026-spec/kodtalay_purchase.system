@@ -29,7 +29,6 @@ export default async function OrderDetailPage({ params }: PageProps) {
       .from("purchase_orders")
       .select(`
         *,
-        suppliers(name, code, contact_name, phone, email),
         profiles!created_by(full_name),
         purchase_requisitions(id, pr_number, title, total_amount)
       `)
@@ -37,7 +36,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
       .single(),
     (supabase as any)
       .from("po_items")
-      .select("*, products(name, sku)")
+      .select("*")
       .eq("po_id", id)
       .order("line_no"),
   ]);
@@ -50,8 +49,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
   ]);
 
   const currentUserRole = currentProfile?.role as UserRole | undefined;
-  const supplier = po.suppliers as { name: string; code: string; contact_name: string | null; phone: string | null } | null;
-  const vendorDisplay = po.vendor_name ?? supplier?.name ?? "—";
+  const vendorDisplay = po.vendor_name ?? "—";
   const pr = po.purchase_requisitions as { id: string; pr_number: string; title: string; total_amount: number } | null;
 
   const itemsTyped = (items ?? []) as {
@@ -64,7 +62,6 @@ export default async function OrderDetailPage({ params }: PageProps) {
     pr_unit_price: number;
     line_total: number;
     received_qty: number;
-    products: { name: string; sku: string } | null;
   }[];
 
   return (

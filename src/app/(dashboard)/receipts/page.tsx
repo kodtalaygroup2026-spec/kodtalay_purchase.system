@@ -9,19 +9,19 @@ export default async function ReceiptsPage() {
     .from("goods_receipts")
     .select(
       `id, gr_number, received_date, note,
-       purchase_orders(po_number, suppliers(name))`
+       purchase_orders(po_number, vendor_name)`
     )
     .order("received_date", { ascending: false });
 
   const rows: ReceiptRow[] = ((receipts ?? []) as any[]).map((gr: any) => {
-    const po = gr.purchase_orders as { po_number: string; suppliers: { name: string } | null } | null;
+    const po = gr.purchase_orders as { po_number: string; vendor_name: string | null } | null;
     return {
       id: gr.id,
       gr_number: gr.gr_number,
       received_date: gr.received_date,
       note: gr.note ?? null,
       po_number: po?.po_number ?? null,
-      vendor_name: po?.suppliers?.name ?? null,
+      vendor_name: po?.vendor_name ?? null,
     };
   });
 
