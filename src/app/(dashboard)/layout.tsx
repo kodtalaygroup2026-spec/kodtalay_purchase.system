@@ -97,9 +97,10 @@ export default async function DashboardLayout({
     isFinance
       ? (supabase as any)
           .from("payment_evidences")
-          .select("id", { count: "exact", head: true })
+          .select("pr_id")
           .eq("status", "submitted")
-      : Promise.resolve({ count: 0 }),
+          .limit(500)
+      : Promise.resolve({ data: [] }),
     countIncompleteDocs(supabase, user.id),
     (supabase as any)
       .from("purchase_requisitions")
@@ -110,7 +111,8 @@ export default async function DashboardLayout({
 
   const approvalCount = approvalRes.count ?? 0;
   const editedCount = new Set(((editedRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
-  const verifyCount = verifyRes.count ?? 0;
+  // นับตามจำนวนใบ (distinct pr_id) ไม่ใช่จำนวนแถวหลักฐาน — ให้ตรงกับหน้างานตรวจสอบ
+  const verifyCount = new Set(((verifyRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
   const incompleteCount = incompleteInfo.count;
   // งานเอกสาร = งานของเจ้าของทั้งหมด แต่หักใบที่ถูก บช. ตีกลับออก (ไปนับที่ "ไม่สมบูรณ์" แทน)
   const todoCount = Math.max(0, (todoRes.count ?? 0) - incompleteInfo.pendingFixIds.size);
