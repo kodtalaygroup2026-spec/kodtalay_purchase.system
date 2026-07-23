@@ -691,8 +691,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       {/* ── Modal ยืนยัน ─────────────────────────────────────────────────────── */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !processing && setModal(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
+          <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
               <h3 className="font-semibold text-slate-800">
                 {modal.type === "pay" &&
                   (closeStatus === "complete"
@@ -706,6 +706,8 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
               </button>
             </div>
 
+            {/* เนื้อหา — เลื่อนได้เฉพาะตอนล้นจอ (ถ้าไม่ล้นก็ไม่มีสกอลล์) */}
+            <div className="flex-1 overflow-y-auto px-5 pb-1">
             {modal.type === "pay" ? (
               <div className="space-y-3">
                 <p className="text-sm text-slate-600">
@@ -822,8 +824,9 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
             {errors.length > 0 && (
               <p className="mt-2 text-xs text-red-600">{errors[0]}</p>
             )}
+            </div>
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 pb-5 pt-4">
               <button
                 onClick={() => !processing && setModal(null)}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
