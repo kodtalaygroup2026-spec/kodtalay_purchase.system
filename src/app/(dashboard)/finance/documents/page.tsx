@@ -129,7 +129,10 @@ export default async function FinanceDocumentsPage() {
     .filter((pr: any) => paidEvMap[pr.id]?.close_status !== "fixed")
     .map((pr: any) => {
     const ev = paidEvMap[pr.id] ?? null;
-    const isIncomplete = ev?.close_status === "incomplete";
+    // ไม่มีแถวหลักฐานผูกอยู่ = ไม่รู้สถานะเอกสาร — อย่าเดาว่า "สมบูรณ์"
+    const closeStatus: "complete" | "incomplete" | null =
+      !ev ? null : ev.close_status === "incomplete" ? "incomplete" : "complete";
+    const isIncomplete = closeStatus === "incomplete";
     return {
       id: pr.id,
       pr_number: pr.pr_number,
@@ -139,7 +142,7 @@ export default async function FinanceDocumentsPage() {
       requester_name: pr.profiles?.full_name ?? "—",
       date: pr.finance_action_at ?? null,
       payment_channel: ev?.payment_channel ?? null,
-      close_status: isIncomplete ? "incomplete" : "complete",
+      close_status: closeStatus,
       is_paid: true, // มาจาก PR สถานะ paid ทั้งชุด
       review_note: isIncomplete ? (ev?.review_note ?? null) : null,
     };

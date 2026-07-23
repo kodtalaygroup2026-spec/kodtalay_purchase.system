@@ -46,6 +46,8 @@ export interface PRRow {
   needed_by: string | null;
   is_urgent: boolean;
   payment_returned: boolean;
+  /** จ่ายแล้วแต่เอกสารตัวจริงยังไม่จบ — incomplete = ยังไม่ครบ · fix_review = ส่งแก้แล้วรอ บช. ตรวจ */
+  docs_state: "incomplete" | "fix_review" | null;
   profiles: { full_name: string } | null;
   purchase_orders: LinkedPO[];
 }
@@ -518,6 +520,14 @@ export function RequisitionList({ prs, initialStep = null }: { prs: PRRow[]; ini
                         {pr.payment_returned ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                             ตีกลับให้แก้ไข
+                          </span>
+                        ) : pr.docs_state === "incomplete" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> จ่ายแล้ว · เอกสารไม่ครบ
+                          </span>
+                        ) : pr.docs_state === "fix_review" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> จ่ายแล้ว · รอบัญชีตรวจ
                           </span>
                         ) : (
                           <StatusBadge kind="pr" status={pr.status} />

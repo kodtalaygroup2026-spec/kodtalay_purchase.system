@@ -44,20 +44,29 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
   // เกณฑ์: หลักฐานฉบับล่าสุดของใบนั้นมีสถานะ 'returned' (ยังไม่ได้ส่งแก้กลับเข้าไป)
   // ใช้แยกการ์ด "งานตีกลับ" ออกจาก "แนบบิล + รับของ" และโชว์ป้ายเตือนในตาราง
   const prIds = (prs ?? []).map((pr: any) => pr.id as string);
+  const prStatusById: Record<string, string> = Object.fromEntries(
+    (prs ?? []).map((pr: any) => [pr.id, pr.status])
+  );
   const returnedPrIds = new Set<string>();
+  // ใบที่จ่ายแล้วแต่เอกสารตัวจริงยังไม่จบ — แยกว่า "ยังไม่ครบ" กับ "ส่งแก้แล้วรอ บช. ตรวจ"
+  const docsStateByPr = new Map<string, "incomplete" | "fix_review">();
   if (prIds.length > 0) {
     const { data: evidenceRows } = await (supabase as any)
       .from("payment_evidences")
-      .select("pr_id, status, submitted_at")
+      .select("pr_id, status, close_status, submitted_at")
       .in("pr_id", prIds)
       .order("submitted_at", { ascending: false });
 
-    const latestStatusByPr = new Map<string, string>();
+    const latestByPr = new Map<string, any>();
     for (const ev of (evidenceRows ?? []) as any[]) {
-      if (!latestStatusByPr.has(ev.pr_id)) latestStatusByPr.set(ev.pr_id, ev.status);
+      if (!latestByPr.has(ev.pr_id)) latestByPr.set(ev.pr_id, ev);
     }
-    for (const [prId, status] of latestStatusByPr) {
-      if (status === "returned") returnedPrIds.add(prId);
+    for (const [prId, ev] of latestByPr) {
+      if (ev.status === "returned") returnedPrIds.add(prId);
+      if (prStatusById[prId] === "paid") {
+        if (ev.close_status === "incomplete") docsStateByPr.set(prId, "incomplete");
+        else if (ev.close_status === "fixed") docsStateByPr.set(prId, "fix_review");
+      }
     }
   }
 
@@ -72,6 +81,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
     needed_by: pr.needed_by ?? null,
     is_urgent: pr.is_urgent ?? false,
     payment_returned: returnedPrIds.has(pr.id),
+    docs_state: docsStateByPr.get(pr.id) ?? null,
     profiles: pr.profiles ?? null,
     purchase_orders: pr.purchase_orders ?? [],
   }));
