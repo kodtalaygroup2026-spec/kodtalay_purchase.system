@@ -59,6 +59,9 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
   const [editCatCode, setEditCatCode] = useState("");
   const [editCatName, setEditCatName] = useState("");
 
+  // แท็บสลับสองหน้า: หมวดงาน | ตำแหน่งผู้ดูแล
+  const [tab, setTab] = useState<"positions" | "categories">("positions");
+
   async function addCategory() {
     const name = newCatName.trim();
     if (!name || catBusy) return;
@@ -157,7 +160,28 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
 
   return (
     <div className="space-y-4">
-      {/* ── จัดการหมวดงาน ─────────────────────────────────────────────────── */}
+      {/* ── แท็บสลับ: หมวดงาน / ตำแหน่งผู้ดูแล ─────────────────────────────── */}
+      <div className="flex w-fit gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          onClick={() => setTab("categories")}
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === "categories" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+          }`}
+        >
+          <Tag size={15} /> หมวดงาน
+        </button>
+        <button
+          onClick={() => setTab("positions")}
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === "positions" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100"
+          }`}
+        >
+          <Users size={15} /> ตำแหน่งผู้ดูแล
+        </button>
+      </div>
+
+      {/* ══ หน้าที่ 1: จัดการหมวดงาน ══════════════════════════════════════════ */}
+      {tab === "categories" && (
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-1.5 text-sm font-bold text-slate-700">
           <Tag size={15} className="text-slate-400" /> จัดการหมวดงาน
@@ -256,7 +280,11 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
           })}
         </div>
       </div>
+      )}
 
+      {/* ══ หน้าที่ 2: ตำแหน่งผู้ดูแล ═══════════════════════════════════════ */}
+      {tab === "positions" && (
+      <div className="space-y-4">
       {/* เพิ่มตำแหน่ง */}
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <input
@@ -388,6 +416,8 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
           </div>
         );
       })}
+      </div>
+      )}
     </div>
   );
 }
