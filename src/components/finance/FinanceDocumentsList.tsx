@@ -99,21 +99,21 @@ export function FinanceDocumentsList({ docs }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* แท็บ */}
-      <div className="flex flex-wrap gap-2">
+      {/* แท็บ (กล่องครอบแบบเดียวกับหน้าตำแหน่งผู้ดูแล — ตัวที่เลือกเป็นสีน้ำเงินชัด) */}
+      <div className="flex w-fit flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               tab === t.key
-                ? "border-slate-700 bg-slate-700 text-white"
-                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-500 hover:bg-slate-100"
             }`}
           >
             {t.label}
             <span className={`rounded-full px-1.5 text-[10px] font-bold ${
-              tab === t.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+              tab === t.key ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
             }`}>{counts[t.key]}</span>
           </button>
         ))}
