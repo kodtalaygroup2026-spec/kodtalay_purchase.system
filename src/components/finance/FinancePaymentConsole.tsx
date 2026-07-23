@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/utils/format";
 import { externalBrowserLink } from "@/lib/line/externalLink";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import { BranchBadge } from "@/components/shared/BranchBadge";
+import { MissingDocsChecklist, buildIncompleteNote } from "./MissingDocsChecklist";
 import { KTB_ENABLED } from "@/lib/config/features";
 import {
   generateKTBContent, validateKTBSettings,
@@ -90,6 +91,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
   const [reason, setReason] = useState("");
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [incompleteReason, setIncompleteReason] = useState("");
+  const [missingDocs, setMissingDocs] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -366,16 +368,16 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       setErrors(["กรุณาแนบสลิปโอนเงินก่อนกดจ่าย"]);
       return;
     }
-    // เอกสารไม่สมบูรณ์ → ต้องระบุว่าเอกสารอะไรที่ขาด/ต้องแก้
-    if (modal.type === "pay" && closeStatus === "incomplete" && !incompleteReason.trim()) {
-      setErrors(["กรุณาระบุเอกสารที่ต้องแก้ไข/เพิ่มเติม"]);
+    // เอกสารไม่สมบูรณ์ → ต้องติ๊กหรือระบุว่าเอกสารส่วนไหนขาด/ผิด อย่างน้อย 1 รายการ
+    if (modal.type === "pay" && closeStatus === "incomplete" && missingDocs.length === 0 && !incompleteReason.trim()) {
+      setErrors(["กรุณาติ๊กหรือระบุเอกสารที่ขาด/ไม่ถูกต้องอย่างน้อย 1 รายการ"]);
       return;
     }
     setProcessing(true);
     setErrors([]);
     try {
       if (modal.type === "pay") {
-        const n = await doMarkPaid(modal.rows, slipFile!, closeStatus, incompleteReason.trim());
+        const n = await doMarkPaid(modal.rows, slipFile!, closeStatus, buildIncompleteNote(missingDocs, incompleteReason));
         setSuccessMsg(
           closeStatus === "complete"
             ? `บันทึกจ่ายแล้ว ${n} รายการ`
@@ -392,6 +394,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
       setReason("");
       setSlipFile(null);
       setIncompleteReason("");
+      setMissingDocs([]);
       setSelected(new Set());
       router.refresh();
     } catch (err: any) {
@@ -558,7 +561,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
               </button>
             )}
             <button
-              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setIncompleteReason(""); setErrors([]); }}
+              onClick={() => { setModal({ type: "pay", rows: selectedRows }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setIncompleteReason(""); setMissingDocs([]); setErrors([]); }}
               className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
             >
               <CheckCircle2 size={14} /> บันทึกว่าจ่ายแล้ว
@@ -654,7 +657,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setIncompleteReason(""); setErrors([]); }}
+                            onClick={() => { setModal({ type: "pay", rows: [p] }); setReason(""); setSlipFile(null); setCloseStatus("complete"); setIncompleteReason(""); setMissingDocs([]); setErrors([]); }}
                             title="จ่าย"
                             className="flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700"
                           >
@@ -715,7 +718,10 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
 
                 {/* ขั้นที่ 1 — ตรวจสอบเอกสาร: สมบูรณ์ = จ่ายได้ / ไม่สมบูรณ์ = ตีกลับ */}
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">สถานะเอกสาร</label>
+                  <label className="block text-sm font-medium text-slate-700">สถานะเอกสาร</label>
+                  <p className="mb-1.5 text-[11px] text-slate-400">
+                    ยืนยันจากเอกสารกระดาษตัวจริงที่พนักงานส่งมาให้ฝ่ายบัญชี
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -772,23 +778,25 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
                   <p className="mt-1 text-[11px] text-slate-400">สลิปนี้จะแนบเข้าเอกสารให้พนักงานเห็น (ทุกใบที่จ่ายในชุดนี้)</p>
                 </div>
 
-                {/* เอกสารไม่สมบูรณ์ → ระบุเอกสารที่ขาด แล้วใบไปอยู่หน้างานแก้เอกสารของพนักงาน */}
+                {/* เอกสารไม่สมบูรณ์ → ติ๊กเอกสารที่ขาด/ผิด + หมายเหตุ แล้วใบไปอยู่หน้างานแก้เอกสารของพนักงาน */}
                 {closeStatus === "incomplete" && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-                    <label className="mb-1 block text-sm font-medium text-amber-800">
-                      เอกสารที่ต้องแก้ไข/เพิ่มเติม <span className="text-red-500">*</span>
-                    </label>
+                  <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-amber-800">
+                        ระบุเอกสารที่ขาด/ไม่ถูกต้อง <span className="text-red-500">*</span>
+                      </label>
+                      <MissingDocsChecklist selected={missingDocs} onChange={setMissingDocs} />
+                    </div>
                     <textarea
                       value={incompleteReason}
                       onChange={(e) => setIncompleteReason(e.target.value)}
-                      rows={3}
-                      autoFocus
-                      placeholder="เช่น ขาดใบกำกับภาษีตัวจริง / บิลไม่ชัด ขอรูปใหม่ / รอใบเสร็จจากร้าน"
+                      rows={2}
+                      placeholder="หมายเหตุเพิ่มเติม (ถ้ามี) เช่น รอใบเสร็จจากร้าน / ยอดไม่ตรง 20 บาท"
                       className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
                     />
-                    <p className="mt-1.5 text-[11px] text-amber-700">
+                    <p className="text-[11px] text-amber-700">
                       จ่ายเงินตามปกติ — ใบจะไปอยู่ &ldquo;งานเอกสารไม่สมบูรณ์&rdquo; ของพนักงาน
-                      ให้แก้/แนบเอกสารแล้วกดยืนยันเท่านั้น <span className="font-semibold">ไม่ต้องส่งกลับมาจ่ายใหม่</span>
+                      ให้แก้/ส่งเอกสารเพิ่มแล้วกดยืนยันเท่านั้น <span className="font-semibold">ไม่ต้องส่งกลับมาจ่ายใหม่</span>
                     </p>
                   </div>
                 )}

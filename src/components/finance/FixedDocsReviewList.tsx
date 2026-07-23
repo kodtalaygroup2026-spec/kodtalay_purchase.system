@@ -10,6 +10,7 @@ import { logAudit } from "@/lib/supabase/audit";
 import { externalBrowserLink } from "@/lib/line/externalLink";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import { BranchBadge } from "@/components/shared/BranchBadge";
+import { MissingDocsChecklist, buildIncompleteNote } from "./MissingDocsChecklist";
 
 export interface FixedDocRow {
   pr_id: string;
@@ -44,6 +45,7 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [rejectDocs, setRejectDocs] = useState<string[]>([]);
   const [errorId, setErrorId] = useState<string | null>(null);
 
   async function sendLine(lineUserId: string, message: string) {
@@ -93,11 +95,11 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
 
   // ── บช. ตีกลับ: เอกสารยังไม่ครบ ให้แก้อีกรอบ ─────────────────────────────
   async function reject(row: FixedDocRow) {
-    if (!rejectReason.trim()) return;
+    if (rejectDocs.length === 0 && !rejectReason.trim()) return;
     setBusyId(row.evidence_id);
     setErrorId(null);
     try {
-      const note = rejectReason.trim();
+      const note = buildIncompleteNote(rejectDocs, rejectReason);
       const { data, error } = await (supabase as any)
         .from("payment_evidences")
         .update({
@@ -137,6 +139,7 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
       setRows((prev) => prev.filter((r) => r.evidence_id !== row.evidence_id));
       setRejectingId(null);
       setRejectReason("");
+      setRejectDocs([]);
       router.refresh();
     } catch {
       setErrorId(row.evidence_id);
@@ -215,26 +218,26 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
             {isRejecting ? (
               <div className="mt-3 space-y-2 rounded-lg border border-orange-200 bg-orange-50/60 p-3">
                 <label className="block text-xs font-medium text-orange-800">
-                  เอกสารที่ยังต้องแก้ไข <span className="text-red-500">*</span>
+                  ระบุเอกสารที่ยังขาด/ไม่ถูกต้อง <span className="text-red-500">*</span>
                 </label>
+                <MissingDocsChecklist selected={rejectDocs} onChange={setRejectDocs} />
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   rows={2}
-                  autoFocus
-                  placeholder="เช่น ใบกำกับภาษียังไม่ใช่ตัวจริง / รูปยังไม่ชัด"
+                  placeholder="หมายเหตุเพิ่มเติม (ถ้ามี) เช่น ใบกำกับภาษียังไม่ใช่ตัวจริง"
                   className="w-full rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
                 />
                 <div className="flex items-center justify-end gap-2">
                   <button
-                    onClick={() => { setRejectingId(null); setRejectReason(""); }}
+                    onClick={() => { setRejectingId(null); setRejectReason(""); setRejectDocs([]); }}
                     className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                   >
                     ยกเลิก
                   </button>
                   <button
                     onClick={() => reject(row)}
-                    disabled={busy || !rejectReason.trim()}
+                    disabled={busy || (rejectDocs.length === 0 && !rejectReason.trim())}
                     className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
                   >
                     {busy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
@@ -244,11 +247,13 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                {errorId === row.evidence_id && (
+                {errorId === row.evidence_id ? (
                   <span className="mr-auto text-xs text-red-500">เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง</span>
+                ) : (
+                  <span className="mr-auto text-[11px] text-slate-400">ยืนยันเมื่อได้รับเอกสารกระดาษตัวจริงครบแล้ว</span>
                 )}
                 <button
-                  onClick={() => { setRejectingId(row.evidence_id); setRejectReason(""); }}
+                  onClick={() => { setRejectingId(row.evidence_id); setRejectReason(""); setRejectDocs([]); }}
                   disabled={busy}
                   className="flex items-center gap-1.5 rounded-lg border border-orange-300 bg-white px-4 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-60"
                 >
