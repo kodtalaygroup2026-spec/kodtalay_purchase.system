@@ -118,7 +118,7 @@ const FINANCE_SUB = [
     : []),
 ];
 
-function FinanceDropdown({ pathname, companyCount = 0, pettyCashCount = 0 }: { pathname: string; companyCount?: number; pettyCashCount?: number }) {
+function FinanceDropdown({ pathname, companyCount = 0, pettyCashCount = 0, fixedReviewCount = 0 }: { pathname: string; companyCount?: number; pettyCashCount?: number; fixedReviewCount?: number }) {
   const isOnFinance = pathname.startsWith("/finance");
   const [open, setOpen] = useState(isOnFinance);
 
@@ -148,6 +148,7 @@ function FinanceDropdown({ pathname, companyCount = 0, pettyCashCount = 0 }: { p
             const badge =
               sub.href === "/finance/payments" ? companyCount
               : sub.href === "/finance/petty-cash" ? pettyCashCount
+              : sub.href === "/finance/documents" ? fixedReviewCount
               : 0;
             return (
               <Link
@@ -285,19 +286,20 @@ interface SidebarProps {
   verifyCount?: number;
   companyCount?: number;
   pettyCashCount?: number;
+  fixedReviewCount?: number;
   incompleteCount?: number;
   todoCount?: number;
   approverDepartment?: string | null;
   approverPositionIds?: string[];
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, incompleteCount = 0, todoCount = 0, approverDepartment = null, approverPositionIds = [] }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, fixedReviewCount = 0, incompleteCount = 0, todoCount = 0, approverDepartment = null, approverPositionIds = [] }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
   // ป้ายแดงงานฝ่ายบัญชี (ตรวจสอบ / บริษัทสั่งจ่าย / เงินสดย่อย) อัปเดตเรียลไทม์ (เฉพาะ finance/admin)
   const financeCounts = useRealtimeFinanceCounts(
-    verifyCount, companyCount, pettyCashCount,
+    verifyCount, companyCount, pettyCashCount, fixedReviewCount,
     role === "finance" || role === "admin",
     "sidebar-finance-counts"
   );
@@ -365,7 +367,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
               การเงิน
             </p>
-            <FinanceDropdown pathname={pathname} companyCount={financeCounts.company} pettyCashCount={financeCounts.pettyCash} />
+            <FinanceDropdown pathname={pathname} companyCount={financeCounts.company} pettyCashCount={financeCounts.pettyCash} fixedReviewCount={financeCounts.fixedReview} />
           </>
         )}
       </nav>

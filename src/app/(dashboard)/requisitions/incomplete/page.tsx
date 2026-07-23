@@ -61,23 +61,48 @@ export default async function MyDocumentsPage() {
   const docStates: Record<string, MyDocState> = {};
   for (const pr of prList) docStates[pr.id] = docStateOf(pr);
 
-  // ── รายการที่ต้องจัดการ (ส่งให้ IncompleteDocsList เดิม) ────────────────────
-  const incompleteDocs: IncompleteDoc[] = prList
-    .filter((pr) => docStates[pr.id] === "incomplete_fix" || docStates[pr.id] === "incomplete_docs")
-    .map((pr) => {
-      const ev = latestEvByPr[pr.id];
-      return {
-        id: pr.id,
-        pr_number: pr.pr_number,
-        title: pr.title,
-        amount: pr.actual_amount ?? pr.total_amount ?? 0,
-        evidence_id: ev.id,
-        paid_at: pr.finance_action_at ?? null,
-        review_note: ev?.review_note ?? null,
-        kind: docStates[pr.id] === "incomplete_fix" ? "returned" : "awaiting_docs",
-        payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
-      };
+  // ── รายการที่ต้องจัดการ + ไฟล์หลักฐานเดิม (ให้คนเบิกลบ/เพิ่มแก้ไขได้) ────────
+  const actionablePRs = prList.filter(
+    (pr) => docStates[pr.id] === "incomplete_fix" || docStates[pr.id] === "incomplete_docs"
+  );
+  const actionableEvidenceIds = actionablePRs
+    .map((pr) => latestEvByPr[pr.id]?.id)
+    .filter((id): id is string => Boolean(id));
+
+  const { data: evidenceFileRows } =
+    actionableEvidenceIds.length > 0
+      ? await (supabase as any)
+          .from("evidence_files")
+          .select("id, evidence_id, file_name, file_url, evidence_type")
+          .in("evidence_id", actionableEvidenceIds)
+          .order("created_at")
+      : { data: [] };
+
+  const filesByEvidence: Record<string, IncompleteDoc["files"]> = {};
+  for (const f of (evidenceFileRows ?? []) as any[]) {
+    (filesByEvidence[f.evidence_id] ??= []).push({
+      id: f.id,
+      file_name: f.file_name,
+      file_url: f.file_url,
+      evidence_type: f.evidence_type,
     });
+  }
+
+  const incompleteDocs: IncompleteDoc[] = actionablePRs.map((pr) => {
+    const ev = latestEvByPr[pr.id];
+    return {
+      id: pr.id,
+      pr_number: pr.pr_number,
+      title: pr.title,
+      amount: pr.actual_amount ?? pr.total_amount ?? 0,
+      evidence_id: ev.id,
+      paid_at: pr.finance_action_at ?? null,
+      review_note: ev?.review_note ?? null,
+      kind: docStates[pr.id] === "incomplete_fix" ? "returned" : "awaiting_docs",
+      payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
+      files: filesByEvidence[ev.id] ?? [],
+    };
+  });
 
   // ── แถวสำหรับตารางประวัติ (กรอง/ค้นหา/เรียงในฝั่ง client) ───────────────────
   const rows: MyDocRow[] = prList.map((pr) => ({

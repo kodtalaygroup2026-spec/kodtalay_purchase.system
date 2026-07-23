@@ -18,6 +18,7 @@ interface MobileNavProps {
   verifyCount?: number;
   companyCount?: number;
   pettyCashCount?: number;
+  fixedReviewCount?: number;
   incompleteCount?: number;
   todoCount?: number;
   approverDepartment?: string | null;
@@ -38,6 +39,7 @@ export function MobileNav({
   verifyCount = 0,
   companyCount = 0,
   pettyCashCount = 0,
+  fixedReviewCount = 0,
   incompleteCount = 0,
   todoCount = 0,
   approverDepartment = null,
@@ -66,7 +68,7 @@ export function MobileNav({
 
   // ป้ายแดงงานฝ่ายบัญชี (ตรวจสอบ / บริษัทสั่งจ่าย / เงินสดย่อย) อัปเดตเรียลไทม์ (เฉพาะ finance/admin)
   const financeCounts = useRealtimeFinanceCounts(
-    verifyCount, companyCount, pettyCashCount,
+    verifyCount, companyCount, pettyCashCount, fixedReviewCount,
     role === "finance" || role === "admin",
     "mobilenav-finance-counts"
   );
@@ -117,7 +119,7 @@ export function MobileNav({
         { href: "/finance", label: "รายการทั้งหมด", icon: ListFilter },
         { href: "/finance/payments", label: "รายการบริษัทสั่งจ่าย", icon: Building2, badge: financeCounts.company, badgeColor: "bg-red-500" },
         { href: "/finance/petty-cash", label: "รายการเงินสดย่อย", icon: PiggyBank, badge: financeCounts.pettyCash, badgeColor: "bg-red-500" },
-        { href: "/finance/documents", label: "งานเอกสารสมบูรณ์", icon: FileCheck2 },
+        { href: "/finance/documents", label: "งานเอกสารสมบูรณ์", icon: FileCheck2, badge: financeCounts.fixedReview, badgeColor: "bg-red-500" },
       ]
     : [];
 

@@ -257,7 +257,7 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
                   disabled={busy}
                   className="flex items-center gap-1.5 rounded-lg border border-orange-300 bg-white px-4 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-60"
                 >
-                  <RotateCcw size={13} /> ตีกลับแก้ไขอีก
+                  <RotateCcw size={13} /> เอกสารไม่สมบูรณ์
                 </button>
                 <button
                   onClick={() => approve(row)}

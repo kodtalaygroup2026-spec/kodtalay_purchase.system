@@ -7,6 +7,13 @@ import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { AlertTriangle, Paperclip, FileText, CheckCircle2, Loader2, X, RotateCcw, PencilLine, Building2, Wallet } from "lucide-react";
 import { logAudit } from "@/lib/supabase/audit";
 
+interface EvidenceFileRow {
+  id: string;
+  file_name: string;
+  file_url: string;
+  evidence_type: string;
+}
+
 export interface IncompleteDoc {
   id: string;          // pr id
   pr_number: string;
@@ -19,6 +26,8 @@ export interface IncompleteDoc {
   kind: "returned" | "awaiting_docs";
   /** ช่องทางจ่ายที่การเงินเลือก (null = ยังไม่ได้เลือก) */
   payment_channel: "company" | "petty_cash" | null;
+  /** ไฟล์หลักฐานที่เคยส่งไป — ให้ลบ/เพิ่มแก้ไขได้ */
+  files: EvidenceFileRow[];
 }
 
 interface Props {
@@ -26,24 +35,44 @@ interface Props {
   currentUserId: string;
 }
 
+const isImage = (nameOrUrl: string) => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(nameOrUrl);
+
 export function IncompleteDocsList({ docs, currentUserId }: Props) {
   const supabase = createClient();
   const [rows, setRows] = useState<IncompleteDoc[]>(docs);
-  const [files, setFiles] = useState<Record<string, File | null>>({});
+  // ไฟล์เดิมที่ยังเก็บไว้ / ไฟล์เดิมที่กดลบ / ไฟล์ใหม่ที่จะอัปโหลด — แยกต่อใบ (key = evidence_id)
+  const [keptFiles, setKeptFiles] = useState<Record<string, EvidenceFileRow[]>>(
+    () => Object.fromEntries(docs.map((d) => [d.evidence_id, d.files]))
+  );
+  const [removedIds, setRemovedIds] = useState<Record<string, string[]>>({});
+  const [newFiles, setNewFiles] = useState<Record<string, File[]>>({});
   const [fixNotes, setFixNotes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
+
+  function removeExisting(evId: string, fileId: string) {
+    setKeptFiles((p) => ({ ...p, [evId]: (p[evId] ?? []).filter((f) => f.id !== fileId) }));
+    setRemovedIds((p) => ({ ...p, [evId]: [...(p[evId] ?? []), fileId] }));
+  }
+  function addNewFiles(evId: string, list: FileList | null) {
+    const picked = Array.from(list ?? []);
+    if (picked.length === 0) return;
+    setNewFiles((p) => ({ ...p, [evId]: [...(p[evId] ?? []), ...picked] }));
+  }
+  function removeNewFile(evId: string, idx: number) {
+    setNewFiles((p) => ({ ...p, [evId]: (p[evId] ?? []).filter((_, i) => i !== idx) }));
+  }
 
   // ส่งเอกสารที่แก้แล้วให้ บช. ตรวจ (ไม่ปิดงานเอง — บช. เป็นคนยืนยันสมบูรณ์)
   async function submitFix(doc: IncompleteDoc) {
     setBusyId(doc.evidence_id);
     setErrorId(null);
     try {
-      const file = files[doc.evidence_id];
-      // แนบเอกสารเพิ่ม (ถ้ามี)
-      if (file) {
+      // 1) อัปโหลดไฟล์ใหม่ทั้งหมด
+      const adds = newFiles[doc.evidence_id] ?? [];
+      for (const file of adds) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `${doc.evidence_id}/complete_${Date.now()}_${safeName}`;
+        const path = `${doc.evidence_id}/fix_${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage
           .from("evidence-attachments")
           .upload(path, file, { upsert: false });
@@ -59,9 +88,15 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
         });
       }
 
+      // 2) ลบไฟล์เดิมที่เอาออก (ลบเฉพาะแถวใน DB — object ใน storage ปล่อยเป็น orphan ได้ ไม่กระทบ)
+      const removed = removedIds[doc.evidence_id] ?? [];
+      if (removed.length > 0) {
+        await (supabase as any).from("evidence_files").delete().in("id", removed);
+      }
+
       const fixNote = (fixNotes[doc.evidence_id] ?? "").trim();
 
-      // ส่งเข้าคิวตรวจของ บช. → close_status = fixed
+      // 3) ส่งเข้าคิวตรวจของ บช. → close_status = fixed
       const { data, error } = await (supabase as any)
         .from("payment_evidences")
         .update({
@@ -84,7 +119,8 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
           pr_id: doc.id,
           pr_number: doc.pr_number,
           ...(fixNote ? { note: fixNote } : {}),
-          ...(file ? { added_file: file.name } : {}),
+          ...(adds.length ? { added_files: adds.length } : {}),
+          ...(removed.length ? { removed_files: removed.length } : {}),
         },
       });
 
@@ -109,11 +145,13 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
   return (
     <div className="space-y-3">
       {rows.map((doc) => {
-        const file = files[doc.evidence_id] ?? null;
         const busy = busyId === doc.evidence_id;
         const isReturned = doc.kind === "returned";
+        const kept = keptFiles[doc.evidence_id] ?? [];
+        const adds = newFiles[doc.evidence_id] ?? [];
         return (
           <div key={doc.evidence_id} className="rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
+            {/* ── หัวใบ ── */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -129,7 +167,6 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                       <AlertTriangle size={10} /> ค้างเอกสาร
                     </span>
                   )}
-                  {/* แท็กช่องทางจ่ายที่การเงินเลือกไว้ */}
                   {doc.payment_channel === "company" && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                       <Building2 size={10} /> บริษัทสั่งจ่าย
@@ -148,15 +185,15 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                     : `จ่ายเมื่อ ${doc.paid_at ? formatDate(doc.paid_at) : "—"} · ${formatCurrency(doc.amount)}`}
                 </p>
                 {doc.review_note && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    {isReturned ? "เหตุผลตีกลับ" : "หมายเหตุ"}: {doc.review_note}
+                  <p className="mt-1 whitespace-pre-line rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+                    {isReturned ? "เหตุผลตีกลับ" : "บช. แจ้งว่าต้องแก้"}: {doc.review_note}
                   </p>
                 )}
               </div>
             </div>
 
             {isReturned ? (
-              /* ตีกลับ — ยังไม่จ่าย ต้องกลับไปแก้หลักฐานแล้วส่งมาจ่ายใหม่ */
+              /* ตีกลับ — ยังไม่จ่าย ต้องกลับไปแก้หลักฐานในใบสั่งซื้อ แล้วส่งมาจ่ายใหม่ */
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                 <p className="text-xs text-slate-500">แก้ไขเอกสารในใบสั่งซื้อ แล้วส่งกลับมาให้การเงินจ่ายใหม่อีกครั้ง</p>
                 <Link
@@ -167,35 +204,43 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                 </Link>
               </div>
             ) : (
-              /* จ่ายแล้ว แต่ค้างเอกสารตัวจริง — แนบเพิ่ม+อธิบาย แล้วส่งให้ บช. ตรวจ */
-              <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+              /* จ่ายแล้ว แต่ค้างเอกสารตัวจริง — แก้ไฟล์หลักฐาน (ลบเดิม/เพิ่มใหม่) แล้วส่งให้ บช. ตรวจ */
+              <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-slate-500">
+                    ไฟล์หลักฐาน — ลบไฟล์ที่ผิด/ไม่ชัด แล้วแนบไฟล์ใหม่ให้ถูกต้อง
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {kept.map((f) => (
+                      <FileThumb key={f.id} name={f.file_name} url={f.file_url} onRemove={() => removeExisting(doc.evidence_id, f.id)} />
+                    ))}
+                    {adds.map((f, i) => (
+                      <FileThumb key={`new-${i}`} name={f.name} url={URL.createObjectURL(f)} isNew onRemove={() => removeNewFile(doc.evidence_id, i)} />
+                    ))}
+                    <label className="flex h-16 w-16 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-400 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600">
+                      <Paperclip size={14} /> เพิ่มไฟล์
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={(e) => { addNewFiles(doc.evidence_id, e.target.files); e.target.value = ""; }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 <input
                   value={fixNotes[doc.evidence_id] ?? ""}
                   onChange={(e) => setFixNotes((p) => ({ ...p, [doc.evidence_id]: e.target.value }))}
                   placeholder="อธิบายสิ่งที่แก้/เพิ่ม เช่น แนบใบกำกับภาษีตัวจริงแล้ว"
                   className="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
                 />
-                <div className="flex flex-wrap items-center gap-2">
-                  {file ? (
-                    <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs text-slate-700">
-                      <FileText size={13} className="text-green-600" />
-                      <span className="max-w-[160px] truncate">{file.name}</span>
-                      <button onClick={() => setFiles((p) => ({ ...p, [doc.evidence_id]: null }))} className="text-slate-400 hover:text-red-500">
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ) : (
-                    <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600">
-                      <Paperclip size={13} /> แนบใบกำกับ/เอกสาร (ถ้ามี)
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) setFiles((p) => ({ ...p, [doc.evidence_id]: f })); }}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
 
+                <div className="flex flex-wrap items-center gap-2">
+                  {errorId === doc.evidence_id && (
+                    <span className="text-xs text-red-500">เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง</span>
+                  )}
                   <button
                     onClick={() => submitFix(doc)}
                     disabled={busy}
@@ -204,15 +249,41 @@ export function IncompleteDocsList({ docs, currentUserId }: Props) {
                     {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                     ส่งให้การเงินตรวจ
                   </button>
-                  {errorId === doc.evidence_id && (
-                    <span className="text-xs text-red-500">เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง</span>
-                  )}
                 </div>
               </div>
             )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// รูปย่อไฟล์หลักฐาน — กดดูได้ + ปุ่มลบมุมขวาบน
+function FileThumb({ name, url, isNew, onRemove }: { name: string; url: string; isNew?: boolean; onRemove: () => void }) {
+  const img = isImage(name) || isImage(url);
+  return (
+    <div className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block h-full w-full" title={name}>
+        {img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt={name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-red-400">
+            <FileText size={18} />
+            <span className="text-[8px] font-semibold text-slate-400">PDF</span>
+          </div>
+        )}
+      </a>
+      {isNew && (
+        <span className="absolute left-0.5 top-0.5 rounded bg-green-500 px-1 text-[8px] font-bold text-white">ใหม่</span>
+      )}
+      <button
+        onClick={onRemove}
+        className="absolute right-0.5 top-0.5 rounded-full bg-white/90 p-0.5 text-slate-400 shadow hover:text-red-500"
+      >
+        <X size={11} />
+      </button>
     </div>
   );
 }

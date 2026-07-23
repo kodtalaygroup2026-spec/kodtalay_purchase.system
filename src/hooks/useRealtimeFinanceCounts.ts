@@ -10,6 +10,8 @@ export interface FinanceCounts {
   company: number;
   /** รอจ่าย ช่องทางเงินสดย่อย — verified + channel petty_cash (ป้าย "รายการเงินสดย่อย") */
   pettyCash: number;
+  /** เอกสารที่คนเบิกแก้แล้วรอ บช. ตรวจ — paid + close_status fixed (ป้าย "งานเอกสารสมบูรณ์") */
+  fixedReview: number;
 }
 
 /**
@@ -26,6 +28,7 @@ export function useRealtimeFinanceCounts(
   initialVerify: number,
   initialCompany: number,
   initialPettyCash: number,
+  initialFixedReview: number,
   enabled: boolean,
   channelName: string,
 ): FinanceCounts {
@@ -33,12 +36,13 @@ export function useRealtimeFinanceCounts(
     verify: initialVerify,
     company: initialCompany,
     pettyCash: initialPettyCash,
+    fixedReview: initialFixedReview,
   });
 
   // sync ค่าเริ่มต้นใหม่เมื่อ server re-render มาพร้อมค่าที่ต่างไป (เช่น หลัง navigation)
   useEffect(() => {
-    setCounts({ verify: initialVerify, company: initialCompany, pettyCash: initialPettyCash });
-  }, [initialVerify, initialCompany, initialPettyCash]);
+    setCounts({ verify: initialVerify, company: initialCompany, pettyCash: initialPettyCash, fixedReview: initialFixedReview });
+  }, [initialVerify, initialCompany, initialPettyCash, initialFixedReview]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -48,7 +52,7 @@ export function useRealtimeFinanceCounts(
       new Set(((res.data ?? []) as { pr_id: string }[]).map((row) => row.pr_id)).size;
 
     async function refetchCounts() {
-      const [verifyRes, companyRes, pettyRes] = await Promise.all([
+      const [verifyRes, companyRes, pettyRes, fixedRes] = await Promise.all([
         (supabase as any)
           .from("payment_evidences")
           .select("pr_id, purchase_requisitions!inner(status)")
@@ -69,11 +73,19 @@ export function useRealtimeFinanceCounts(
           .eq("payment_channel", "petty_cash")
           .eq("purchase_requisitions.status", "pending_finance")
           .limit(500),
+        // คนเบิกแก้เอกสารแล้วส่งมารอ บช. ตรวจ — paid + close_status fixed
+        (supabase as any)
+          .from("payment_evidences")
+          .select("pr_id, purchase_requisitions!inner(status)")
+          .eq("close_status", "fixed")
+          .eq("purchase_requisitions.status", "paid")
+          .limit(500),
       ]);
       setCounts({
         verify: distinctPrCount(verifyRes),
         company: distinctPrCount(companyRes),
         pettyCash: distinctPrCount(pettyRes),
+        fixedReview: distinctPrCount(fixedRes),
       });
     }
 
