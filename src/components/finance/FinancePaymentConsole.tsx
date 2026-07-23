@@ -474,7 +474,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
             onClick={() => switchCompany(null)}
             className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
               selectedCompany === null
-                ? "bg-blue-50 text-blue-700 shadow-sm"
+                ? "bg-blue-500 text-white shadow-sm"
                 : "text-slate-500 hover:bg-slate-100"
             }`}
           >
@@ -486,7 +486,7 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
               onClick={() => switchCompany(c.code)}
               className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 selectedCompany === c.code
-                  ? "bg-blue-50 text-blue-700 shadow-sm"
+                  ? "bg-blue-500 text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-100"
               }`}
             >
