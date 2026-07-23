@@ -64,7 +64,9 @@ export default async function FinanceDocumentsPage() {
     paidIds.length > 0
       ? (supabase as any)
           .from("payment_evidences")
-          .select("id, pr_id, close_status, payment_channel, review_note, reviewed_at, fix_note, fixed_at, submitted_at")
+          // ไม่ดึง fix_note/fixed_at ตรงนี้ — สองคอลัมน์นั้นมาจาก migration 0041
+          // ถ้ายังไม่ได้รัน query จะ error ทั้งก้อนแล้วสถานะเอกสารทุกแถวจะหายเป็น "—"
+          .select("id, pr_id, close_status, payment_channel, review_note, reviewed_at, submitted_at")
           .in("pr_id", paidIds)
           .order("submitted_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -84,6 +86,19 @@ export default async function FinanceDocumentsPage() {
   // ── เอกสารที่พนักงานแก้แล้ว รอ บช. ตรวจ (close_status = fixed) ──────────────
   const fixedPRs = (paidPRs ?? []).filter((pr: any) => paidEvMap[pr.id]?.close_status === "fixed");
   const fixedEvIds = fixedPRs.map((pr: any) => paidEvMap[pr.id].id);
+
+  // รายละเอียดการแก้ (คอลัมน์จาก 0041) — ดึงเฉพาะตอนมีใบสถานะ fixed จริง
+  // ถ้ามีใบ fixed แปลว่า 0041 รันแล้วแน่นอน จึงปลอดภัยที่จะ select สองคอลัมน์นี้
+  const fixMetaByEv: Record<string, { fix_note: string | null; fixed_at: string | null }> = {};
+  if (fixedEvIds.length > 0) {
+    const { data: fixMetaRows } = await (supabase as any)
+      .from("payment_evidences")
+      .select("id, fix_note, fixed_at")
+      .in("id", fixedEvIds);
+    for (const r of (fixMetaRows ?? []) as any[]) {
+      fixMetaByEv[r.id] = { fix_note: r.fix_note ?? null, fixed_at: r.fixed_at ?? null };
+    }
+  }
 
   // ไฟล์ที่พนักงานแนบเพิ่มหลัง บช. ตรวจตอนจ่าย (created_at > reviewed_at)
   const { data: fixedFileRows } =
@@ -117,8 +132,8 @@ export default async function FinanceDocumentsPage() {
       payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
       evidence_id: ev.id,
       review_note: ev?.review_note ?? null,
-      fix_note: ev?.fix_note ?? null,
-      fixed_at: ev?.fixed_at ?? null,
+      fix_note: fixMetaByEv[ev.id]?.fix_note ?? null,
+      fixed_at: fixMetaByEv[ev.id]?.fixed_at ?? null,
       added_files: addedFilesByEv[ev.id] ?? [],
     };
   });
