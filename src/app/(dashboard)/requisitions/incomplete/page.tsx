@@ -92,6 +92,50 @@ export default async function MyDocumentsPage() {
     });
   }
 
+  // ── ประวัติการแก้เอกสารของใบที่ต้องจัดการ (อ่านจาก audit_logs เดิม ไม่เพิ่มตาราง) ──
+  const DOC_HISTORY_ACTIONS = [
+    "payment_marked_paid",
+    "documents_fixed",
+    "documents_fix_rejected",
+    "documents_completed",
+  ];
+  const actionablePrIds = actionablePRs.map((pr) => pr.id as string);
+
+  const { data: historyRows } =
+    actionablePrIds.length > 0
+      ? await (supabase as any)
+          .from("audit_logs")
+          .select("id, entity_id, actor_id, action, metadata, created_at")
+          .in("entity_id", actionablePrIds)
+          .in("action", DOC_HISTORY_ACTIONS)
+          .order("created_at", { ascending: true })
+      : { data: [] };
+
+  const actorIds = [
+    ...new Set(((historyRows ?? []) as any[]).map((h) => h.actor_id).filter(Boolean)),
+  ];
+  const { data: actorRows } =
+    actorIds.length > 0
+      ? await (supabase as any).from("profiles").select("id, full_name").in("id", actorIds)
+      : { data: [] };
+  const actorNameById: Record<string, string> = Object.fromEntries(
+    ((actorRows ?? []) as any[]).map((p) => [p.id, p.full_name ?? "—"])
+  );
+
+  const historyByPr: Record<string, IncompleteDoc["history"]> = {};
+  for (const h of (historyRows ?? []) as any[]) {
+    (historyByPr[h.entity_id] ??= []).push({
+      id: h.id,
+      action: h.action,
+      actor: actorNameById[h.actor_id] ?? "—",
+      at: h.created_at,
+      note: (h.metadata?.note as string) ?? null,
+      addedFiles: (h.metadata?.added_files as number) ?? null,
+      removedFiles: (h.metadata?.removed_files as number) ?? null,
+      closeStatus: (h.metadata?.close_status as string) ?? null,
+    });
+  }
+
   const incompleteDocs: IncompleteDoc[] = actionablePRs.map((pr) => {
     const ev = latestEvByPr[pr.id];
     return {
@@ -105,6 +149,7 @@ export default async function MyDocumentsPage() {
       kind: docStates[pr.id] === "incomplete_fix" ? "returned" : "awaiting_docs",
       payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
       files: filesByEvidence[ev.id] ?? [],
+      history: historyByPr[pr.id] ?? [],
     };
   });
 

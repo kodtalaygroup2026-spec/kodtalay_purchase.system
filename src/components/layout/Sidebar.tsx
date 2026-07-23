@@ -21,6 +21,7 @@ import { APP_NAME } from "@/lib/constants";
 import { KTB_ENABLED } from "@/lib/config/features";
 import { useRealtimeFinanceCounts } from "@/hooks/useRealtimeFinanceCounts";
 import { useRealtimeApprovalCount } from "@/hooks/useRealtimeApprovalCount";
+import { useRealtimeIncompleteCount } from "@/hooks/useRealtimeIncompleteCount";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
@@ -281,6 +282,7 @@ function ApprovalsDropdown({
 
 interface SidebarProps {
   role?: UserRole;
+  userId?: string;
   approvalCount?: number;
   editedCount?: number;
   verifyCount?: number;
@@ -293,7 +295,7 @@ interface SidebarProps {
   approverPositionIds?: string[];
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, fixedReviewCount = 0, incompleteCount = 0, todoCount = 0, approverDepartment = null, approverPositionIds = [] }: SidebarProps) {
+export function Sidebar({ role, userId = "", approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, fixedReviewCount = 0, incompleteCount = 0, todoCount = 0, approverDepartment = null, approverPositionIds = [] }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
@@ -309,6 +311,13 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
     approvalCount,
     { role: role ?? null, department: approverDepartment, positionIds: approverPositionIds },
     "sidebar-approval-count"
+  );
+
+  // ป้าย "งานเอกสารไม่สมบูรณ์" ของตัวเอง — เด้งทันทีเมื่อ บช. แจ้งเอกสารไม่ครบ/ตีกลับ/ปิดงาน
+  const liveIncompleteCount = useRealtimeIncompleteCount(
+    incompleteCount,
+    userId,
+    "sidebar-incomplete-count"
   );
 
   if (pathname === "/") return null;
@@ -348,7 +357,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} role={role} incompleteCount={incompleteCount} todoCount={todoCount} />
+          <MyWorkDropdown pathname={pathname} role={role} incompleteCount={liveIncompleteCount} todoCount={todoCount} />
         </Suspense>
 
         {/* การอนุมัติ */}

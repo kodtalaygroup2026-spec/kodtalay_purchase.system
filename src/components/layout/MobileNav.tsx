@@ -10,10 +10,12 @@ import {
 } from "lucide-react";
 import { useRealtimeFinanceCounts } from "@/hooks/useRealtimeFinanceCounts";
 import { useRealtimeApprovalCount } from "@/hooks/useRealtimeApprovalCount";
+import { useRealtimeIncompleteCount } from "@/hooks/useRealtimeIncompleteCount";
 import type { UserRole } from "@/types/database";
 
 interface MobileNavProps {
   role?: UserRole;
+  userId?: string;
   approvalCount?: number;
   verifyCount?: number;
   companyCount?: number;
@@ -35,6 +37,7 @@ interface DrawerLink {
 
 export function MobileNav({
   role,
+  userId = "",
   approvalCount = 0,
   verifyCount = 0,
   companyCount = 0,
@@ -81,6 +84,13 @@ export function MobileNav({
     "mobilenav-approval-count"
   );
 
+  // ป้าย "งานเอกสารไม่สมบูรณ์" ของตัวเอง — เรียลไทม์
+  const liveIncompleteCount = useRealtimeIncompleteCount(
+    incompleteCount,
+    userId,
+    "mobilenav-incomplete-count"
+  );
+
   if (pathname === "/") return null;
 
   const isFinance = role === "finance" || role === "admin";
@@ -93,7 +103,7 @@ export function MobileNav({
   ];
   const rightItem = isFinance
     ? { href: "/finance", label: "การเงิน", icon: Banknote, badge: liveVerifyCount, color: "bg-red-500" }
-    : { href: "/requisitions/incomplete", label: "เอกสารค้าง", icon: AlertTriangle, badge: incompleteCount, color: "bg-amber-500" };
+    : { href: "/requisitions/incomplete", label: "เอกสารค้าง", icon: AlertTriangle, badge: liveIncompleteCount, color: "bg-amber-500" };
 
   function isActive(href: string) {
     if (href === "/requisitions") return pathname === "/requisitions";
@@ -104,7 +114,7 @@ export function MobileNav({
   const myWork: DrawerLink[] = [
     { href: "/requisitions?step=1", label: "งานอนุมัติ", icon: CheckSquare },
     { href: "/requisitions", label: "งานเอกสาร", icon: FileText, badge: todoCount, badgeColor: "bg-red-500" },
-    { href: "/requisitions/incomplete", label: "งานเอกสารไม่สมบูรณ์", icon: AlertTriangle, badge: incompleteCount, badgeColor: "bg-amber-500" },
+    { href: "/requisitions/incomplete", label: "งานเอกสารไม่สมบูรณ์", icon: AlertTriangle, badge: liveIncompleteCount, badgeColor: "bg-amber-500" },
     { href: "/requisitions/new", label: "สร้าง PR", icon: Plus },
   ];
 

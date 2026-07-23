@@ -5,70 +5,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { RealtimeNotificationProvider } from "@/components/shared/RealtimeNotificationProvider";
 import { countApprovablePRs } from "@/lib/pr/approvals";
+import { countIncompleteDocs } from "@/lib/pr/incompleteDocs";
 
-/**
- * นับเอกสารของตัวเองที่ไม่สมบูรณ์ (ถูกตีกลับ + จ่ายแล้วแต่ค้างเอกสารตัวจริง)
- * ต้องเช็คสถานะ PR ด้วย เพราะใบที่ส่งหลักฐานใหม่ไปแล้วไม่ควรนับซ้ำ
- * - count        = ทั้งหมด (ป้ายเมนู "งานเอกสารไม่สมบูรณ์")
- * - pendingFixIds = ใบที่ถูกตีกลับและ PR ยังเป็น approved/converted
- *                   ใช้หักออกจากป้าย "งานเอกสาร" ไม่ให้นับซ้ำ
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function countIncompleteDocs(
-  supabase: any,
-  userId: string
-): Promise<{ count: number; pendingFixIds: Set<string> }> {
-  const empty = { count: 0, pendingFixIds: new Set<string>() };
-
-  // ใบที่ฉันเป็นเจ้าของก่อน แล้วค่อยดึงหลักฐานของใบเหล่านั้น
-  // (ไม่กรองด้วย submitted_by เพราะบางใบ บช./แอดมินกดส่งแทน — ต้องอ่านสถานะเอกสาร
-  //  ให้ตรงกับหน้า "งานเอกสารของฉัน" ไม่งั้นใบที่จ่ายแล้วเอกสารไม่ครบจะหลุดหาย)
-  const { data: myPRs } = await supabase
-    .from("purchase_requisitions")
-    .select("id, status")
-    .eq("requester_id", userId)
-    .limit(300);
-
-  const prList = (myPRs ?? []) as { id: string; status: string }[];
-  if (prList.length === 0) return empty;
-
-  const prStatusById: Record<string, string> = Object.fromEntries(
-    prList.map((p) => [p.id, p.status])
-  );
-
-  // ต้องดูหลักฐาน "ฉบับล่าสุด" ต่อใบเสมอ ไม่งั้นจะนับแถว incomplete เก่าที่ถูกแก้/
-  // ส่งให้การเงินตรวจไปแล้วซ้ำ ทำให้ตัวเลขเกินจริง
-  const { data: evRows } = await supabase
-    .from("payment_evidences")
-    .select("pr_id, status, close_status, submitted_at")
-    .in("pr_id", prList.map((p) => p.id))
-    .order("submitted_at", { ascending: false })
-    .limit(400);
-
-  if (!evRows || evRows.length === 0) return empty;
-
-  const latestByPr = new Map<string, { status: string; close_status: string | null }>();
-  for (const ev of evRows as any[]) {
-    if (!latestByPr.has(ev.pr_id)) latestByPr.set(ev.pr_id, ev);
-  }
-
-  let count = 0;
-  const pendingFixIds = new Set<string>();
-  for (const [prId, ev] of latestByPr) {
-    const prStatus = prStatusById[prId];
-    if (!prStatus) continue;
-    // จ่ายแล้วแต่ค้างเอกสารตัวจริง = เอกสารไม่สมบูรณ์
-    const isAwaitingDocs = prStatus === "paid" && ev.close_status === "incomplete";
-    // ถูกตีกลับก่อนจ่าย รอแก้แล้วส่งใหม่ (งานตีกลับ)
-    const isPendingFix =
-      ev.status === "returned" &&
-      ev.close_status === "incomplete" &&
-      ["approved", "converted"].includes(prStatus);
-    if (isPendingFix) pendingFixIds.add(prId);
-    if (isAwaitingDocs || isPendingFix) count++;
-  }
-  return { count, pendingFixIds };
-}
 
 export default async function DashboardLayout({
   children,
@@ -174,7 +112,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} companyCount={companyCount} pettyCashCount={pettyCashCount} fixedReviewCount={fixedReviewCount} incompleteCount={incompleteCount} todoCount={todoCount} approverDepartment={approverScope.department} approverPositionIds={approverScope.positionIds} />
+      <Sidebar role={profile.role} userId={user.id} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} companyCount={companyCount} pettyCashCount={pettyCashCount} fixedReviewCount={fixedReviewCount} incompleteCount={incompleteCount} todoCount={todoCount} approverDepartment={approverScope.department} approverPositionIds={approverScope.positionIds} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
@@ -182,6 +120,7 @@ export default async function DashboardLayout({
         </main>
         <MobileNav
           role={profile.role as import("@/types/database").UserRole}
+          userId={user.id}
           approvalCount={approvalCount}
           verifyCount={verifyCount}
           companyCount={companyCount}
