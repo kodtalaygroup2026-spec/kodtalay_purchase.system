@@ -19,37 +19,46 @@ async function countIncompleteDocs(
 ): Promise<{ count: number; pendingFixIds: Set<string> }> {
   const empty = { count: 0, pendingFixIds: new Set<string>() };
 
-  const { data: incRows } = await supabase
+  // ดึงหลักฐานทั้งหมดของฉัน แล้วเก็บ "ฉบับล่าสุด" ต่อใบ
+  // ต้องดูฉบับล่าสุดเสมอ (เหมือนหน้างานเอกสารของฉัน) ไม่งั้นจะนับแถว incomplete เก่า
+  // ที่ถูกแก้/ส่งใหม่/ส่งให้การเงินตรวจไปแล้วซ้ำ ทำให้ตัวเลขเกินจริง
+  const { data: evRows } = await supabase
     .from("payment_evidences")
-    .select("pr_id, status, submitted_at")
+    .select("pr_id, status, close_status, submitted_at")
     .eq("submitted_by", userId)
-    .eq("close_status", "incomplete")
     .order("submitted_at", { ascending: false })
-    .limit(200);
+    .limit(400);
 
-  if (!incRows || incRows.length === 0) return empty;
+  if (!evRows || evRows.length === 0) return empty;
 
-  const incPrIds = [...new Set(incRows.map((r: any) => r.pr_id))];
-  const { data: incPrs } = await supabase
+  const latestByPr = new Map<string, { status: string; close_status: string | null }>();
+  for (const ev of evRows as any[]) {
+    if (!latestByPr.has(ev.pr_id)) latestByPr.set(ev.pr_id, ev);
+  }
+
+  const prIds = [...latestByPr.keys()];
+  const { data: prs } = await supabase
     .from("purchase_requisitions")
     .select("id, status")
-    .in("id", incPrIds);
+    .in("id", prIds);
   const prStatusById: Record<string, string> = Object.fromEntries(
-    (incPrs ?? []).map((p: any) => [p.id, p.status])
+    (prs ?? []).map((p: any) => [p.id, p.status])
   );
 
   let count = 0;
   const pendingFixIds = new Set<string>();
-  const seen = new Set<string>();
-  for (const ev of incRows as any[]) {
-    if (seen.has(ev.pr_id)) continue;
-    seen.add(ev.pr_id);
-    const prStatus = prStatusById[ev.pr_id];
+  for (const [prId, ev] of latestByPr) {
+    const prStatus = prStatusById[prId];
     if (!prStatus) continue;
-    const isPendingFix = ev.status === "returned" && ["approved", "converted"].includes(prStatus);
-    const isAwaitingDocs = ev.status === "paid";
-    if (isPendingFix) pendingFixIds.add(ev.pr_id);
-    if (isPendingFix || isAwaitingDocs) count++;
+    // จ่ายแล้วแต่ค้างเอกสารตัวจริง = เอกสารไม่สมบูรณ์
+    const isAwaitingDocs = prStatus === "paid" && ev.close_status === "incomplete";
+    // ถูกตีกลับก่อนจ่าย รอแก้แล้วส่งใหม่ (งานตีกลับ)
+    const isPendingFix =
+      ev.status === "returned" &&
+      ev.close_status === "incomplete" &&
+      ["approved", "converted"].includes(prStatus);
+    if (isPendingFix) pendingFixIds.add(prId);
+    if (isAwaitingDocs || isPendingFix) count++;
   }
   return { count, pendingFixIds };
 }
