@@ -24,7 +24,6 @@ import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
   { href: "/requisitions?step=1",       step: "1",  label: "งานอนุมัติ",         financeOnly: false },
-  { href: "/disbursement",              step: null, label: "งานตรวจสอบ",        financeOnly: true  },
   { href: "/requisitions",              step: null, label: "งานเอกสาร",         financeOnly: false },
   { href: "/requisitions/incomplete",   step: null, label: "งานเอกสารไม่สมบูรณ์", financeOnly: false },
   { href: "/requisitions/new",          step: null, label: "สร้าง PR",           financeOnly: false },
@@ -33,10 +32,10 @@ const MY_WORK_SUB_BASE = [
 // ── MyWorkDropdown ──────────────────────────────────────────────────────────
 // แยกออกมาระดับ module เพื่อให้ state ไม่ถูก reset เมื่อ parent re-render
 
-function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0, todoCount = 0 }: { pathname: string; role?: UserRole; verifyCount?: number; incompleteCount?: number; todoCount?: number }) {
+function MyWorkDropdown({ pathname, role, incompleteCount = 0, todoCount = 0 }: { pathname: string; role?: UserRole; incompleteCount?: number; todoCount?: number }) {
   const searchParams = useSearchParams();
   const currentStep = searchParams?.get("step") ?? null;
-  const isOnMyWork = pathname.startsWith("/requisitions") || pathname.startsWith("/disbursement");
+  const isOnMyWork = pathname.startsWith("/requisitions");
   const [open, setOpen] = useState(isOnMyWork);
 
   const isFinance = role === "finance" || role === "admin";
@@ -71,9 +70,7 @@ function MyWorkDropdown({ pathname, role, verifyCount = 0, incompleteCount = 0, 
 
             // badge แจ้งเตือนต่อเมนูย่อย
             const badge =
-              sub.href === "/disbursement" && verifyCount > 0
-                ? { count: verifyCount, color: "bg-red-500" }
-                : sub.href === "/requisitions/incomplete" && incompleteCount > 0
+              sub.href === "/requisitions/incomplete" && incompleteCount > 0
                 ? { count: incompleteCount, color: "bg-amber-500" }
                 : sub.href === "/requisitions" && todoCount > 0
                 ? { count: todoCount, color: "bg-red-500" }
@@ -173,13 +170,20 @@ function ApprovalsDropdown({
   pathname,
   approvalCount,
   editedCount,
+  verifyCount = 0,
+  role,
 }: {
   pathname: string;
   approvalCount: number;
   editedCount: number;
+  verifyCount?: number;
+  role?: UserRole;
 }) {
-  const isOnApprovals = pathname.startsWith("/approvals");
+  const isFinance = role === "finance" || role === "admin";
+  const isOnApprovals = pathname.startsWith("/approvals") || pathname.startsWith("/disbursement");
   const [open, setOpen] = useState(isOnApprovals);
+  // ป้ายรวมบนหัวข้อ (ตอนหุบ) = รออนุมัติ + งานตรวจสอบ (ถ้าเป็นฝ่ายบัญชี)
+  const headerBadge = approvalCount + (isFinance ? verifyCount : 0);
 
   return (
     <div>
@@ -193,9 +197,9 @@ function ApprovalsDropdown({
       >
         <CheckSquare size={17} />
         <span className="flex-1 text-left">การอนุมัติ</span>
-        {approvalCount > 0 && (
+        {headerBadge > 0 && (
           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
-            {approvalCount > 99 ? "99+" : approvalCount}
+            {headerBadge > 99 ? "99+" : headerBadge}
           </span>
         )}
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -236,6 +240,25 @@ function ApprovalsDropdown({
               </span>
             )}
           </Link>
+
+          {/* งานตรวจสอบ — เฉพาะฝ่ายบัญชี/การเงิน (ย้ายมาจาก "งานของฉัน") */}
+          {isFinance && (
+            <Link
+              href="/disbursement"
+              className={`flex items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors ${
+                pathname.startsWith("/disbursement")
+                  ? "bg-slate-700 font-semibold text-white"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <span>งานตรวจสอบ</span>
+              {verifyCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {verifyCount > 99 ? "99+" : verifyCount}
+                </span>
+              )}
+            </Link>
+          )}
         </div>
       )}
     </div>
@@ -301,7 +324,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <FileText size={17} /><span>งานของฉัน</span>
           </button>
         }>
-          <MyWorkDropdown pathname={pathname} role={role} verifyCount={liveVerifyCount} incompleteCount={incompleteCount} todoCount={todoCount} />
+          <MyWorkDropdown pathname={pathname} role={role} incompleteCount={incompleteCount} todoCount={todoCount} />
         </Suspense>
 
         {/* การอนุมัติ */}
@@ -309,6 +332,8 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
           pathname={pathname}
           approvalCount={approvalCount}
           editedCount={editedCount}
+          verifyCount={liveVerifyCount}
+          role={role}
         />
 
         {/* การเงิน — แสดงให้ finance และ admin */}
