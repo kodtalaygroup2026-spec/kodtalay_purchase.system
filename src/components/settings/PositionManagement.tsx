@@ -102,6 +102,23 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
     setCats((c) => c.map((x) => (x.id === cat.id ? { ...x, is_active: next } : x)));
   }
 
+  async function deleteCategory(cat: CategoryRef) {
+    // เช็คก่อนว่ามีใบขอซื้อใช้หมวดนี้อยู่กี่ใบ (category_id เป็น ON DELETE SET NULL — ลบได้ ไม่ error)
+    const { count } = await (supabase as any)
+      .from("purchase_requisitions")
+      .select("id", { count: "exact", head: true })
+      .eq("category_id", cat.id);
+    const used = count ?? 0;
+    const msg =
+      used > 0
+        ? `หมวด "${cat.name}" มีใบขอซื้อใช้อยู่ ${used} ใบ\n` +
+          `ลบแล้วใบเหล่านั้นจะกลายเป็น "ไม่มีหมวด" (ข้อมูลใบยังอยู่ครบ)\n\nยืนยันลบถาวร?`
+        : `ลบหมวด "${cat.name}" ถาวร?`;
+    if (!confirm(msg)) return;
+    await (supabase as any).from("categories").delete().eq("id", cat.id);
+    setCats((c) => c.filter((x) => x.id !== cat.id));
+  }
+
   // ── ตำแหน่ง ────────────────────────────────────────────────────────────────
   async function addPosition() {
     const name = newName.trim();
@@ -269,6 +286,9 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
                           </button>
                           <button onClick={() => startEditCat(c)} className="rounded-md p-1.5 text-slate-300 hover:bg-slate-200 hover:text-slate-500">
                             <Pencil size={13} />
+                          </button>
+                          <button onClick={() => deleteCategory(c)} title="ลบหมวด" className="rounded-md p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500">
+                            <Trash2 size={13} />
                           </button>
                         </>
                       )}
