@@ -380,8 +380,11 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
               <div className="flex flex-wrap items-center gap-1.5">
                 {posCats.length === 0 && <span className="text-xs text-slate-300">— ยังไม่ผูกหมวด —</span>}
                 {posCats.map((c) => (
-                  <span key={c.id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    {c.code ? `[${c.code}] ` : ""}{c.name}
+                  <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 pl-1.5 pr-2 text-xs font-medium text-slate-700">
+                    {c.code && (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">{c.code}</span>
+                    )}
+                    <span>{c.name}</span>
                     <button onClick={() => assignCategory(c.id, null)} className="text-slate-400 hover:text-red-500">
                       <X size={11} />
                     </button>
