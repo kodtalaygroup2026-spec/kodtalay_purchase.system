@@ -20,13 +20,28 @@ async function countIncompleteDocs(
 ): Promise<{ count: number; pendingFixIds: Set<string> }> {
   const empty = { count: 0, pendingFixIds: new Set<string>() };
 
-  // ดึงหลักฐานทั้งหมดของฉัน แล้วเก็บ "ฉบับล่าสุด" ต่อใบ
-  // ต้องดูฉบับล่าสุดเสมอ (เหมือนหน้างานเอกสารของฉัน) ไม่งั้นจะนับแถว incomplete เก่า
-  // ที่ถูกแก้/ส่งใหม่/ส่งให้การเงินตรวจไปแล้วซ้ำ ทำให้ตัวเลขเกินจริง
+  // ใบที่ฉันเป็นเจ้าของก่อน แล้วค่อยดึงหลักฐานของใบเหล่านั้น
+  // (ไม่กรองด้วย submitted_by เพราะบางใบ บช./แอดมินกดส่งแทน — ต้องอ่านสถานะเอกสาร
+  //  ให้ตรงกับหน้า "งานเอกสารของฉัน" ไม่งั้นใบที่จ่ายแล้วเอกสารไม่ครบจะหลุดหาย)
+  const { data: myPRs } = await supabase
+    .from("purchase_requisitions")
+    .select("id, status")
+    .eq("requester_id", userId)
+    .limit(300);
+
+  const prList = (myPRs ?? []) as { id: string; status: string }[];
+  if (prList.length === 0) return empty;
+
+  const prStatusById: Record<string, string> = Object.fromEntries(
+    prList.map((p) => [p.id, p.status])
+  );
+
+  // ต้องดูหลักฐาน "ฉบับล่าสุด" ต่อใบเสมอ ไม่งั้นจะนับแถว incomplete เก่าที่ถูกแก้/
+  // ส่งให้การเงินตรวจไปแล้วซ้ำ ทำให้ตัวเลขเกินจริง
   const { data: evRows } = await supabase
     .from("payment_evidences")
     .select("pr_id, status, close_status, submitted_at")
-    .eq("submitted_by", userId)
+    .in("pr_id", prList.map((p) => p.id))
     .order("submitted_at", { ascending: false })
     .limit(400);
 
@@ -36,15 +51,6 @@ async function countIncompleteDocs(
   for (const ev of evRows as any[]) {
     if (!latestByPr.has(ev.pr_id)) latestByPr.set(ev.pr_id, ev);
   }
-
-  const prIds = [...latestByPr.keys()];
-  const { data: prs } = await supabase
-    .from("purchase_requisitions")
-    .select("id, status")
-    .in("id", prIds);
-  const prStatusById: Record<string, string> = Object.fromEntries(
-    (prs ?? []).map((p: any) => [p.id, p.status])
-  );
 
   let count = 0;
   const pendingFixIds = new Set<string>();

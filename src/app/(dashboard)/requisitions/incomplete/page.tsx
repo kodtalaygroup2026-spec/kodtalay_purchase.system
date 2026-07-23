@@ -13,22 +13,26 @@ export default async function MyDocumentsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // ── ดึงเฉพาะของตัวเองเท่านั้น (ล็อกด้วย requester_id / submitted_by) ────────
-  const [{ data: myPRs }, { data: myEvidences }] = await Promise.all([
-    (supabase as any)
-      .from("purchase_requisitions")
-      .select("id, pr_number, title, status, total_amount, actual_amount, created_at, finance_action_at")
-      .eq("requester_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(300),
-    (supabase as any)
-      .from("payment_evidences")
-      .select("id, pr_id, status, close_status, review_note, payment_channel, submitted_at")
-      .eq("submitted_by", user.id)
-      .order("submitted_at", { ascending: false }),
-  ]);
+  // ── ดึงเฉพาะใบที่ตัวเองเป็นเจ้าของเท่านั้น (ล็อกด้วย requester_id) ──────────
+  const { data: myPRs } = await (supabase as any)
+    .from("purchase_requisitions")
+    .select("id, pr_number, title, status, total_amount, actual_amount, created_at, finance_action_at")
+    .eq("requester_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(300);
 
   const prList = (myPRs ?? []) as any[];
+  const myPrIds = prList.map((pr) => pr.id as string);
+
+  // หลักฐานของ "ใบที่ฉันเป็นเจ้าของ" — ไม่กรองด้วย submitted_by เพราะบางใบ บช./แอดมิน
+  // อาจกดส่งแทน ถ้ากรองด้วยคนส่งจะหาแถวไม่เจอแล้วอ่านสถานะเอกสารผิดเป็น "สมบูรณ์"
+  const { data: myEvidences } = myPrIds.length > 0
+    ? await (supabase as any)
+        .from("payment_evidences")
+        .select("id, pr_id, status, close_status, review_note, payment_channel, submitted_at")
+        .in("pr_id", myPrIds)
+        .order("submitted_at", { ascending: false })
+    : { data: [] };
 
   // หลักฐานฉบับล่าสุดของแต่ละใบ
   const latestEvByPr: Record<string, any> = {};
