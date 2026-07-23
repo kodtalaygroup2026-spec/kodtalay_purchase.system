@@ -58,7 +58,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function FileUploadZone({
+export function FileUploadZone({
   label, description, files, onAdd, onRemove,
   existing = [], onRemoveExisting, onPreview,
   accept = "image/jpeg,image/png,image/webp,application/pdf",

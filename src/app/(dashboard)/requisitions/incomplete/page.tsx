@@ -69,29 +69,6 @@ export default async function MyDocumentsPage() {
   const actionablePRs = prList.filter(
     (pr) => docStates[pr.id] === "incomplete_fix" || docStates[pr.id] === "incomplete_docs"
   );
-  const actionableEvidenceIds = actionablePRs
-    .map((pr) => latestEvByPr[pr.id]?.id)
-    .filter((id): id is string => Boolean(id));
-
-  const { data: evidenceFileRows } =
-    actionableEvidenceIds.length > 0
-      ? await (supabase as any)
-          .from("evidence_files")
-          .select("id, evidence_id, file_name, file_url, evidence_type")
-          .in("evidence_id", actionableEvidenceIds)
-          .order("created_at")
-      : { data: [] };
-
-  const filesByEvidence: Record<string, IncompleteDoc["files"]> = {};
-  for (const f of (evidenceFileRows ?? []) as any[]) {
-    (filesByEvidence[f.evidence_id] ??= []).push({
-      id: f.id,
-      file_name: f.file_name,
-      file_url: f.file_url,
-      evidence_type: f.evidence_type,
-    });
-  }
-
   // ── ประวัติการแก้เอกสารของใบที่ต้องจัดการ (อ่านจาก audit_logs เดิม ไม่เพิ่มตาราง) ──
   const DOC_HISTORY_ACTIONS = [
     "payment_marked_paid",
@@ -148,7 +125,6 @@ export default async function MyDocumentsPage() {
       review_note: ev?.review_note ?? null,
       kind: docStates[pr.id] === "incomplete_fix" ? "returned" : "awaiting_docs",
       payment_channel: (ev?.payment_channel ?? null) as "company" | "petty_cash" | null,
-      files: filesByEvidence[ev.id] ?? [],
       history: historyByPr[pr.id] ?? [],
     };
   });
@@ -187,7 +163,7 @@ export default async function MyDocumentsPage() {
               <AlertTriangle size={15} className="text-amber-500" />
               ต้องจัดการ ({incompleteDocs.length})
             </h2>
-            <IncompleteDocsList docs={incompleteDocs} currentUserId={user.id} />
+            <IncompleteDocsList docs={incompleteDocs} />
           </div>
         )}
       </MyDocumentsBoard>
