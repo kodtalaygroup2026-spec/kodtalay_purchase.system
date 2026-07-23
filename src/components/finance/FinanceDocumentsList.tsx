@@ -107,13 +107,13 @@ export function FinanceDocumentsList({ docs }: Props) {
             onClick={() => setTab(t.key)}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               tab === t.key
-                ? "bg-blue-600 text-white shadow-sm"
+                ? "bg-blue-50 text-blue-700 shadow-sm"
                 : "text-slate-500 hover:bg-slate-100"
             }`}
           >
             {t.label}
             <span className={`rounded-full px-1.5 text-[10px] font-bold ${
-              tab === t.key ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
+              tab === t.key ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
             }`}>{counts[t.key]}</span>
           </button>
         ))}
