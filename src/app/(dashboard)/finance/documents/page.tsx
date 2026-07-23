@@ -105,17 +105,21 @@ export default async function FinanceDocumentsPage() {
     fixedEvIds.length > 0
       ? await (supabase as any)
           .from("evidence_files")
-          .select("evidence_id, file_name, file_url, created_at")
+          .select("evidence_id, file_name, file_url, evidence_type, created_at")
           .in("evidence_id", fixedEvIds)
           .order("created_at")
       : { data: [] };
 
-  const addedFilesByEv: Record<string, { name: string; url: string }[]> = {};
+  const addedFilesByEv: Record<string, FixedDocRow["added_files"]> = {};
   for (const f of fixedFileRows ?? []) {
     const ev = Object.values(paidEvMap).find((e: any) => e.id === f.evidence_id) as any;
     const cutoff = ev?.reviewed_at ?? ev?.submitted_at ?? null;
     if (cutoff && new Date(f.created_at) <= new Date(cutoff)) continue;
-    (addedFilesByEv[f.evidence_id] ??= []).push({ name: f.file_name, url: f.file_url });
+    (addedFilesByEv[f.evidence_id] ??= []).push({
+      name: f.file_name,
+      url: f.file_url,
+      evidence_type: f.evidence_type ?? "other",
+    });
   }
 
   const fixedDocs: FixedDocRow[] = fixedPRs.map((pr: any) => {

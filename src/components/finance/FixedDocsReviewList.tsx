@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDateTime } from "@/lib/utils/format";
 import {
   Building2, CheckCircle2, FileText, Loader2, RotateCcw,
-  Wallet, Wrench, ChevronDown, X,
+  Wallet, Wrench, ChevronDown, X, ImageIcon, Package, Paperclip,
 } from "lucide-react";
 import { logAudit } from "@/lib/supabase/audit";
 import { externalBrowserLink } from "@/lib/line/externalLink";
@@ -31,9 +31,17 @@ export interface FixedDocRow {
   /** สิ่งที่พนักงานบอกว่าแก้มา */
   fix_note: string | null;
   fixed_at: string | null;
-  /** ไฟล์ที่พนักงานแนบเพิ่มหลังจากจ่าย */
-  added_files: { name: string; url: string }[];
+  /** ไฟล์ที่พนักงานแนบเพิ่มหลังจากจ่าย (แยกตามหมวดเอกสาร) */
+  added_files: { name: string; url: string; evidence_type: string }[];
 }
+
+// หมวดไฟล์ — เรียงและตั้งชื่อให้ตรงกับตอนพนักงานแนบในหน้าแก้เอกสาร
+const FILE_GROUPS: { type: string; label: string; icon: React.ElementType; color: string }[] = [
+  { type: "bill",          label: "บิล / ใบเสร็จ",       icon: FileText,  color: "text-orange-500" },
+  { type: "slip",          label: "สลิปการโอนเงิน",      icon: ImageIcon, color: "text-blue-500" },
+  { type: "goods_receipt", label: "รูปถ่ายการรับของ",    icon: Package,   color: "text-green-500" },
+  { type: "other",         label: "เอกสารอื่น ๆ",        icon: Paperclip, color: "text-slate-400" },
+];
 
 interface Props {
   rows: FixedDocRow[];
@@ -240,53 +248,76 @@ export function FixedDocsReviewList({ rows: initialRows, currentUserId }: Props)
                     {isOpen && (
                       <tr className="border-b border-blue-100 bg-blue-50/20">
                         <td colSpan={7} className="px-4 pb-4 pt-1">
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2">
-                              <p className="text-[11px] font-semibold text-amber-700">เอกสารที่ให้แก้ (รอบก่อน)</p>
-                              <p className="mt-0.5 whitespace-pre-line text-xs text-slate-600">{row.review_note ?? "—"}</p>
-                            </div>
-                            <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2">
-                              <p className="text-[11px] font-semibold text-blue-700">พนักงานแจ้งว่าแก้แล้ว</p>
-                              <p className="mt-0.5 whitespace-pre-line text-xs text-slate-600">{row.fix_note ?? "—"}</p>
-                            </div>
+                          {/* สิ่งที่ให้แก้รอบก่อน — เต็มความกว้าง */}
+                          <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2">
+                            <p className="text-[11px] font-semibold text-amber-700">เอกสารที่ให้แก้ (รอบก่อน)</p>
+                            <p className="mt-0.5 whitespace-pre-line text-xs text-slate-600">{row.review_note ?? "—"}</p>
                           </div>
 
-                          {/* ไฟล์ที่แนบเพิ่ม — กดรูปดูเต็มจอในหน้านี้เลย */}
-                          {row.added_files.length > 0 && (
-                            <div className="mt-3">
-                              <p className="mb-1.5 text-[11px] font-semibold text-slate-500">
-                                ไฟล์ที่แนบเพิ่ม ({row.added_files.length}) — คลิกเพื่อดูเต็มจอ
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {row.added_files.map((f) => {
-                                  const img = isImage(f.name) || isImage(f.url);
-                                  return img ? (
-                                    <button
-                                      key={f.url}
-                                      onClick={() => setLightboxUrl(f.url)}
-                                      title={f.name}
-                                      className="h-20 w-20 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 transition hover:border-blue-400 hover:shadow"
-                                    >
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={f.url} alt={f.name} className="h-full w-full object-cover" />
-                                    </button>
-                                  ) : (
-                                    <a
-                                      key={f.url}
-                                      href={f.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      title={f.name}
-                                      className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 text-red-400 transition hover:border-blue-400 hover:shadow"
-                                    >
-                                      <FileText size={20} />
-                                      <span className="text-[9px] font-semibold text-slate-400">PDF</span>
-                                    </a>
+                          {/* พนักงานแจ้งว่าแก้แล้ว — เป็นหัวข้อ แล้วแยกรูปตามหมวดเอกสารข้างใต้ */}
+                          <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2.5">
+                            <p className="text-[11px] font-semibold text-blue-700">พนักงานแจ้งว่าแก้แล้ว</p>
+                            <p className="mt-0.5 whitespace-pre-line text-xs text-slate-600">{row.fix_note ?? "—"}</p>
+
+                            {row.added_files.length > 0 ? (
+                              <div className="mt-2.5 space-y-2.5 border-t border-blue-100 pt-2.5">
+                                <p className="text-[11px] text-slate-400">
+                                  ไฟล์ที่แนบเพิ่ม ({row.added_files.length}) — คลิกรูปเพื่อดูเต็มจอ
+                                </p>
+                                {FILE_GROUPS.map((group) => {
+                                  const groupFiles = row.added_files.filter((f) =>
+                                    group.type === "other"
+                                      ? !["bill", "slip", "goods_receipt"].includes(f.evidence_type)
+                                      : f.evidence_type === group.type
+                                  );
+                                  if (groupFiles.length === 0) return null;
+                                  return (
+                                    <div key={group.type}>
+                                      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                                        <group.icon size={12} className={group.color} />
+                                        {group.label}
+                                        <span className="rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-500">
+                                          {groupFiles.length}
+                                        </span>
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {groupFiles.map((f) => {
+                                          const img = isImage(f.name) || isImage(f.url);
+                                          return img ? (
+                                            <button
+                                              key={f.url}
+                                              onClick={() => setLightboxUrl(f.url)}
+                                              title={f.name}
+                                              className="h-20 w-20 overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:border-blue-400 hover:shadow"
+                                            >
+                                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                                              <img src={f.url} alt={f.name} className="h-full w-full object-cover" />
+                                            </button>
+                                          ) : (
+                                            <a
+                                              key={f.url}
+                                              href={f.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              title={f.name}
+                                              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-red-400 transition hover:border-blue-400 hover:shadow"
+                                            >
+                                              <FileText size={20} />
+                                              <span className="text-[9px] font-semibold text-slate-400">PDF</span>
+                                            </a>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
                                   );
                                 })}
                               </div>
-                            </div>
-                          )}
+                            ) : (
+                              <p className="mt-2.5 border-t border-blue-100 pt-2.5 text-[11px] text-slate-400">
+                                ไม่ได้แนบไฟล์เพิ่ม
+                              </p>
+                            )}
+                          </div>
 
                           {/* ── ปุ่มตัดสิน ── */}
                           {isRejecting ? (
