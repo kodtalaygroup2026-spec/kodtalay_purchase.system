@@ -9,6 +9,7 @@ import {
   Users, Settings, User as UserIcon, Building2, ListFilter, BookOpen,
 } from "lucide-react";
 import { useRealtimeFinanceCounts } from "@/hooks/useRealtimeFinanceCounts";
+import { useRealtimeApprovalCount } from "@/hooks/useRealtimeApprovalCount";
 import type { UserRole } from "@/types/database";
 
 interface MobileNavProps {
@@ -19,6 +20,8 @@ interface MobileNavProps {
   pettyCashCount?: number;
   incompleteCount?: number;
   todoCount?: number;
+  approverDepartment?: string | null;
+  approverPositionIds?: string[];
 }
 
 interface DrawerLink {
@@ -37,6 +40,8 @@ export function MobileNav({
   pettyCashCount = 0,
   incompleteCount = 0,
   todoCount = 0,
+  approverDepartment = null,
+  approverPositionIds = [],
 }: MobileNavProps) {
   const pathname = usePathname() ?? "/";
   // render = อยู่ใน DOM (คงไว้ระหว่างสไลด์ลงตอนปิด) · show = สถานะเปิด (คุมทรานซิชัน)
@@ -67,6 +72,13 @@ export function MobileNav({
   );
   const liveVerifyCount = financeCounts.verify;
 
+  // ป้ายแดง "อนุมัติ" อัปเดตเรียลไทม์ตามสิทธิ์ที่อนุมัติได้จริง
+  const liveApprovalCount = useRealtimeApprovalCount(
+    approvalCount,
+    { role: role ?? null, department: approverDepartment, positionIds: approverPositionIds },
+    "mobilenav-approval-count"
+  );
+
   if (pathname === "/") return null;
 
   const isFinance = role === "finance" || role === "admin";
@@ -75,7 +87,7 @@ export function MobileNav({
   // ── ปุ่มบนแถบล่าง (ซ้าย 2 / FAB / ขวา 2) ────────────────────────────────
   const leftItems = [
     { href: "/requisitions", label: "งานของฉัน", icon: FileText,    badge: todoCount,     color: "bg-red-500" },
-    { href: "/approvals",    label: "อนุมัติ",    icon: CheckSquare, badge: approvalCount, color: "bg-red-500"  },
+    { href: "/approvals",    label: "อนุมัติ",    icon: CheckSquare, badge: liveApprovalCount, color: "bg-red-500"  },
   ];
   const rightItem = isFinance
     ? { href: "/finance", label: "การเงิน", icon: Banknote, badge: liveVerifyCount, color: "bg-red-500" }
@@ -95,7 +107,7 @@ export function MobileNav({
   ];
 
   const approvals: DrawerLink[] = [
-    { href: "/approvals", label: "รออนุมัติ", icon: CheckSquare, badge: approvalCount, badgeColor: "bg-red-500" },
+    { href: "/approvals", label: "รออนุมัติ", icon: CheckSquare, badge: liveApprovalCount, badgeColor: "bg-red-500" },
     { href: "/approvals/edited-items", label: "รายการแก้ไข", icon: FileText },
     ...(isFinance ? [{ href: "/disbursement", label: "งานตรวจสอบ", icon: ClipboardCheck, badge: liveVerifyCount, badgeColor: "bg-red-500" }] : []),
   ];

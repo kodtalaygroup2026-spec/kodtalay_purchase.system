@@ -20,6 +20,7 @@ import {
 import { APP_NAME } from "@/lib/constants";
 import { KTB_ENABLED } from "@/lib/config/features";
 import { useRealtimeFinanceCounts } from "@/hooks/useRealtimeFinanceCounts";
+import { useRealtimeApprovalCount } from "@/hooks/useRealtimeApprovalCount";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
@@ -286,9 +287,11 @@ interface SidebarProps {
   pettyCashCount?: number;
   incompleteCount?: number;
   todoCount?: number;
+  approverDepartment?: string | null;
+  approverPositionIds?: string[];
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, incompleteCount = 0, todoCount = 0 }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, incompleteCount = 0, todoCount = 0, approverDepartment = null, approverPositionIds = [] }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
@@ -297,6 +300,13 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
     verifyCount, companyCount, pettyCashCount,
     role === "finance" || role === "admin",
     "sidebar-finance-counts"
+  );
+
+  // ป้ายแดง "การอนุมัติ / รออนุมัติ" อัปเดตเรียลไทม์เมื่อมีใบส่งเข้ามา (ตามสิทธิ์ที่อนุมัติได้จริง)
+  const liveApprovalCount = useRealtimeApprovalCount(
+    approvalCount,
+    { role: role ?? null, department: approverDepartment, positionIds: approverPositionIds },
+    "sidebar-approval-count"
   );
 
   if (pathname === "/") return null;
@@ -342,7 +352,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
         {/* การอนุมัติ */}
         <ApprovalsDropdown
           pathname={pathname}
-          approvalCount={approvalCount}
+          approvalCount={liveApprovalCount}
           editedCount={editedCount}
           verifyCount={financeCounts.verify}
           role={role}

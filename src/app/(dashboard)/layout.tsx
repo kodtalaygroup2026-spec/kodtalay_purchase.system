@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { RealtimeNotificationProvider } from "@/components/shared/RealtimeNotificationProvider";
+import { countApprovablePRs } from "@/lib/pr/approvals";
 
 /**
  * นับเอกสารของตัวเองที่ไม่สมบูรณ์ (ถูกตีกลับ + จ่ายแล้วแต่ค้างเอกสารตัวจริง)
@@ -77,11 +78,14 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email, role, department, line_user_id")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, { data: myMemberships }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, email, role, department, line_user_id")
+      .eq("id", user.id)
+      .single(),
+    (supabase as any).from("position_members").select("position_id").eq("user_id", user.id),
+  ]);
 
   if (!profile) {
     redirect("/login");
@@ -92,14 +96,16 @@ export default async function DashboardLayout({
   const isApprover = profile.role === "manager" || profile.role === "admin";
   const isFinance = profile.role === "finance" || profile.role === "admin";
 
+  // ขอบเขตสิทธิ์อนุมัติ — ใช้นับ badge "รออนุมัติ" ให้ตรงกับหน้า /approvals (รวมสมาชิกตำแหน่ง)
+  const approverScope = {
+    role: profile.role,
+    department: profile.department ?? null,
+    positionIds: ((myMemberships ?? []) as { position_id: string }[]).map((m) => m.position_id),
+  };
+
   // ยิงทุก query สำหรับ badge พร้อมกันในรอบเดียว (เดิมยิงทีละอันตามลำดับ)
-  const [approvalRes, editedRes, verifyRes, companyRes, pettyRes, incompleteInfo, todoRes] = await Promise.all([
-    isApprover
-      ? (supabase as any)
-          .from("purchase_requisitions")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["submitted", "pending_second_approval"])
-      : Promise.resolve({ count: 0 }),
+  const [approvalCountValue, editedRes, verifyRes, companyRes, pettyRes, incompleteInfo, todoRes] = await Promise.all([
+    countApprovablePRs(supabase, approverScope),
     isApprover
       ? (supabase as any).from("pr_item_edit_logs").select("pr_id").limit(200)
       : Promise.resolve({ data: [] }),
@@ -139,7 +145,7 @@ export default async function DashboardLayout({
       .in("status", ["draft", "returned", "rejected", "approved", "converted"]),
   ]);
 
-  const approvalCount = approvalRes.count ?? 0;
+  const approvalCount = approvalCountValue;
   const editedCount = new Set(((editedRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
   // นับตามจำนวนใบ (distinct pr_id) ไม่ใช่จำนวนแถวหลักฐาน — ให้ตรงกับหน้างานตรวจสอบ
   const verifyCount = new Set(((verifyRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
@@ -152,7 +158,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} companyCount={companyCount} pettyCashCount={pettyCashCount} incompleteCount={incompleteCount} todoCount={todoCount} />
+      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} companyCount={companyCount} pettyCashCount={pettyCashCount} incompleteCount={incompleteCount} todoCount={todoCount} approverDepartment={approverScope.department} approverPositionIds={approverScope.positionIds} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
@@ -166,6 +172,8 @@ export default async function DashboardLayout({
           pettyCashCount={pettyCashCount}
           incompleteCount={incompleteCount}
           todoCount={todoCount}
+          approverDepartment={approverScope.department}
+          approverPositionIds={approverScope.positionIds}
         />
       </div>
       {/* Real-time toast notifications — ไม่กระทบ layout เดิม */}
