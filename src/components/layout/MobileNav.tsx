@@ -8,13 +8,15 @@ import {
   AlertTriangle, ClipboardCheck, PiggyBank, FileCheck2,
   Users, Settings, User as UserIcon, Building2, ListFilter, BookOpen,
 } from "lucide-react";
-import { useRealtimeVerifyCount } from "@/hooks/useRealtimeVerifyCount";
+import { useRealtimeFinanceCounts } from "@/hooks/useRealtimeFinanceCounts";
 import type { UserRole } from "@/types/database";
 
 interface MobileNavProps {
   role?: UserRole;
   approvalCount?: number;
   verifyCount?: number;
+  companyCount?: number;
+  pettyCashCount?: number;
   incompleteCount?: number;
   todoCount?: number;
 }
@@ -31,6 +33,8 @@ export function MobileNav({
   role,
   approvalCount = 0,
   verifyCount = 0,
+  companyCount = 0,
+  pettyCashCount = 0,
   incompleteCount = 0,
   todoCount = 0,
 }: MobileNavProps) {
@@ -55,12 +59,13 @@ export function MobileNav({
     window.setTimeout(() => setRender(false), 300);
   }
 
-  // ป้ายแดง "งานตรวจสอบ" อัปเดตเรียลไทม์เมื่อมีการส่งหลักฐานเข้ามา (เฉพาะ finance/admin)
-  const liveVerifyCount = useRealtimeVerifyCount(
-    verifyCount,
+  // ป้ายแดงงานฝ่ายบัญชี (ตรวจสอบ / บริษัทสั่งจ่าย / เงินสดย่อย) อัปเดตเรียลไทม์ (เฉพาะ finance/admin)
+  const financeCounts = useRealtimeFinanceCounts(
+    verifyCount, companyCount, pettyCashCount,
     role === "finance" || role === "admin",
-    "mobilenav-verify-count"
+    "mobilenav-finance-counts"
   );
+  const liveVerifyCount = financeCounts.verify;
 
   if (pathname === "/") return null;
 
@@ -98,8 +103,8 @@ export function MobileNav({
   const finance: DrawerLink[] = isFinance
     ? [
         { href: "/finance", label: "รายการทั้งหมด", icon: ListFilter },
-        { href: "/finance/payments", label: "รายการบริษัทสั่งจ่าย", icon: Building2 },
-        { href: "/finance/petty-cash", label: "รายการเงินสดย่อย", icon: PiggyBank },
+        { href: "/finance/payments", label: "รายการบริษัทสั่งจ่าย", icon: Building2, badge: financeCounts.company, badgeColor: "bg-red-500" },
+        { href: "/finance/petty-cash", label: "รายการเงินสดย่อย", icon: PiggyBank, badge: financeCounts.pettyCash, badgeColor: "bg-red-500" },
         { href: "/finance/documents", label: "งานเอกสารสมบูรณ์", icon: FileCheck2 },
       ]
     : [];

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { KTB_ENABLED } from "@/lib/config/features";
-import { useRealtimeVerifyCount } from "@/hooks/useRealtimeVerifyCount";
+import { useRealtimeFinanceCounts } from "@/hooks/useRealtimeFinanceCounts";
 import type { UserRole } from "@/types/database";
 
 const MY_WORK_SUB_BASE = [
@@ -117,7 +117,7 @@ const FINANCE_SUB = [
     : []),
 ];
 
-function FinanceDropdown({ pathname }: { pathname: string }) {
+function FinanceDropdown({ pathname, companyCount = 0, pettyCashCount = 0 }: { pathname: string; companyCount?: number; pettyCashCount?: number }) {
   const isOnFinance = pathname.startsWith("/finance");
   const [open, setOpen] = useState(isOnFinance);
 
@@ -143,6 +143,11 @@ function FinanceDropdown({ pathname }: { pathname: string }) {
             const isActive = isExact
               ? pathname === "/finance"
               : pathname.startsWith(sub.href);
+            // ป้ายแดงบอกจำนวนใบที่รอจ่ายในแต่ละช่องทาง
+            const badge =
+              sub.href === "/finance/payments" ? companyCount
+              : sub.href === "/finance/petty-cash" ? pettyCashCount
+              : 0;
             return (
               <Link
                 key={sub.href}
@@ -154,7 +159,12 @@ function FinanceDropdown({ pathname }: { pathname: string }) {
                 }`}
               >
                 {sub.icon}
-                {sub.label}
+                <span className="flex-1">{sub.label}</span>
+                {badge > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -272,19 +282,21 @@ interface SidebarProps {
   approvalCount?: number;
   editedCount?: number;
   verifyCount?: number;
+  companyCount?: number;
+  pettyCashCount?: number;
   incompleteCount?: number;
   todoCount?: number;
 }
 
-export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, incompleteCount = 0, todoCount = 0 }: SidebarProps) {
+export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount = 0, companyCount = 0, pettyCashCount = 0, incompleteCount = 0, todoCount = 0 }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const isAdmin = role === "admin";
 
-  // ป้ายแดง "งานตรวจสอบ" อัปเดตเรียลไทม์เมื่อมีการส่งหลักฐานเข้ามา (เฉพาะ finance/admin)
-  const liveVerifyCount = useRealtimeVerifyCount(
-    verifyCount,
+  // ป้ายแดงงานฝ่ายบัญชี (ตรวจสอบ / บริษัทสั่งจ่าย / เงินสดย่อย) อัปเดตเรียลไทม์ (เฉพาะ finance/admin)
+  const financeCounts = useRealtimeFinanceCounts(
+    verifyCount, companyCount, pettyCashCount,
     role === "finance" || role === "admin",
-    "sidebar-verify-count"
+    "sidebar-finance-counts"
   );
 
   if (pathname === "/") return null;
@@ -332,7 +344,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
           pathname={pathname}
           approvalCount={approvalCount}
           editedCount={editedCount}
-          verifyCount={liveVerifyCount}
+          verifyCount={financeCounts.verify}
           role={role}
         />
 
@@ -343,7 +355,7 @@ export function Sidebar({ role, approvalCount = 0, editedCount = 0, verifyCount 
             <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
               การเงิน
             </p>
-            <FinanceDropdown pathname={pathname} />
+            <FinanceDropdown pathname={pathname} companyCount={financeCounts.company} pettyCashCount={financeCounts.pettyCash} />
           </>
         )}
       </nav>

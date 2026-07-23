@@ -84,7 +84,7 @@ export default async function DashboardLayout({
   const isFinance = profile.role === "finance" || profile.role === "admin";
 
   // ยิงทุก query สำหรับ badge พร้อมกันในรอบเดียว (เดิมยิงทีละอันตามลำดับ)
-  const [approvalRes, editedRes, verifyRes, incompleteInfo, todoRes] = await Promise.all([
+  const [approvalRes, editedRes, verifyRes, companyRes, pettyRes, incompleteInfo, todoRes] = await Promise.all([
     isApprover
       ? (supabase as any)
           .from("purchase_requisitions")
@@ -102,6 +102,26 @@ export default async function DashboardLayout({
           .eq("purchase_requisitions.status", "pending_finance")
           .limit(500)
       : Promise.resolve({ data: [] }),
+    // รอจ่าย — ช่องทางบริษัทสั่งจ่าย (verified + channel company/null)
+    isFinance
+      ? (supabase as any)
+          .from("payment_evidences")
+          .select("pr_id, purchase_requisitions!inner(status)")
+          .eq("status", "verified")
+          .or("payment_channel.eq.company,payment_channel.is.null")
+          .eq("purchase_requisitions.status", "pending_finance")
+          .limit(500)
+      : Promise.resolve({ data: [] }),
+    // รอจ่าย — ช่องทางเงินสดย่อย (verified + channel petty_cash)
+    isFinance
+      ? (supabase as any)
+          .from("payment_evidences")
+          .select("pr_id, purchase_requisitions!inner(status)")
+          .eq("status", "verified")
+          .eq("payment_channel", "petty_cash")
+          .eq("purchase_requisitions.status", "pending_finance")
+          .limit(500)
+      : Promise.resolve({ data: [] }),
     countIncompleteDocs(supabase, user.id),
     (supabase as any)
       .from("purchase_requisitions")
@@ -114,13 +134,16 @@ export default async function DashboardLayout({
   const editedCount = new Set(((editedRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
   // นับตามจำนวนใบ (distinct pr_id) ไม่ใช่จำนวนแถวหลักฐาน — ให้ตรงกับหน้างานตรวจสอบ
   const verifyCount = new Set(((verifyRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
+  // รอจ่ายแต่ละช่องทาง (distinct pr_id) — ให้ตรงกับหน้ารายการบริษัทสั่งจ่าย / เงินสดย่อย
+  const companyCount = new Set(((companyRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
+  const pettyCashCount = new Set(((pettyRes.data ?? []) as any[]).map((r) => r.pr_id)).size;
   const incompleteCount = incompleteInfo.count;
   // งานเอกสาร = งานของเจ้าของทั้งหมด แต่หักใบที่ถูก บช. ตีกลับออก (ไปนับที่ "ไม่สมบูรณ์" แทน)
   const todoCount = Math.max(0, (todoRes.count ?? 0) - incompleteInfo.pendingFixIds.size);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} incompleteCount={incompleteCount} todoCount={todoCount} />
+      <Sidebar role={profile.role} approvalCount={approvalCount} editedCount={editedCount} verifyCount={verifyCount} companyCount={companyCount} pettyCashCount={pettyCashCount} incompleteCount={incompleteCount} todoCount={todoCount} />
       <div className="flex flex-1 flex-col min-w-0">
         <Navbar profile={profile} avatarUrl={avatarUrl} />
         <main className="flex-1 px-4 py-6 pb-24 lg:pb-6 lg:px-6">
@@ -130,6 +153,8 @@ export default async function DashboardLayout({
           role={profile.role as import("@/types/database").UserRole}
           approvalCount={approvalCount}
           verifyCount={verifyCount}
+          companyCount={companyCount}
+          pettyCashCount={pettyCashCount}
           incompleteCount={incompleteCount}
           todoCount={todoCount}
         />
