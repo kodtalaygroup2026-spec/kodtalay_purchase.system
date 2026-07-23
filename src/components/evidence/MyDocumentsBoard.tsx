@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import { AlertTriangle, FileCheck2, FileStack, Inbox, Search, X } from "lucide-react";
+import { AlertTriangle, FileCheck2, FileStack, Hourglass, Inbox, Search, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FilterDropdown } from "@/components/shared/FilterDropdown";
 import type { PrStatus } from "@/types/database";
@@ -20,7 +20,7 @@ export interface MyDocRow {
   amount: number;
 }
 
-type CardFilter = "all" | "complete" | "incomplete";
+type CardFilter = "all" | "complete" | "incomplete" | "fix_review";
 
 type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "pr_number";
 
@@ -56,6 +56,7 @@ export function MyDocumentsBoard({ rows, children }: MyDocumentsBoardProps) {
   const totalCount = rows.length;
   const completeCount = rows.filter((r) => r.doc_state === "complete").length;
   const incompleteCount = rows.filter((r) => isIncomplete(r.doc_state)).length;
+  const fixReviewCount = rows.filter((r) => r.doc_state === "fix_review").length;
 
   // กดการ์ดซ้ำ = กลับมาดูทั้งหมด
   function toggleCard(filter: CardFilter) {
@@ -67,6 +68,7 @@ export function MyDocumentsBoard({ rows, children }: MyDocumentsBoardProps) {
     const filtered = rows.filter((r) => {
       if (cardFilter === "complete" && r.doc_state !== "complete") return false;
       if (cardFilter === "incomplete" && !isIncomplete(r.doc_state)) return false;
+      if (cardFilter === "fix_review" && r.doc_state !== "fix_review") return false;
       if (!keyword) return true;
       return (
         r.pr_number.toLowerCase().includes(keyword) ||
@@ -137,12 +139,24 @@ export function MyDocumentsBoard({ rows, children }: MyDocumentsBoardProps) {
       activeRing: "ring-amber-400",
       activeBg: "bg-amber-50/40",
     },
+    {
+      key: "fix_review",
+      label: "รอตรวจสอบ",
+      sub: "ส่งแก้แล้ว รอฝ่ายบัญชี",
+      count: fixReviewCount,
+      icon: Hourglass,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      countColor: "text-blue-600",
+      activeRing: "ring-blue-400",
+      activeBg: "bg-blue-50/40",
+    },
   ];
 
   return (
     <div className="space-y-6">
       {/* ── การ์ดสรุป (กดเพื่อกรองตาราง) ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CARDS.map((card) => {
           const isActive = cardFilter === card.key;
           return (

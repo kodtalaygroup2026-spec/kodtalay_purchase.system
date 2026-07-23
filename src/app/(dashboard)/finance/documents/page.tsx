@@ -138,15 +138,16 @@ export default async function FinanceDocumentsPage() {
     };
   });
 
-  // ใบที่จ่ายแล้ว — สถานะเอกสารตามที่ บช. เลือกตอนจ่าย (สมบูรณ์ / จ่ายแล้วแต่ค้างเอกสาร)
-  // ใบสถานะ fixed อยู่ในคิวตรวจด้านบนแล้ว ไม่แสดงซ้ำในตาราง
-  const paidDocs: DocRow[] = (paidPRs ?? [])
-    .filter((pr: any) => paidEvMap[pr.id]?.close_status !== "fixed")
-    .map((pr: any) => {
+  // ใบที่จ่ายแล้ว — สถานะเอกสารตามที่ บช. เลือกตอนจ่าย
+  // (สมบูรณ์ / จ่ายแล้วแต่ค้างเอกสาร / ส่งแก้แล้วรอตรวจ — ใบ fixed ยังมีคิวตรวจด้านบนแยกอีกชั้น)
+  const paidDocs: DocRow[] = (paidPRs ?? []).map((pr: any) => {
     const ev = paidEvMap[pr.id] ?? null;
     // ไม่มีแถวหลักฐานผูกอยู่ = ไม่รู้สถานะเอกสาร — อย่าเดาว่า "สมบูรณ์"
-    const closeStatus: "complete" | "incomplete" | null =
-      !ev ? null : ev.close_status === "incomplete" ? "incomplete" : "complete";
+    const closeStatus: "complete" | "incomplete" | "fixed" | null =
+      !ev ? null
+      : ev.close_status === "incomplete" ? "incomplete"
+      : ev.close_status === "fixed" ? "fixed"
+      : "complete";
     const isIncomplete = closeStatus === "incomplete";
     return {
       id: pr.id,

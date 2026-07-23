@@ -19,7 +19,7 @@ export interface DocRow {
   /** วันที่จ่าย (ใบที่จ่ายแล้ว) หรือวันที่ตีกลับ (ใบที่ยังไม่จ่าย) */
   date: string | null;
   payment_channel: "company" | "petty_cash" | null;
-  close_status: "complete" | "incomplete" | null;
+  close_status: "complete" | "incomplete" | "fixed" | null;
   /** true = จ่ายเงินไปแล้ว · false = ถูกตีกลับก่อนจ่าย (ยังไม่จ่าย) */
   is_paid: boolean;
   /** เหตุผลตีกลับ / เอกสารที่ยังขาด */
@@ -30,12 +30,13 @@ interface Props {
   docs: DocRow[];
 }
 
-type Tab = "all" | "complete" | "incomplete";
+type Tab = "all" | "complete" | "incomplete" | "fixed";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "all",        label: "ทั้งหมด" },
   { key: "complete",   label: "สมบูรณ์" },
   { key: "incomplete", label: "ไม่สมบูรณ์" },
+  { key: "fixed",      label: "รอตรวจสอบ" },
 ];
 
 type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "pr_number";
@@ -72,6 +73,7 @@ export function FinanceDocumentsList({ docs }: Props) {
     all: filteredExceptTab.length,
     complete: filteredExceptTab.filter((d) => d.close_status === "complete").length,
     incomplete: filteredExceptTab.filter((d) => d.close_status === "incomplete").length,
+    fixed: filteredExceptTab.filter((d) => d.close_status === "fixed").length,
   };
 
   const visible = useMemo(() => {
@@ -236,6 +238,11 @@ export function FinanceDocumentsList({ docs }: Props) {
                             <span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> ไม่สมบูรณ์ · รอแก้ไข
                           </span>
                         )
+                      ) : d.close_status === "fixed" ? (
+                        /* คนเบิกส่งเอกสารที่แก้แล้ว — รอฝ่ายบัญชีตรวจในคิวด้านบน */
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> รอตรวจสอบ · ส่งแก้แล้ว
+                        </span>
                       ) : (
                         <span className="text-xs text-slate-300">—</span>
                       )}
