@@ -16,11 +16,13 @@ export interface DocRow {
   amount: number;
   branch_code: string;
   requester_name: string;
-  /** วันที่จ่าย (สมบูรณ์) หรือวันที่ตีกลับ (ไม่สมบูรณ์) */
+  /** วันที่จ่าย (ใบที่จ่ายแล้ว) หรือวันที่ตีกลับ (ใบที่ยังไม่จ่าย) */
   date: string | null;
   payment_channel: "company" | "petty_cash" | null;
   close_status: "complete" | "incomplete" | null;
-  /** เหตุผลตีกลับ (เฉพาะไม่สมบูรณ์) */
+  /** true = จ่ายเงินไปแล้ว · false = ถูกตีกลับก่อนจ่าย (ยังไม่จ่าย) */
+  is_paid: boolean;
+  /** เหตุผลตีกลับ / เอกสารที่ยังขาด */
   review_note: string | null;
 }
 
@@ -223,9 +225,17 @@ export function FinanceDocumentsList({ docs }: Props) {
                           <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> สมบูรณ์ · จ่ายแล้ว
                         </span>
                       ) : d.close_status === "incomplete" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> ไม่สมบูรณ์ · รอแก้ไข
-                        </span>
+                        d.is_paid ? (
+                          /* จ่ายเงินไปแล้ว แต่เอกสารตัวจริงยังไม่ครบ — รอคนเบิกส่งเพิ่ม */
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> ไม่สมบูรณ์ · จ่ายแล้ว
+                          </span>
+                        ) : (
+                          /* ตีกลับก่อนจ่าย — ยังไม่จ่ายเงิน รอคนเบิกแก้แล้วส่งมาใหม่ */
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> ไม่สมบูรณ์ · รอแก้ไข
+                          </span>
+                        )
                       ) : (
                         <span className="text-xs text-slate-300">—</span>
                       )}

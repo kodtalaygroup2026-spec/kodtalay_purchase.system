@@ -140,6 +140,7 @@ export default async function FinanceDocumentsPage() {
       date: pr.finance_action_at ?? null,
       payment_channel: ev?.payment_channel ?? null,
       close_status: isIncomplete ? "incomplete" : "complete",
+      is_paid: true, // มาจาก PR สถานะ paid ทั้งชุด
       review_note: isIncomplete ? (ev?.review_note ?? null) : null,
     };
   });
@@ -159,6 +160,7 @@ export default async function FinanceDocumentsPage() {
         date: ev?.reviewed_at ?? ev?.submitted_at ?? null,
         payment_channel: ev?.payment_channel ?? null,
         close_status: "incomplete",
+        is_paid: false, // ถูกตีกลับก่อนจ่าย — ยังไม่จ่ายเงิน
         review_note: ev?.review_note ?? null,
       };
     });
