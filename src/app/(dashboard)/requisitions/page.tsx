@@ -40,8 +40,27 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
 
   const { data: prs } = await query;
 
-  // หมายเหตุ: การตีกลับจากฝ่ายบัญชี (บช.) ไปแสดงที่หน้า "งานเอกสารไม่สมบูรณ์" เท่านั้น
-  // จึงไม่แสดงป้ายตีกลับซ้ำในหน้านี้ (payment_returned = false เสมอ)
+  // ── ตรวจว่า PR ไหนถูกฝ่ายบัญชี (บช.) ตีกลับให้แก้ก่อนตั้งจ่าย ──────────────
+  // เกณฑ์: หลักฐานฉบับล่าสุดของใบนั้นมีสถานะ 'returned' (ยังไม่ได้ส่งแก้กลับเข้าไป)
+  // ใช้แยกการ์ด "งานตีกลับ" ออกจาก "แนบบิล + รับของ" และโชว์ป้ายเตือนในตาราง
+  const prIds = (prs ?? []).map((pr: any) => pr.id as string);
+  const returnedPrIds = new Set<string>();
+  if (prIds.length > 0) {
+    const { data: evidenceRows } = await (supabase as any)
+      .from("payment_evidences")
+      .select("pr_id, status, submitted_at")
+      .in("pr_id", prIds)
+      .order("submitted_at", { ascending: false });
+
+    const latestStatusByPr = new Map<string, string>();
+    for (const ev of (evidenceRows ?? []) as any[]) {
+      if (!latestStatusByPr.has(ev.pr_id)) latestStatusByPr.set(ev.pr_id, ev.status);
+    }
+    for (const [prId, status] of latestStatusByPr) {
+      if (status === "returned") returnedPrIds.add(prId);
+    }
+  }
+
   const prList: PRRow[] = (prs ?? []).map((pr: any) => ({
     id: pr.id,
     pr_number: pr.pr_number,
@@ -52,7 +71,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps) {
     created_at: pr.created_at,
     needed_by: pr.needed_by ?? null,
     is_urgent: pr.is_urgent ?? false,
-    payment_returned: false,
+    payment_returned: returnedPrIds.has(pr.id),
     profiles: pr.profiles ?? null,
     purchase_orders: pr.purchase_orders ?? [],
   }));

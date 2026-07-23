@@ -4,7 +4,7 @@ import { useState, useMemo, Fragment } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Search, X, FileText, Settings2, Clock, ImagePlus, Banknote } from "lucide-react";
+import { ChevronDown, Search, X, FileText, Settings2, Clock, ImagePlus, Banknote, RotateCcw } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { PR_STATUS_LABELS } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -117,6 +117,7 @@ export const STEP_STATUSES: PrStatus[][] = [
   ["submitted", "pending_second_approval"],       // A2: รออนุมัติ
   ["approved", "converted"],                      // A3: แนบบิล+รับของ
   ["pending_finance"],                            // A4: รอตั้งจ่าย
+  ["approved", "converted"],                      // A5: งานตีกลับ (บช. ตีกลับให้แก้)
 ];
 
 const SUMMARY_STEPS = [
@@ -162,8 +163,8 @@ const SUMMARY_STEPS = [
     SubIcon: ImagePlus,
     match: (pr: PRRow) => {
       const s = pr.status as string;
-      // รวม PR ที่ถูกบัญชีตีกลับ (พนักงานต้องแนบหลักฐานใหม่) — PR กลับมาเป็น approved
-      return s === "approved" || s === "converted";
+      // เฉพาะงานแนบบิลปกติ — งานที่ถูก บช. ตีกลับให้แก้ แยกไปการ์ด "งานตีกลับ"
+      return (s === "approved" || s === "converted") && !pr.payment_returned;
     },
   },
   {
@@ -181,6 +182,19 @@ const SUMMARY_STEPS = [
       return s === "pending_finance";
     },
   },
+  {
+    label: "งานตีกลับ",
+    subEn: "บช. ตีกลับให้แก้ไข",
+    iconBg: "bg-red-100",
+    iconColor: "text-red-500",
+    subIconBg: "bg-red-500",
+    badgeBg: "bg-red-500",
+    activeBorder: "ring-red-400",
+    activeBg: "bg-red-50",
+    SubIcon: RotateCcw,
+    // งานที่ฝ่ายบัญชีตีกลับให้แก้ก่อนส่งเข้าตั้งจ่าย (หลักฐานล่าสุด status='returned')
+    match: (pr: PRRow) => pr.payment_returned === true,
+  },
 ];
 
 function ProgressSummary({
@@ -194,7 +208,7 @@ function ProgressSummary({
 }) {
   const counts = SUMMARY_STEPS.map((s) => prs.filter(s.match).length);
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {SUMMARY_STEPS.map((step, i) => {
         const isActive = activeStep === i;
         const { SubIcon } = step;
