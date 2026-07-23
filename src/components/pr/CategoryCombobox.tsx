@@ -38,6 +38,7 @@ export function CategoryCombobox({
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [newCode, setNewCode] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const highlightRef = useRef<HTMLButtonElement>(null);
@@ -91,14 +92,15 @@ export function CategoryCombobox({
     setQuery("");
   }
 
-  // สร้างหมวดใหม่จากที่พิมพ์
+  // สร้างหมวดใหม่จากที่พิมพ์ — บันทึกโค้ดด้วย (โชว์เป็นป้ายหน้าชื่อเหมือนหมวดเดิม)
   async function doCreate() {
     const name = query.trim();
     if (!name || creating) return;
     setCreating(true);
+    const code = newCode.trim().toUpperCase() || null;
     const { data, error } = await (supabase as any)
       .from("categories")
-      .insert({ name, mode: 1, is_active: true })
+      .insert({ code, name, mode: 1, is_active: true })
       .select("id, code, name, mode, is_active, position_id")
       .single();
     setCreating(false);
@@ -107,6 +109,7 @@ export function CategoryCombobox({
     onChange(data.id);
     setOpen(false);
     setQuery("");
+    setNewCode("");
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -218,21 +221,32 @@ export function CategoryCombobox({
           {showCreate && (
             <>
               <div className="my-1 border-t border-slate-100" />
-              <button
-                type="button"
-                ref={highlight === createIndex ? highlightRef : null}
-                onClick={doCreate}
+              <div
                 onMouseEnter={() => setHighlight(createIndex)}
-                disabled={creating}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${
-                  highlight === createIndex ? "bg-emerald-100 text-emerald-800" : "text-emerald-700 hover:bg-emerald-50"
-                }`}
+                className={`px-2 py-1.5 ${highlight === createIndex ? "bg-emerald-50" : ""}`}
               >
-                {creating ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Plus size={14} className="shrink-0" />}
-                <span className="flex-1">
-                  เพิ่มหมวด <span className="font-semibold">&ldquo;{typed}&rdquo;</span>
-                </span>
-              </button>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doCreate(); } }}
+                    placeholder="โค้ด"
+                    className="w-24 shrink-0 rounded-md border border-emerald-300 bg-white px-2 py-1.5 text-xs font-semibold uppercase text-emerald-700 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={doCreate}
+                    disabled={creating}
+                    className="flex flex-1 items-center gap-1.5 rounded-md bg-emerald-100 px-2.5 py-1.5 text-left text-sm text-emerald-800 transition hover:bg-emerald-200 disabled:opacity-60"
+                  >
+                    {creating ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Plus size={14} className="shrink-0" />}
+                    <span className="flex-1 truncate">
+                      เพิ่มหมวด <span className="font-semibold">&ldquo;{typed}&rdquo;</span>
+                    </span>
+                  </button>
+                </div>
+                <p className="mt-1 px-0.5 text-[10px] text-slate-400">โค้ดจะโชว์เป็นป้ายหน้าชื่อ (เว้นว่างได้)</p>
+              </div>
             </>
           )}
         </div>

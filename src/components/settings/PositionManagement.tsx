@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, X, Users, Tag, Pencil, Check, Trash2, Loader2 } from "lucide-react";
+import { Plus, X, Users, Tag, Pencil, Check, Trash2, Loader2, Eye, EyeOff } from "lucide-react";
+
+const MODE_LABELS: Record<number, string> = { 1: "จัดซื้อทั่วไป", 2: "งานช่าง" };
 
 export interface Position {
   id: string;
@@ -22,6 +24,7 @@ export interface CategoryRef {
   name: string;
   mode: number;
   position_id: string | null;
+  is_active: boolean;
 }
 export interface UserRef {
   id: string;
@@ -46,6 +49,55 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+
+  // ── หมวดงาน (สร้าง/แก้/เปิด-ปิด) ────────────────────────────────────────────
+  const [newCatCode, setNewCatCode] = useState("");
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatMode, setNewCatMode] = useState(1);
+  const [catBusy, setCatBusy] = useState(false);
+  const [editCatId, setEditCatId] = useState<string | null>(null);
+  const [editCatCode, setEditCatCode] = useState("");
+  const [editCatName, setEditCatName] = useState("");
+
+  async function addCategory() {
+    const name = newCatName.trim();
+    if (!name || catBusy) return;
+    setCatBusy(true);
+    const code = newCatCode.trim().toUpperCase() || null;
+    const { data } = await (supabase as any)
+      .from("categories")
+      .insert({ code, name, mode: newCatMode, is_active: true })
+      .select("id, code, name, mode, position_id, is_active")
+      .single();
+    if (data) {
+      setCats((c) => [...c, {
+        id: data.id, code: data.code ?? null, name: data.name,
+        mode: data.mode ?? 1, position_id: data.position_id ?? null, is_active: data.is_active ?? true,
+      }]);
+    }
+    setNewCatCode(""); setNewCatName(""); setCatBusy(false);
+  }
+
+  function startEditCat(c: CategoryRef) {
+    setEditCatId(c.id);
+    setEditCatCode(c.code ?? "");
+    setEditCatName(c.name);
+  }
+
+  async function saveCategory(id: string) {
+    const name = editCatName.trim();
+    if (!name) { setEditCatId(null); return; }
+    const code = editCatCode.trim().toUpperCase() || null;
+    await (supabase as any).from("categories").update({ code, name }).eq("id", id);
+    setCats((c) => c.map((x) => (x.id === id ? { ...x, code, name } : x)));
+    setEditCatId(null);
+  }
+
+  async function toggleCatActive(cat: CategoryRef) {
+    const next = !cat.is_active;
+    await (supabase as any).from("categories").update({ is_active: next }).eq("id", cat.id);
+    setCats((c) => c.map((x) => (x.id === cat.id ? { ...x, is_active: next } : x)));
+  }
 
   // ── ตำแหน่ง ────────────────────────────────────────────────────────────────
   async function addPosition() {
@@ -105,6 +157,106 @@ export function PositionManagement({ initialPositions, initialMembers, categorie
 
   return (
     <div className="space-y-4">
+      {/* ── จัดการหมวดงาน ─────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-1.5 text-sm font-bold text-slate-700">
+          <Tag size={15} className="text-slate-400" /> จัดการหมวดงาน
+        </div>
+
+        {/* ฟอร์มเพิ่มหมวด — โค้ด + ชื่อ + โหมด */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <input
+            value={newCatCode}
+            onChange={(e) => setNewCatCode(e.target.value.toUpperCase())}
+            placeholder="โค้ด เช่น MKT"
+            className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold uppercase placeholder:font-normal placeholder:normal-case focus:border-blue-500 focus:outline-none"
+          />
+          <input
+            value={newCatName}
+            onChange={(e) => setNewCatName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCategory()}
+            placeholder="ชื่อหมวด เช่น งบการตลาด"
+            className="min-w-[180px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+          <select
+            value={newCatMode}
+            onChange={(e) => setNewCatMode(Number(e.target.value))}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option value={1}>จัดซื้อทั่วไป</option>
+            <option value={2}>งานช่าง</option>
+          </select>
+          <button
+            onClick={addCategory}
+            disabled={catBusy || !newCatName.trim()}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {catBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} เพิ่มหมวด
+          </button>
+        </div>
+
+        {/* รายการหมวด แยกตามโหมด — แก้โค้ด/ชื่อ หรือเปิด-ปิดใช้งาน */}
+        <div className="space-y-3">
+          {[1, 2].map((mode) => {
+            const list = cats.filter((c) => c.mode === mode);
+            if (list.length === 0) return null;
+            return (
+              <div key={mode}>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {MODE_LABELS[mode] ?? `MODE ${mode}`}
+                </p>
+                <div className="space-y-1">
+                  {list.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5">
+                      {editCatId === c.id ? (
+                        <>
+                          <input
+                            value={editCatCode}
+                            onChange={(e) => setEditCatCode(e.target.value.toUpperCase())}
+                            placeholder="โค้ด"
+                            className="w-24 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold uppercase focus:border-blue-500 focus:outline-none"
+                          />
+                          <input
+                            value={editCatName}
+                            onChange={(e) => setEditCatName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && saveCategory(c.id)}
+                            autoFocus
+                            className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                          <button onClick={() => saveCategory(c.id)} className="rounded-md bg-blue-600 p-1.5 text-white hover:bg-blue-700">
+                            <Check size={13} />
+                          </button>
+                          <button onClick={() => setEditCatId(null)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-200">
+                            <X size={13} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {c.code && (
+                            <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">{c.code}</span>
+                          )}
+                          <span className={`flex-1 text-sm ${c.is_active ? "text-slate-700" : "text-slate-400 line-through"}`}>{c.name}</span>
+                          <button
+                            onClick={() => toggleCatActive(c)}
+                            title={c.is_active ? "ปิดการใช้งาน" : "เปิดใช้งาน"}
+                            className={`rounded-md p-1.5 ${c.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-300 hover:bg-slate-200"}`}
+                          >
+                            {c.is_active ? <Eye size={14} /> : <EyeOff size={14} />}
+                          </button>
+                          <button onClick={() => startEditCat(c)} className="rounded-md p-1.5 text-slate-300 hover:bg-slate-200 hover:text-slate-500">
+                            <Pencil size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* เพิ่มตำแหน่ง */}
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <input

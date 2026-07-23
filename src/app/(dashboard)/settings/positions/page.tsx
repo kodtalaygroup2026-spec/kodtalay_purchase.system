@@ -33,7 +33,7 @@ export default async function PositionsSettingsPage() {
   ] = await Promise.all([
     (supabase as any).from("approval_positions").select("id, name, description, is_active, created_at").order("created_at"),
     (supabase as any).from("position_members").select("id, position_id, user_id, profiles!user_id(full_name)"),
-    (supabase as any).from("categories").select("id, code, name, mode, position_id").order("mode").order("sort_order"),
+    (supabase as any).from("categories").select("id, code, name, mode, position_id, is_active").order("mode").order("sort_order"),
     (supabase as any).from("profiles").select("id, full_name, role").order("full_name"),
   ]);
 
@@ -57,6 +57,7 @@ export default async function PositionsSettingsPage() {
     name: c.name,
     mode: c.mode ?? 1,
     position_id: c.position_id ?? null,
+    is_active: c.is_active ?? true,
   }));
 
   const userList: UserRef[] = (users ?? []).map((u: any) => ({
