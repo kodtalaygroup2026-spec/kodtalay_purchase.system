@@ -467,37 +467,39 @@ export function FinancePaymentConsole({ companies, payments, settingsByBranch, c
 
   return (
     <div className="space-y-4">
-      {/* ── แท็บบริษัท ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => switchCompany(null)}
-          className={`rounded-lg border-2 px-3 py-1.5 text-sm font-semibold transition ${
-            selectedCompany === null
-              ? "border-slate-700 bg-slate-700 text-white"
-              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-          }`}
-        >
-          ทั้งหมด {payments.length}
-        </button>
-        {companies.map((c) => (
+      {/* ── แท็บบริษัท (กล่องครอบแบบเดียวกับแท็บหน้าตำแหน่งผู้ดูแล) ────────────── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
           <button
-            key={c.id}
-            onClick={() => switchCompany(c.code)}
-            className={`flex items-center gap-2 rounded-lg border-2 px-3 py-1.5 text-sm font-semibold transition ${
-              selectedCompany === c.code
-                ? "border-slate-700 bg-slate-50 text-slate-800"
-                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+            onClick={() => switchCompany(null)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+              selectedCompany === null
+                ? "bg-slate-800 text-white shadow-sm"
+                : "text-slate-500 hover:bg-slate-100"
             }`}
           >
-            <BranchBadge code={c.code} />
-            {c.name}
-            {c.count > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
-                {c.count}
-              </span>
-            )}
+            ทั้งหมด {payments.length}
           </button>
-        ))}
+          {companies.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => switchCompany(c.code)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                selectedCompany === c.code
+                  ? "bg-slate-100 text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              <BranchBadge code={c.code} />
+              {c.name}
+              {c.count > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                  {c.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
         <span className="ml-auto text-sm text-slate-500">
           ยอดรวมรอจ่าย <span className="font-bold text-slate-800">{formatCurrency(grandTotal)}</span>
         </span>
